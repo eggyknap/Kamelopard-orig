@@ -71,6 +71,8 @@ class Sequence
 end
 
 class KMLObject
+    attr_reader :id
+
     def to_kml
         raise "to_kml for this object (#{ self }) isn't yet defined!"
     end
@@ -242,12 +244,54 @@ class FlyTo < TourPrimitive
 end
 
 class AnimatedUpdate < TourPrimitive
+    # For now, the user has to specify the change / create / delete elements in
+    # the <Update> manually, rather than creating objects.
+    attr_accessor :target, :delayedstart, :updates, :duration
+
+    def initialize(updates = [], duration = 0, target = '', delayedstart = nil)
+        begin
+            raise "incorrect object type" unless @target.kind_of? KMLObject
+            @target = target.id
+        rescue RuntimeError
+            @target = target
+        end
+        @updates = updates
+        @duration = duration
+        @delayedstart = delayedstart
+    end
+
+    def <<(a)
+        @updates << a
+    end
+
+    def to_kml
+        k = <<-animatedupdate_kml
+            <gx:AnimatedUpdate>
+                <gx:duration>#{@duration}</gx:duration>
+        animatedupdate_kml
+        k << "              <gx:delayeStart>#{@delayedstart}</gx:delayedStart>\n" unless @delayedstart.nil?
+        k << "              <targetHref>#{@target}</targetHref>\n"
+        k << "              <Update>\n"
+        k << "                  " << @updates.join("\n                  ")
+        k << "              </Update>\n         </gx:AnimatedUpdate>\n"
+        k
+    end
 end
 
 class TourControl < TourPrimitive
 end
 
 class Wait < TourPrimitive
+    attr_accessor :duration
+    def initialize(duration = 0)
+        @duration = duration
+    end
+
+    def to_kml
+        <<-wait_kml
+            <gx:Wait><gx:duration>#{@duration}</gx:duration></gx:Wait>
+        wait_kml
+    end
 end
 
 class SoundCue < TourPrimitive
