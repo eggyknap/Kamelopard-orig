@@ -25,7 +25,7 @@ end
 
 # Accepts XdX'X.X" or X.XXXX with either +/- or N/E/S/W
 def convert_coord(a)
-    a = a.upcase.strip
+    a = a.to_s.upcase.strip
 
     mult = 1
     if a =~ /^-/ then
@@ -56,6 +56,20 @@ def convert_coord(a)
     a -= 180 if a > 180
     a += 180 if a < -180
     return a
+end
+
+class KMLStatus
+    include Singleton
+    attr_accessor :flyto_mode
+
+    def initialize
+        @tours = []
+    end
+
+    def cur_tour
+        @tours << Tour.new if @tours.length == 0
+        @tours.last
+    end
 end
 
 class Sequence
@@ -261,7 +275,7 @@ class AnimatedUpdate < TourPrimitive
     end
 
     def <<(a)
-        @updates << a
+        @updates << a << "\n"
     end
 
     def to_kml
@@ -320,4 +334,38 @@ class Tour
         k << "  </gx:Playlist></gx:Tour>\n"
         k
     end
+end
+
+def fly_to(p, d = 0, m = nil)
+    m = KMLStatus.instance.flyto_mode if m.nil?
+    KMLStatus.instance.cur_tour << FlyTo.new(p, d, m)
+end
+
+def set_flyto_mode_to(a)
+    KMLStatus.instance.flyto_mode = a
+end
+
+def mod_popup_for(p, v)
+    a = AnimatedUpdate.new
+    if ! p.is_a? Placemark then
+        raise "Can't show popups for things that aren't placemarks"
+    end
+    a << "<Change><Placemark targetId=\"#{p.id}\"><visibility>#{v}</visibility></Placemark></Change>"
+    KMLStatus.instance.cur_tour << a
+end
+
+def hide_popup_for(p)
+    mod_popup_for(p, 0)
+end
+
+def show_popup_for(p)
+    mod_popup_for(p, 1)
+end
+
+def point(lo, la, alt=0, mode=nil, extrude = false)
+    Point.new(lo, la, alt, mode.nil? ? :clampToGround : mode, extrude)
+end
+
+def print_kml
+    puts KMLStatus.instance.cur_tour.to_kml
 end
