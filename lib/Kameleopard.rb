@@ -25,6 +25,7 @@ end
 
 # Accepts XdX'X.X" or X.XXXX with either +/- or N/E/S/W
 def convert_coord(a)
+    # XXX Make sure coordinate is valid for the type of coordinate the caller wants, based on some other value passed in
     a = a.to_s.upcase.strip
 
     mult = 1
@@ -60,15 +61,37 @@ end
 
 class KMLStatus
     include Singleton
-    attr_accessor :flyto_mode
+    attr_accessor :flyto_mode, :folders, :tours, :styles
 
     def initialize
         @tours = []
+        @folders = []
+        @styles = []
     end
 
     def cur_tour
         @tours << Tour.new if @tours.length == 0
         @tours.last
+    end
+
+    def get_document_kml
+        h = <<-doc_header
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+        doc_header
+
+        # Print styles first
+        @styles.map do |a| h << a.to_kml end
+
+        # then folders
+        @folders.map do |a| h << a.to_kml end
+
+        # then tours
+        @tours.map do |a| h << a.to_kml end
+        h << '</Document>'
+
+        h
     end
 end
 
@@ -122,7 +145,7 @@ class Point < Geometry
     end
 end
 
-class AbstractView
+class AbstractView < KMLObject
 =begin
 <!-- abstract element; do not create -->
 <!-- AbstractView -->                   <!-- Camera, LookAt -->                
@@ -200,13 +223,54 @@ class Feature < KMLObject
             [@abstractview, 'abstractview', false ],          # XXX
             [@timeprimitive, 'timeprimitive', false ],        # XXX
             [@styleurl, 'styleUrl', true],
-            [@styleselector, 'StyleSelector', false ],        # XXX
+            [@styleselector, "<styleSelector>#{@styleselector.nil? ? '' : @styleselector.to_kml}</styleSelector>", false ],
             [@region, 'Region', false ],                      # XXX
             [@metadata, 'Metadata', false ],                  # XXX
             [@extendeddata, 'ExtendedData', false ]           # XXX
         ]
         k << yield if block_given?
     end
+end
+
+class StyleSelector < KMLObject
+end
+
+class Style < StyleSelector
+    attr_acccessor :icon, :label, :line, :poly, :balloon, :list
+    def initialize(icon = nil, label = nil, line = nil, poly = nil, balloon = nil, list = nil)
+        @icon = icon
+        @label = label
+        @line = line
+        @poly = poly
+        @balloon = balloon
+        @list = list
+        @id = "style_#{ Sequence.instance.next }"
+    end
+end
+
+class StyleMap < StyleSelector
+    def initialize(pairs = {})
+        @pairs = pairs
+        @id = "stylemap_#{ Sequence.instance.next }"
+    end
+
+    def <<
+        
+    end
+
+    def to_kml
+        k <<-stylemap_kml
+            <StyleMap id="#{@id}">
+
+            </StyleMap>
+        stylemap_kml
+    end
+=begin
+  <Pair id="ID">
+    <key>normal</key>              <!-- kml:styleStateEnum:  normal or highlight -->
+    <styleUrl>...</styleUrl> or <Style>...</Style>
+  </Pair>
+=end
 end
 
 class Placemark < Feature
@@ -234,7 +298,7 @@ class Placemark < Feature
     end
 end
 
-class TourPrimitive
+class TourPrimitive < KMLObject
 end
 
 class FlyTo < TourPrimitive
@@ -311,7 +375,7 @@ end
 class SoundCue < TourPrimitive
 end
 
-class Tour
+class Tour < KMLObject
     def initialize(name = nil)
         @id = "tour_#{ Sequence.instance.next }"
         @name = name
@@ -366,6 +430,6 @@ def point(lo, la, alt=0, mode=nil, extrude = false)
     Point.new(lo, la, alt, mode.nil? ? :clampToGround : mode, extrude)
 end
 
-def print_kml
-    puts KMLStatus.instance.cur_tour.to_kml
+def get_kml
+    KMLStatus.instance.get_document_kml
 end

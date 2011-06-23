@@ -39,7 +39,7 @@ require 'Kameleopard'
 #
 #puts t.to_kml
 
-p = point(123, 239)
+p = point("123d5'23.18\" W", 239.34287)
 pl = Placemark.new 'my_placemerk', p
 hide_popup_for pl
 fly_to p
