@@ -1,3 +1,4 @@
+$LOAD_PATH << './lib'
 require 'Kameleopard'
 
 #a = Point.new("10d11'2.23\" S", '123.283')
