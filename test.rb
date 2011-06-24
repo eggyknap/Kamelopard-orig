@@ -45,4 +45,4 @@ hide_popup_for pl
 fly_to p
 show_popup_for pl
 
-print_kml
+puts get_kml

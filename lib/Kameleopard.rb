@@ -232,11 +232,212 @@ class Feature < KMLObject
     end
 end
 
+class ColorStyle < KMLObject
+    attr_accessor :color
+    attr_reader :colormode
+    
+    def initialize(color, colormode = :normal)
+        # Note: color element order is aabbggrr
+        @color = color
+        checK_colormode colormode
+        @colormode = colormode # Can be :normal or :random
+    end
+
+    def check_colormode(a)
+        raise "colorMode must be either \"normal\" or \"random\"" unless a == 'normal' or a == 'random'
+    end
+
+    def colormode=(a)
+        check_colormode a
+        @colormode = a
+    end
+
+    def alpha
+        @color[0,1]
+    end
+
+    def alpha=(a)
+        @color[0,1] = a
+    end
+
+    def blue
+        @color[2,1]
+    end
+
+    def blue=(a)
+        @color[2,1] = a
+    end
+
+    def green
+        @color[4,1]
+    end
+
+    def green=(a)
+        @color[4,1] = a
+    end
+
+    def red
+        @color[6,1]
+    end
+
+    def red=(a)
+        @color[6,1] = a
+    end
+
+    def to_kml
+        <<-colorstyle
+            <color>#{@color}</color>
+            <colorMode>#{@colormode}</colormode>
+        colorstyle
+    end
+end
+
+class BalloonStyle < ColorStyle
+    attr_accessor :bgcolor, :text, :textcolor, :displaymode
+
+    # Note: color element order is aabbggrr
+    def initialize(text = '', textcolor = 'ff000000', bgcolor = 'ffffffff', displaymode = :default)
+        @bgcolor = bgcolor
+        @text = text
+        @textcolor = textcolor
+        @displaymode = displaymode
+    end
+
+    def to_kml
+        <<-balloonstyle
+                <BalloonStyle id="#{@id}">
+                    <bgColor>#{@bgcolor}</bgcolor>
+                    <text>#{@text}</text>
+                    <textcolor>#{@textcolor}</textcolor>
+                    <displaymode>#{@displaymode}</displaymode>
+                </BalloonStyle>
+        balloonstyle
+    end
+end
+
+class IconStyle < ColorStyle
+    attr_accessor :scale, :heading, :href, :hs_x, :hs_y, :hs_xunits, :hs_yunits
+
+    def initialize(href, scale = 1, heading = 0, hs_x = 0.5, hs_y = 0.5, hs_xunits = :fraction, hs_yunits = :fraction, color = 'ffffffff', colormode = :normal)
+        super(color, colormode)
+        @href = href
+        @scale = scale
+        @heading = heading
+        @hs_x = hs_x
+        @hs_y = hs_y
+        @hs_xunits = hs_xunits
+        @hs_yunits = hs_yunits
+    end
+
+    def to_kml
+        <<-iconstyle
+                <IconStyle id="#{@id}">
+                    #{ super }
+                    <scale>#{@scale}</scale>
+                    <heading>#{@heading}</heading>
+                    <Icon>
+                        <href>#{@href}</href>
+                    </Icon>
+                    <hotSpot x="#{@hs_x}" y="#{@hs_y}" xunits="#{@hs_xunits}" yunits="#{@hs_yunits}" />
+                </IconStyle>
+        iconstyle
+    end
+end
+
+class LabelStyle < ColorStyle
+    attr_accessor :scale
+
+    def initialize(scale = 1, color = 'ffffffff', colormode = :normal)
+        super(color, colormode)
+        @scale = scale
+    end
+
+    def to_kml
+        <<-labelstyle
+                <LabelStyle id="#{@id}">
+                    #{ super }
+                    <scale>#{@scale}</scale>
+                </LabelStyle>
+        labelstyle
+    end
+end
+
+class LineStyle < ColorStyle
+    attr_accessor :outercolor, :outerwidth, :physicalwidth, :width
+
+    def initialize(width = 1, outercolor = 'ffffffff', outerwidth = 0, physicalwidth = 0, color = 'ffffffff', colormode = :normal)
+        super(color, colormode)
+        @width = width
+        @outercolor = outercolor
+        @outerwidth = outerwidth
+        @physicalwidth = physicalwidth
+    end
+
+    def to_kml
+        <<-linestyle
+                <LineStyle id="#{@id}">
+                    #{ super }
+                    <width>#{@width}</width>
+                    <gx:outerColor>#{@outercolor}</gx:outerColor>
+                    <gx:outerWidth>#{@outerwidth}</gx:outerWidth>
+                    <gx:physicalWidth>#{@physicalwidth}</gx:physicalWidth>
+                </LineStyle>
+        linestyle
+    end
+end
+
+class ListStyle < ColorStyle
+    attr_accessor :listitemtype, :bgcolor, :state, :href
+
+    def initialize(bgcolor = nil, state = nil, href = nil, listitemtype = nil)
+        @bgcolor = bgcolor
+        @state = state
+        @href = href
+        @listitemtype = listitemtype
+    end
+
+    def to_kml
+        k = "                <ListStyle id=\"#{@id}\">\n"
+        k << kml_array([
+            [@listitemtype, 'listItemType', true],
+            [@bgcolor, 'bgColor', true]
+        ])
+        if (! @state.nil? or ! @href.nil?) then
+            k << "                  <ItemIcon>\n"
+            k << "                      <state>#{@state}</state>\n" unless @state.nil? 
+            k << "                      <href>#{@href}</href>\n" unless @href.nil? 
+            k << "                  </ItemIcon>\n"
+        end
+        k << "                </ListStyle>\n"
+        k
+    end
+end
+
+class PolyStyle < ColorStyle
+    attr_accessor :fill, :outline
+
+    def initialize(fill = 1, outline = 1, color = 'ffffffff', colormode = :normal)
+        super(color, colormode)
+        @fill = fill
+        @outline = outline
+    end
+
+    def to_kml
+        <<-polystyle
+                <PolyStyle id="#{@id}">
+                    #{ super }
+                    <fill>#{@fill}</fill>
+                    <outline>#{@outline}</outline>
+                </PolyStyle>
+        polystyle
+    end
+end
+
 class StyleSelector < KMLObject
 end
 
 class Style < StyleSelector
-    attr_acccessor :icon, :label, :line, :poly, :balloon, :list
+    attr_accessor :icon, :label, :line, :poly, :balloon, :list
     def initialize(icon = nil, label = nil, line = nil, poly = nil, balloon = nil, list = nil)
         @icon = icon
         @label = label
@@ -245,6 +446,18 @@ class Style < StyleSelector
         @balloon = balloon
         @list = list
         @id = "style_#{ Sequence.instance.next }"
+    end
+
+    def to_kml
+        k = "               <Style id=\"#{@id}\">\n"
+        k << @icon.to_kml unless @icon.nil?
+        k << @label.to_kml unless @label.nil?
+        k << @line.to_kml unless @line.nil?
+        k << @poly.to_kml unless @poly.nil?
+        k << @balloon.to_kml unless @balloon.nil?
+        k << @list.to_kml unless @list.nil?
+        k << "               </Style>\n"
+        k
     end
 end
 
