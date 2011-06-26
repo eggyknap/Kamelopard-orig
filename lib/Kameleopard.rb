@@ -1,5 +1,12 @@
 require 'singleton'
 
+@@sequence = 0
+
+def get_next_id
+    @@sequence += 1
+    @@sequence
+end
+
 # Print out a set of kml fields. Expects an array argument. Each entry in the
 # array is itself an array, containing two strings and a boolean. If the first
 # string is nil, the function won't print anything for that element. If it's
@@ -95,23 +102,11 @@ class KMLStatus
     end
 end
 
-class Sequence
-    include Singleton
-    def initialize
-        @value = 1
-    end
-
-    def next
-        return @value
-        @value += 1
-    end
-end
-
 class KMLObject
     attr_reader :id
 
     def initialize
-        @id = "#{self.class.name}_#{ Sequence.instance.next }"
+        @id = "#{self.class.name}_#{ get_next_id }"
     end
 
     def to_kml
@@ -458,27 +453,36 @@ class Style < StyleSelector
 end
 
 class StyleMap < StyleSelector
+    # StyleMap manages pairs. The first entry in each pair is a string key, the
+    # second is either a Style or a styleUrl. It will be assumed to be the
+    # latter if its kind_of? method doesn't claim it's a Style object
     def initialize(pairs = {})
-        @pairs = pairs
+        super()
+        @pairs = []
+        pairs.each do |k, v|
+            self << [k, v]
+        end
     end
 
-    def <<
-        
+    def <<(a)
+        id = get_next_id
+        @pairs << [id, a[0], a[1]]
     end
 
     def to_kml
-        k <<-stylemap_kml
-            <StyleMap id="#{@id}">
-
-            </StyleMap>
-        stylemap_kml
+        k = "            <StyleMap id=\"#{@id}\">\n"
+        @pairs.each do |a|
+            k << "                  <Pair id=\"Pair_#{ a[0] }\">\n"
+            k << "                      <key>#{ a[1] }</key>\n"
+            if a[2].kind_of? Style then
+                k << a[2].to_kml
+            else
+                k << "                      <styleUrl>#{ a[2] }</styleUrl>\n"
+            end
+            k << "                  </Pair>\n"
+        end
+        k << "            </StyleMap>\n"
     end
-=begin
-  <Pair id="ID">
-    <key>normal</key>              <!-- kml:styleStateEnum:  normal or highlight -->
-    <styleUrl>...</styleUrl> or <Style>...</Style>
-  </Pair>
-=end
 end
 
 class Placemark < Feature

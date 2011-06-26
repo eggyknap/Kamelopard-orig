@@ -6,7 +6,7 @@ def ids
     puts l.id
 end
 
-def style
+def stylebits
     #def initialize(href, scale = 1, heading = 0, hs_x = 0.5, hs_y = 0.5, hs_xunits = :fraction, hs_yunits = :fraction, color = 'ffffffff', colormode = :normal)
     ico = IconStyle.new('')
     #def initialize(scale = 1, color = 'ffffffff', colormode = :normal)
@@ -19,7 +19,21 @@ def style
     bal = BalloonStyle.new()
     #def initialize(bgcolor = nil, state = nil, href = nil, listitemtype = nil)
     list = ListStyle.new()
+    return ico, label, line, poly, bal, list
+end
 
+def stylemap
+    ico, label, line, poly, bal, list = stylebits
+    a = Style.new(nil, nil, nil, nil, nil, list)
+
+    s = StyleMap.new( :a => a, :b => 'test')
+    puts s.to_kml
+    b = Style.new(ico, nil, nil, nil, nil, nil)
+    puts b.to_kml
+end
+
+def style
+    ico, label, line, poly, bal, list = stylebits
     a = Style.new(ico, label, line, poly, bal, list)
     puts a.to_kml
 
@@ -76,4 +90,4 @@ def lang
     puts get_kml
 end
 
-style
+stylemap
