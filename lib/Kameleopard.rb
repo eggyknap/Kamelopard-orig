@@ -110,6 +110,10 @@ end
 class KMLObject
     attr_reader :id
 
+    def initialize
+        @id = "#{self.class.name}_#{ Sequence.instance.next }"
+    end
+
     def to_kml
         raise "to_kml for this object (#{ self }) isn't yet defined!"
     end
@@ -121,13 +125,12 @@ end
 class Point < Geometry
     attr_accessor :id, :longitude, :latitude, :altitude, :altitudeMode, :extrude
     def initialize(long, lat, alt=0, altmode=:clampToGround, extrude=false)
+        super()
         @longitude = convert_coord(long)
         @latitude = convert_coord(lat)
         @altitude = alt
         @altitudeMode = altmode
         @extrude = extrude
-
-        @id = "point_#{Sequence.instance.next}"
     end
 
     def to_s
@@ -146,17 +149,6 @@ class Point < Geometry
 end
 
 class AbstractView < KMLObject
-=begin
-<!-- abstract element; do not create -->
-<!-- AbstractView -->                   <!-- Camera, LookAt -->                
-  <!-- extends Object -->
-  <TimePrimitive>...</TimePrimitive>     <!-- gx:TimeSpan or gx:TimeStamp -->
-  <gx:ViewerOptions>
-      <gx:option name=" " enabled=boolean />   <!-- name="streetview", "historicalimagery", 
-                                                        or "sunlight" -->
-  </gx:ViewerOptions>
-<-- /AbstractView -->
-=end
 end
 
 class Camera < AbstractView
@@ -164,6 +156,7 @@ end
 
 class LookAt < AbstractView
     def initialize(point = nil, heading = 0, tilt = 0, range = 0)
+        super()
         if point.nil? then
             @point = nil
         elsif point.kind_of? Placemark then
@@ -174,7 +167,6 @@ class LookAt < AbstractView
         @heading = heading
         @tilt = tilt
         @range = range
-        @id = "lookAt_#{ Sequence.instance.next }"
     end
 
     def to_kml
@@ -202,6 +194,7 @@ class Feature < KMLObject
         :extendeddata
 
     def initialize (name = nil)
+        super()
         @name = name
         @visibility = true
         @open = false
@@ -237,14 +230,15 @@ class ColorStyle < KMLObject
     attr_reader :colormode
     
     def initialize(color, colormode = :normal)
+        super()
         # Note: color element order is aabbggrr
         @color = color
-        checK_colormode colormode
+        check_colormode colormode
         @colormode = colormode # Can be :normal or :random
     end
 
     def check_colormode(a)
-        raise "colorMode must be either \"normal\" or \"random\"" unless a == 'normal' or a == 'random'
+        raise "colorMode must be either \"normal\" or \"random\"" unless a == :normal or a == :random
     end
 
     def colormode=(a)
@@ -297,6 +291,7 @@ class BalloonStyle < ColorStyle
 
     # Note: color element order is aabbggrr
     def initialize(text = '', textcolor = 'ff000000', bgcolor = 'ffffffff', displaymode = :default)
+        super(nil, :normal)
         @bgcolor = bgcolor
         @text = text
         @textcolor = textcolor
@@ -390,6 +385,7 @@ class ListStyle < ColorStyle
     attr_accessor :listitemtype, :bgcolor, :state, :href
 
     def initialize(bgcolor = nil, state = nil, href = nil, listitemtype = nil)
+        super(nil, :normal)
         @bgcolor = bgcolor
         @state = state
         @href = href
@@ -439,13 +435,13 @@ end
 class Style < StyleSelector
     attr_accessor :icon, :label, :line, :poly, :balloon, :list
     def initialize(icon = nil, label = nil, line = nil, poly = nil, balloon = nil, list = nil)
+        super()
         @icon = icon
         @label = label
         @line = line
         @poly = poly
         @balloon = balloon
         @list = list
-        @id = "style_#{ Sequence.instance.next }"
     end
 
     def to_kml
@@ -464,7 +460,6 @@ end
 class StyleMap < StyleSelector
     def initialize(pairs = {})
         @pairs = pairs
-        @id = "stylemap_#{ Sequence.instance.next }"
     end
 
     def <<
@@ -491,7 +486,6 @@ class Placemark < Feature
     def initialize(name = nil, geo = nil)
         super(name)
         @geometry = geo
-        @id = "placemark_#{Sequence.instance.next}"
     end
     
     def to_kml
@@ -590,7 +584,6 @@ end
 
 class Tour < KMLObject
     def initialize(name = nil)
-        @id = "tour_#{ Sequence.instance.next }"
         @name = name
         @items = []
     end
