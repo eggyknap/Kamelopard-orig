@@ -14,13 +14,13 @@ end
 # second string as a KML element name, and print it along with XML decorators
 # and the field value. False values mean just print the second string, with no
 # decorators and no other values
-def kml_array(m)
+def kml_array(m, indent = 0)
     k = ''
     m.map do |a|
         r = ''
         if ! a[0].nil? then
             if a[2] then
-                r << '      <' << a[1] << '>' << a[0].to_s << '</' << a[1] << ">\n"
+                r << "#{ ' ' * indent}<" << a[1] << '>' << a[0].to_s << '</' << a[1] << ">\n"
             else
                 r << a[1] << "\n"
             end
@@ -66,42 +66,6 @@ def convert_coord(a)
     return a
 end
 
-class KMLStatus
-    include Singleton
-    attr_accessor :flyto_mode, :folders, :tours, :styles
-
-    def initialize
-        @tours = []
-        @folders = []
-        @styles = []
-    end
-
-    def cur_tour
-        @tours << Tour.new if @tours.length == 0
-        @tours.last
-    end
-
-    def get_document_kml
-        h = <<-doc_header
-<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
-<Document>
-        doc_header
-
-        # Print styles first
-        @styles.map do |a| h << a.to_kml end
-
-        # then folders
-        @folders.map do |a| h << a.to_kml end
-
-        # then tours
-        @tours.map do |a| h << a.to_kml end
-        h << '</Document>'
-
-        h
-    end
-end
-
 class KMLObject
     attr_reader :id
 
@@ -109,7 +73,7 @@ class KMLObject
         @id = "#{self.class.name}_#{ get_next_id }"
     end
 
-    def to_kml
+    def to_kml(indent = 0)
         raise "to_kml for this object (#{ self }) isn't yet defined!"
     end
 end
@@ -132,13 +96,14 @@ class Point < Geometry
         "Point (#{@longitude}, #{@latitude}, #{@altitude}, mode = #{@altitudeMode}, #{ @extrude ? 'extruded' : 'not extruded' })"
     end
 
-    def to_kml
+    def to_kml(indent = 0)
+
         <<-point_kml
-            <Point id="#{ @id }">
-                <extrude>#{ @extrude ? 1 : 0 }</extrude>
-                <altitudeMode>#{ @altitudeMode }</altitudeMode>
-                <coordinates>#{ @longitude }, #{ @latitude }, #{ @altitude }</coordinates>
-            </Point>
+#{ ' ' * indent }<Point id="#{ @id }">
+#{ ' ' * indent }    <extrude>#{ @extrude ? 1 : 0 }</extrude>
+#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>
+#{ ' ' * indent }    <coordinates>#{ @longitude }, #{ @latitude }, #{ @altitude }</coordinates>
+#{ ' ' * indent }</Point>
         point_kml
     end
 end
@@ -164,8 +129,8 @@ class LookAt < AbstractView
         @range = range
     end
 
-    def to_kml
-        k = "    <LookAt id=\"#{@id}\">\n"
+    def to_kml(indent = 0)
+        k = "#{ ' ' * indent }<LookAt id=\"#{@id}\">\n"
         # XXX Need to include AbstractView stuff here sometime
         k << kml_array([
             [ @point.longitude, 'longitude', true ],
@@ -176,8 +141,8 @@ class LookAt < AbstractView
             [ @heading, 'heading', true ],
             [ @tilt, 'tilt', true ],
             [ @range, 'range', true ]
-        ])
-        k << "    </LookAt>\n"
+        ], indent + 4)
+        k << "#{ ' ' * indent }</LookAt>\n"
     end
 end
 
@@ -195,28 +160,92 @@ class Feature < KMLObject
         @open = false
     end
 
-    def to_kml
-        k = ''
-        kml_array [
-            [@name, 'name', true],
-            [(@visibility.nil? || @visibility) ? 1 : 0, 'visibility', true],
-            [(@open.nil? || ! @open) ? 1 : 0, 'open', true],
-            [@atom_author, "<atom:author><atom:name>#{ @atom_author }</atom:name></atom:author>", false],
-            [@atom_link, 'atom:link', true],
-            [@address, 'address', true],
-            [@addressdetails, 'xal:AddressDetails', false],   # XXX
-            [@phonenumber, 'phoneNumber', true],
-            [@snippet, 'Snippet', true],
-            [@description, 'description', true],
-            [@abstractview, 'abstractview', false ],          # XXX
-            [@timeprimitive, 'timeprimitive', false ],        # XXX
-            [@styleurl, 'styleUrl', true],
-            [@styleselector, "<styleSelector>#{@styleselector.nil? ? '' : @styleselector.to_kml}</styleSelector>", false ],
-            [@region, 'Region', false ],                      # XXX
-            [@metadata, 'Metadata', false ],                  # XXX
-            [@extendeddata, 'ExtendedData', false ]           # XXX
-        ]
+    def to_kml(indent = 0)
+        k = kml_array [
+                [@name, 'name', true],
+                [(@visibility.nil? || @visibility) ? 1 : 0, 'visibility', true],
+                [(@open.nil? || ! @open) ? 1 : 0, 'open', true],
+                [@atom_author, "<atom:author><atom:name>#{ @atom_author }</atom:name></atom:author>", false],
+                [@atom_link, 'atom:link', true],
+                [@address, 'address', true],
+                [@addressdetails, 'xal:AddressDetails', false],   # XXX
+                [@phonenumber, 'phoneNumber', true],
+                [@snippet, 'Snippet', true],
+                [@description, 'description', true],
+                [@abstractview, 'abstractview', false ],          # XXX
+                [@timeprimitive, 'timeprimitive', false ],        # XXX
+                [@styleurl, 'styleUrl', true],
+                [@styleselector, "<styleSelector>#{@styleselector.nil? ? '' : @styleselector.to_kml}</styleSelector>", false ],
+                [@region, 'Region', false ],                      # XXX
+                [@metadata, 'Metadata', false ],                  # XXX
+                [@extendeddata, 'ExtendedData', false ]           # XXX
+            ], (indent + 4)
         k << yield if block_given?
+        k
+    end
+end
+
+class Container < Feature
+    def initialize
+        super
+        @features = []
+    end
+
+    def <<(a)
+        @features << a
+    end
+end
+
+class Folder < Container
+    def to_kml(indent = 0)
+        h = "#{ ' ' * indent }<Folder id=\"#{@id}\">\n"
+        h << super
+        @features.each do |a|
+            h << a.to_kml(indent + 4)
+        end
+        h << "#{ ' ' * indent }</Folder>\n";
+        h
+    end
+end
+
+class Document < Container
+    include Singleton
+    attr_accessor :flyto_mode, :folders, :tours, :styles
+
+    def initialize
+        @tours = []
+        @folders = []
+        @styles = []
+    end
+
+    def cur_tour
+        @tours << Tour.new if @tours.length == 0
+        @tours.last
+    end
+
+    def folder
+        @folders << Folder.new if @folders.size == 0
+        @folders.last
+    end
+
+    def to_kml
+        h = <<-doc_header
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+        doc_header
+
+        # Print styles first
+        @styles.map do |a| h << a.to_kml(4) end
+
+        # then folders
+        @folders.map do |a| h << a.to_kml(4) end
+
+        # then tours
+        @tours.map do |a| h << a.to_kml(4) end
+        h << "</Document>\n</kml>\n"
+
+        h
     end
 end
 
@@ -273,10 +302,11 @@ class ColorStyle < KMLObject
         @color[6,1] = a
     end
 
-    def to_kml
+    def to_kml(indent = 0)
+
         <<-colorstyle
-            <color>#{@color}</color>
-            <colorMode>#{@colormode}</colormode>
+#{ ' ' * indent }<color>#{@color}</color>
+#{ ' ' * indent }<colorMode>#{@colormode}</colormode>
         colorstyle
     end
 end
@@ -293,14 +323,15 @@ class BalloonStyle < ColorStyle
         @displaymode = displaymode
     end
 
-    def to_kml
+    def to_kml(indent = 0)
+
         <<-balloonstyle
-                <BalloonStyle id="#{@id}">
-                    <bgColor>#{@bgcolor}</bgcolor>
-                    <text>#{@text}</text>
-                    <textcolor>#{@textcolor}</textcolor>
-                    <displaymode>#{@displaymode}</displaymode>
-                </BalloonStyle>
+#{ ' ' * indent }<BalloonStyle id="#{@id}">
+#{ ' ' * indent }    <bgColor>#{@bgcolor}</bgcolor>
+#{ ' ' * indent }    <text>#{@text}</text>
+#{ ' ' * indent }    <textcolor>#{@textcolor}</textcolor>
+#{ ' ' * indent }    <displaymode>#{@displaymode}</displaymode>
+#{ ' ' * indent }</BalloonStyle>
         balloonstyle
     end
 end
@@ -319,17 +350,18 @@ class IconStyle < ColorStyle
         @hs_yunits = hs_yunits
     end
 
-    def to_kml
+    def to_kml(indent = 0)
+
         <<-iconstyle
-                <IconStyle id="#{@id}">
-                    #{ super }
-                    <scale>#{@scale}</scale>
-                    <heading>#{@heading}</heading>
-                    <Icon>
-                        <href>#{@href}</href>
-                    </Icon>
-                    <hotSpot x="#{@hs_x}" y="#{@hs_y}" xunits="#{@hs_xunits}" yunits="#{@hs_yunits}" />
-                </IconStyle>
+#{ ' ' * indent }<IconStyle id="#{@id}">
+#{ super(indent + 4) }
+#{ ' ' * indent }    <scale>#{@scale}</scale>
+#{ ' ' * indent }    <heading>#{@heading}</heading>
+#{ ' ' * indent }    <Icon>
+#{ ' ' * indent }        <href>#{@href}</href>
+#{ ' ' * indent }    </Icon>
+#{ ' ' * indent }    <hotSpot x="#{@hs_x}" y="#{@hs_y}" xunits="#{@hs_xunits}" yunits="#{@hs_yunits}" />
+#{ ' ' * indent }</IconStyle>
         iconstyle
     end
 end
@@ -342,12 +374,13 @@ class LabelStyle < ColorStyle
         @scale = scale
     end
 
-    def to_kml
+    def to_kml(indent = 0)
+
         <<-labelstyle
-                <LabelStyle id="#{@id}">
-                    #{ super }
-                    <scale>#{@scale}</scale>
-                </LabelStyle>
+#{ ' ' * indent }<LabelStyle id="#{@id}">
+#{ super(indent + 4) }
+#{ ' ' * indent }    <scale>#{@scale}</scale>
+#{ ' ' * indent }</LabelStyle>
         labelstyle
     end
 end
@@ -363,15 +396,16 @@ class LineStyle < ColorStyle
         @physicalwidth = physicalwidth
     end
 
-    def to_kml
+    def to_kml(indent = 0)
+
         <<-linestyle
-                <LineStyle id="#{@id}">
-                    #{ super }
-                    <width>#{@width}</width>
-                    <gx:outerColor>#{@outercolor}</gx:outerColor>
-                    <gx:outerWidth>#{@outerwidth}</gx:outerWidth>
-                    <gx:physicalWidth>#{@physicalwidth}</gx:physicalWidth>
-                </LineStyle>
+#{ ' ' * indent }<LineStyle id="#{@id}">
+#{ super(indent + 4) }
+#{ ' ' * indent }    <width>#{@width}</width>
+#{ ' ' * indent }    <gx:outerColor>#{@outercolor}</gx:outerColor>
+#{ ' ' * indent }    <gx:outerWidth>#{@outerwidth}</gx:outerWidth>
+#{ ' ' * indent }    <gx:physicalWidth>#{@physicalwidth}</gx:physicalWidth>
+#{ ' ' * indent }</LineStyle>
         linestyle
     end
 end
@@ -387,19 +421,19 @@ class ListStyle < ColorStyle
         @listitemtype = listitemtype
     end
 
-    def to_kml
-        k = "                <ListStyle id=\"#{@id}\">\n"
+    def to_kml(indent = 0)
+        k = "#{ ' ' * indent }<ListStyle id=\"#{@id}\">\n"
         k << kml_array([
             [@listitemtype, 'listItemType', true],
             [@bgcolor, 'bgColor', true]
-        ])
+        ], indent + 4)
         if (! @state.nil? or ! @href.nil?) then
-            k << "                  <ItemIcon>\n"
-            k << "                      <state>#{@state}</state>\n" unless @state.nil? 
-            k << "                      <href>#{@href}</href>\n" unless @href.nil? 
-            k << "                  </ItemIcon>\n"
+            k << "#{ ' ' * indent }    <ItemIcon>\n"
+            k << "#{ ' ' * indent }        <state>#{@state}</state>\n" unless @state.nil? 
+            k << "#{ ' ' * indent }        <href>#{@href}</href>\n" unless @href.nil? 
+            k << "#{ ' ' * indent }    </ItemIcon>\n"
         end
-        k << "                </ListStyle>\n"
+        k << "#{ ' ' * indent }</ListStyle>\n"
         k
     end
 end
@@ -413,18 +447,23 @@ class PolyStyle < ColorStyle
         @outline = outline
     end
 
-    def to_kml
+    def to_kml(indent = 0)
+
         <<-polystyle
-                <PolyStyle id="#{@id}">
-                    #{ super }
-                    <fill>#{@fill}</fill>
-                    <outline>#{@outline}</outline>
-                </PolyStyle>
+#{ ' ' * indent }<PolyStyle id="#{@id}">
+#{ super(indent + 4) }
+#{ ' ' * indent }    <fill>#{@fill}</fill>
+#{ ' ' * indent }    <outline>#{@outline}</outline>
+#{ ' ' * indent }</PolyStyle>
         polystyle
     end
 end
 
 class StyleSelector < KMLObject
+    def initialize
+        super
+        Document.instance.styles << self
+    end
 end
 
 class Style < StyleSelector
@@ -439,15 +478,15 @@ class Style < StyleSelector
         @list = list
     end
 
-    def to_kml
-        k = "               <Style id=\"#{@id}\">\n"
-        k << @icon.to_kml unless @icon.nil?
-        k << @label.to_kml unless @label.nil?
-        k << @line.to_kml unless @line.nil?
-        k << @poly.to_kml unless @poly.nil?
-        k << @balloon.to_kml unless @balloon.nil?
-        k << @list.to_kml unless @list.nil?
-        k << "               </Style>\n"
+    def to_kml(indent = 0)
+        k = "#{ ' ' * indent }<Style id=\"#{@id}\">\n"
+        k << @icon.to_kml(indent + 4) unless @icon.nil?
+        k << @label.to_kml(indent + 4) unless @label.nil?
+        k << @line.to_kml(indent + 4) unless @line.nil?
+        k << @poly.to_kml(indent + 4) unless @poly.nil?
+        k << @balloon.to_kml(indent + 4) unless @balloon.nil?
+        k << @list.to_kml(indent + 4) unless @list.nil?
+        k << "#{ ' ' * indent }</Style>\n"
         k
     end
 end
@@ -469,19 +508,19 @@ class StyleMap < StyleSelector
         @pairs << [id, a[0], a[1]]
     end
 
-    def to_kml
-        k = "            <StyleMap id=\"#{@id}\">\n"
+    def to_kml(indent = 0)
+        k = "#{ ' ' * indent }<StyleMap id=\"#{@id}\">\n"
         @pairs.each do |a|
-            k << "                  <Pair id=\"Pair_#{ a[0] }\">\n"
-            k << "                      <key>#{ a[1] }</key>\n"
+            k << "#{ ' ' * indent }    <Pair id=\"Pair_#{ a[0] }\">\n"
+            k << "#{ ' ' * indent }        <key>#{ a[1] }</key>\n"
             if a[2].kind_of? Style then
-                k << a[2].to_kml
+                k << "#{ ' ' * indent }    " << a[2].to_kml
             else
-                k << "                      <styleUrl>#{ a[2] }</styleUrl>\n"
+                k << "#{ ' ' * indent }    <styleUrl>#{ a[2] }</styleUrl>\n"
             end
-            k << "                  </Pair>\n"
+            k << "#{ ' ' * indent }    </Pair>\n"
         end
-        k << "            </StyleMap>\n"
+        k << "#{ ' ' * indent }</StyleMap>\n"
     end
 end
 
@@ -489,15 +528,16 @@ class Placemark < Feature
     attr_accessor :name, :geometry
     def initialize(name = nil, geo = nil)
         super(name)
+        Document.instance.folder << self
         @geometry = geo
     end
     
-    def to_kml
-        a = "   <Placemark id=\"#{ @id }\">\n"
-        a << super {
-            @geometry.nil? ? '' : @geometry.to_kml
+    def to_kml(indent = 0)
+        a = "#{ ' ' * indent }<Placemark id=\"#{ @id }\">\n"
+        a << super(indent + 4) {
+            @geometry.nil? ? '' : @geometry.to_kml(indent + 4)
         }
-        a << "\n    </Placemark>"
+        a << "#{ ' ' * indent }</Placemark>\n"
     end
 
     def point
@@ -521,14 +561,14 @@ class FlyTo < TourPrimitive
         @view = view
     end
 
-    def to_kml
-        k = "       <gx:FlyTo>\n"
+    def to_kml(indent = 0)
+        k = "#{ ' ' * indent }<gx:FlyTo>\n"
         k << kml_array([
             [ @duration, 'gx:duration', true ],
             [ @mode, 'gx:flyToMode', true ]
-        ])
-        k << @view.to_kml unless @view.nil?
-        k << "       </gx:FlyTo>\n"
+        ], indent + 4)
+        k << @view.to_kml(indent + 4) unless @view.nil?
+        k << "#{ ' ' * indent }</gx:FlyTo>\n"
     end
 end
 
@@ -553,16 +593,16 @@ class AnimatedUpdate < TourPrimitive
         @updates << a << "\n"
     end
 
-    def to_kml
+    def to_kml(indent = 0)
         k = <<-animatedupdate_kml
-            <gx:AnimatedUpdate>
-                <gx:duration>#{@duration}</gx:duration>
+#{ ' ' * indent }<gx:AnimatedUpdate>
+#{ ' ' * indent }    <gx:duration>#{@duration}</gx:duration>
         animatedupdate_kml
-        k << "              <gx:delayeStart>#{@delayedstart}</gx:delayedStart>\n" unless @delayedstart.nil?
-        k << "              <targetHref>#{@target}</targetHref>\n"
-        k << "              <Update>\n"
-        k << "                  " << @updates.join("\n                  ")
-        k << "              </Update>\n         </gx:AnimatedUpdate>\n"
+        k << "#{ ' ' * indent }<gx:delayeStart>#{@delayedstart}</gx:delayedStart>\n" unless @delayedstart.nil?
+        k << "#{ ' ' * indent }<targetHref>#{@target}</targetHref>\n"
+        k << "#{ ' ' * indent }<Update>\n"
+        k << "#{ ' ' * indent }    " << @updates.join("\n#{ ' ' * (indent + 1) }")
+        k << "#{ ' ' * indent }</Update>\n#{ ' ' * indent }</gx:AnimatedUpdate>\n"
         k
     end
 end
@@ -576,9 +616,10 @@ class Wait < TourPrimitive
         @duration = duration
     end
 
-    def to_kml
+    def to_kml(indent = 0)
+
         <<-wait_kml
-            <gx:Wait><gx:duration>#{@duration}</gx:duration></gx:Wait>
+#{ ' ' * indent }<gx:Wait><gx:duration>#{@duration}</gx:duration></gx:Wait>
         wait_kml
     end
 end
@@ -597,26 +638,93 @@ class Tour < KMLObject
         @items << a
     end
 
-    def to_kml
+    def to_kml(indent = 0)
+
         k = <<-tour_kml
-           <gx:Tour id="#{ @id }">
-              <gx:Playlist>
-        tour_kml
+#{ ' ' * indent }<gx:Tour id="#{ @id }">
+#{ ' ' * indent }   <gx:Playlist>
+tour_kml
 
-        @items.map do |a| k << a.to_kml << "\n" end
+        @items.map do |a| k << a.to_kml(indent + 4) << "\n" end
 
-        k << "  </gx:Playlist></gx:Tour>\n"
+        k << "#{ ' ' * indent }    </gx:Playlist>\n"
+        k << "#{ ' ' * indent }</gx:Tour>\n"
         k
     end
 end
 
+class NDPointList
+# Contains X lists of equal length
+    def initialize(num)
+        @size = num
+        @lists = []
+        (i..num).each do |i|
+            @lists[i] = []
+        end
+    end
+
+    def <<(a)
+        # I wonder what's easier for people... we can
+        #   1. Send this an array of arrays, where each inner array has one element for each list in @lists
+        #   2. Send a one-dimensional array, with an element for @lists[1], then one for @lists[2], and so on
+        #   3. Send an array of arrays, where the outer array's size is @size,
+        #      and append one of the arrays to each array in @lists
+        # For now I'll go with #3
+        (0..@size).each do |i|
+            @lists[i] << a[i]
+        end
+    end
+
+    def x
+        if @size >= 1 then
+            return @lists[1]
+        else
+            raise "NDPointList of size #{@size} has no X element"
+        end
+    end
+
+    def y
+        if @size >= 2 then
+            return @lists[2]
+        else
+            raise "NDPointList of size #{@size} has no Y element"
+        end
+    end
+
+    def z
+        if @size >= 3 then
+            return @lists[3]
+        else
+            raise "NDPointList of size #{@size} has no Z element"
+        end
+    end
+end
+
+class OneDPointList < NDPointList
+    def initialize
+        super 1
+    end
+end
+
+class TwoDPointList < NDPointList
+    def initialize
+        super 2
+    end
+end
+
+class ThreeDPointList < NDPointList
+    def initialize
+        super 3
+    end
+end
+
 def fly_to(p, d = 0, m = nil)
-    m = KMLStatus.instance.flyto_mode if m.nil?
-    KMLStatus.instance.cur_tour << FlyTo.new(p, d, m)
+    m = Document.instance.flyto_mode if m.nil?
+    Document.instance.cur_tour << FlyTo.new(p, d, m)
 end
 
 def set_flyto_mode_to(a)
-    KMLStatus.instance.flyto_mode = a
+    Document.instance.flyto_mode = a
 end
 
 def mod_popup_for(p, v)
@@ -625,7 +733,7 @@ def mod_popup_for(p, v)
         raise "Can't show popups for things that aren't placemarks"
     end
     a << "<Change><Placemark targetId=\"#{p.id}\"><visibility>#{v}</visibility></Placemark></Change>"
-    KMLStatus.instance.cur_tour << a
+    Document.instance.cur_tour << a
 end
 
 def hide_popup_for(p)
@@ -641,5 +749,5 @@ def point(lo, la, alt=0, mode=nil, extrude = false)
 end
 
 def get_kml
-    KMLStatus.instance.get_document_kml
+    Document.instance.to_kml
 end

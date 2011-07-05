@@ -35,10 +35,11 @@ end
 def style
     ico, label, line, poly, bal, list = stylebits
     a = Style.new(ico, label, line, poly, bal, list)
-    puts a.to_kml
+#    puts a.to_kml
 
     b = Style.new(ico, nil, line, nil, bal, nil)
-    puts b.to_kml
+#    puts b.to_kml
+    puts get_kml
 end
 
 def orig
@@ -90,4 +91,22 @@ def lang
     puts get_kml
 end
 
-stylemap
+def doc
+    ico, label, line, poly, bal, list = stylebits
+    a = Style.new(ico, label, line, poly, bal, list)
+    b = Style.new(ico, nil, line, nil, bal, nil)
+    p = point("123d5'23.18\" W", 239.34287)
+    pl = Placemark.new 'my_placemerk', p
+    hide_popup_for pl
+    fly_to p
+    show_popup_for pl
+
+    puts get_kml
+end
+
+def numberlist
+    n = NumberList.new
+    n.numbers << [1, 2, 3]
+end
+
+doc
