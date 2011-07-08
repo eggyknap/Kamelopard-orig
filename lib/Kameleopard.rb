@@ -115,6 +115,7 @@ class Camera < AbstractView
 end
 
 class LookAt < AbstractView
+    attr_accessor :longitude, :latitude, :altitude, :heading, :tilt, :range, :altitudeMode
     def initialize(point = nil, heading = 0, tilt = 0, range = 0)
         super()
         if point.nil? then
@@ -135,7 +136,6 @@ class LookAt < AbstractView
         k << kml_array([
             [ @point.longitude, 'longitude', true ],
             [ @point.latitude, 'latitude', true ],
-            [ @point.altitude, 'altitude', true ],
             [ @point.altitude, 'altitude', true ],
             [ @point.altitudeMode, 'altitudeMode', true ],
             [ @heading, 'heading', true ],
@@ -179,7 +179,7 @@ class Feature < KMLObject
                 [@region, 'Region', false ],                      # XXX
                 [@metadata, 'Metadata', false ],                  # XXX
                 [@extendeddata, 'ExtendedData', false ]           # XXX
-            ], (indent + 4)
+            ], (indent)
         k << yield if block_given?
         k
     end
@@ -550,6 +550,9 @@ class Placemark < Feature
 end
 
 class TourPrimitive < KMLObject
+    def initialize
+        Document.instance.tour << self
+    end
 end
 
 class FlyTo < TourPrimitive
@@ -558,7 +561,12 @@ class FlyTo < TourPrimitive
     def initialize(view = nil, duration = 0, mode = :bounce)
         @duration = duration
         @mode = mode
-        @view = LookAt.new(view)
+        if view.kind_of? AbstractView then
+            @view = view
+        else
+            @view = LookAt.new(view)
+        end
+        super()
     end
 
     def to_kml(indent = 0)
@@ -578,6 +586,7 @@ class AnimatedUpdate < TourPrimitive
     attr_accessor :target, :delayedstart, :updates, :duration
 
     def initialize(updates = [], duration = 0, target = '', delayedstart = nil)
+        super()
         begin
             raise "incorrect object type" unless @target.kind_of? KMLObject
             @target = target.id
@@ -613,6 +622,7 @@ end
 class Wait < TourPrimitive
     attr_accessor :duration
     def initialize(duration = 0)
+        super()
         @duration = duration
     end
 
@@ -628,7 +638,7 @@ class SoundCue < TourPrimitive
 end
 
 class Tour < KMLObject
-    attr_accessor :name, :description
+    attr_accessor :name, :description, :last_abs_view
     def initialize(name = nil, description = nil)
         super()
         @name = name
@@ -639,6 +649,7 @@ class Tour < KMLObject
     # Add another element to a tour
     def <<(a)
         @items << a
+        @last_abs_view = a.view if a.kind_of? FlyTo
     end
 
     def to_kml(indent = 0)
@@ -725,7 +736,7 @@ end
 
 def fly_to(p, d = 0, m = nil)
     m = Document.instance.flyto_mode if m.nil?
-    Document.instance.tour << FlyTo.new(p, d, m)
+    FlyTo.new(p, d, m)
 end
 
 def set_flyto_mode_to(a)
@@ -738,7 +749,6 @@ def mod_popup_for(p, v)
         raise "Can't show popups for things that aren't placemarks"
     end
     a << "<Change><Placemark targetId=\"#{p.id}\"><visibility>#{v}</visibility></Placemark></Change>"
-    Document.instance.tour << a
 end
 
 def hide_popup_for(p)
@@ -757,10 +767,21 @@ def get_kml
     Document.instance.to_kml
 end
 
+def pause(p)
+    Wait.new p
+end
+
 def name_tour(a)
     Document.instance.tour.name = a
 end
 
 def name_folder(a)
     Document.instance.folder.name = a
+end
+
+def zoom_out(dist = 1000, dur = 0, mode = nil)
+    l = Document.instance.tour.last_abs_view
+    raise "No current position to zoom out from\n" if l.nil?
+    l.range += dist
+    FlyTo.new(l, dur, mode)
 end
