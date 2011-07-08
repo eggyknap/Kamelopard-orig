@@ -97,8 +97,10 @@ def doc
     b = Style.new(ico, nil, line, nil, bal, nil)
     p = point("123d5'23.18\" W", 239.34287)
     pl = Placemark.new 'my_placemerk', p
+    name_folder 'A folder'
+    name_tour 'A tour'
     hide_popup_for pl
-    fly_to p
+    fly_to pl
     show_popup_for pl
 
     puts get_kml

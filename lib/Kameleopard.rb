@@ -148,7 +148,7 @@ end
 
 class Feature < KMLObject
     # Abstract class
-    attr_accessor :visibility, :open, :atom_author, :atom_link,
+    attr_accessor :visibility, :open, :atom_author, :atom_link, :name,
         :addressdetails, :phonenumber, :snippet, :description, :abstractview,
         :timeprimitive, :styleurl, :styleselector, :region, :metadata,
         :extendeddata
@@ -218,7 +218,7 @@ class Document < Container
         @styles = []
     end
 
-    def cur_tour
+    def tour
         @tours << Tour.new if @tours.length == 0
         @tours.last
     end
@@ -306,7 +306,7 @@ class ColorStyle < KMLObject
 
         <<-colorstyle
 #{ ' ' * indent }<color>#{@color}</color>
-#{ ' ' * indent }<colorMode>#{@colormode}</colormode>
+#{ ' ' * indent }<colorMode>#{@colormode}</colorMode>
         colorstyle
     end
 end
@@ -327,10 +327,10 @@ class BalloonStyle < ColorStyle
 
         <<-balloonstyle
 #{ ' ' * indent }<BalloonStyle id="#{@id}">
-#{ ' ' * indent }    <bgColor>#{@bgcolor}</bgcolor>
+#{ ' ' * indent }    <bgColor>#{@bgcolor}</bgColor>
 #{ ' ' * indent }    <text>#{@text}</text>
-#{ ' ' * indent }    <textcolor>#{@textcolor}</textcolor>
-#{ ' ' * indent }    <displaymode>#{@displaymode}</displaymode>
+#{ ' ' * indent }    <textColor>#{@textcolor}</textColor>
+#{ ' ' * indent }    <displayMode>#{@displaymode}</displayMode>
 #{ ' ' * indent }</BalloonStyle>
         balloonstyle
     end
@@ -558,7 +558,7 @@ class FlyTo < TourPrimitive
     def initialize(view = nil, duration = 0, mode = :bounce)
         @duration = duration
         @mode = mode
-        @view = view
+        @view = LookAt.new(view)
     end
 
     def to_kml(indent = 0)
@@ -598,11 +598,11 @@ class AnimatedUpdate < TourPrimitive
 #{ ' ' * indent }<gx:AnimatedUpdate>
 #{ ' ' * indent }    <gx:duration>#{@duration}</gx:duration>
         animatedupdate_kml
-        k << "#{ ' ' * indent }<gx:delayeStart>#{@delayedstart}</gx:delayedStart>\n" unless @delayedstart.nil?
-        k << "#{ ' ' * indent }<targetHref>#{@target}</targetHref>\n"
-        k << "#{ ' ' * indent }<Update>\n"
-        k << "#{ ' ' * indent }    " << @updates.join("\n#{ ' ' * (indent + 1) }")
-        k << "#{ ' ' * indent }</Update>\n#{ ' ' * indent }</gx:AnimatedUpdate>\n"
+        k << "#{ ' ' * indent }    <gx:delayeStart>#{@delayedstart}</gx:delayedStart>\n" unless @delayedstart.nil?
+        k << "#{ ' ' * indent }    <Update>\n"
+        k << "#{ ' ' * indent }        <targetHref>#{@target}</targetHref>\n"
+        k << "#{ ' ' * indent }        " << @updates.join("\n#{ ' ' * (indent + 1) }")
+        k << "#{ ' ' * indent }    </Update>\n#{ ' ' * indent }</gx:AnimatedUpdate>\n"
         k
     end
 end
@@ -628,8 +628,11 @@ class SoundCue < TourPrimitive
 end
 
 class Tour < KMLObject
-    def initialize(name = nil)
+    attr_accessor :name, :description
+    def initialize(name = nil, description = nil)
+        super()
         @name = name
+        @description = description
         @items = []
     end
 
@@ -640,12 +643,14 @@ class Tour < KMLObject
 
     def to_kml(indent = 0)
 
-        k = <<-tour_kml
-#{ ' ' * indent }<gx:Tour id="#{ @id }">
-#{ ' ' * indent }   <gx:Playlist>
-tour_kml
+        k = "#{ ' ' * indent }<gx:Tour id=\"#{ @id }\">\n"
+        k << kml_array([
+            [ @name, 'name', true ],
+            [ @description, 'description', true ],
+        ], indent + 4)
+        k << "#{ ' ' * indent }    <gx:Playlist>\n";
 
-        @items.map do |a| k << a.to_kml(indent + 4) << "\n" end
+        @items.map do |a| k << a.to_kml(indent + 8) << "\n" end
 
         k << "#{ ' ' * indent }    </gx:Playlist>\n"
         k << "#{ ' ' * indent }</gx:Tour>\n"
@@ -720,7 +725,7 @@ end
 
 def fly_to(p, d = 0, m = nil)
     m = Document.instance.flyto_mode if m.nil?
-    Document.instance.cur_tour << FlyTo.new(p, d, m)
+    Document.instance.tour << FlyTo.new(p, d, m)
 end
 
 def set_flyto_mode_to(a)
@@ -733,7 +738,7 @@ def mod_popup_for(p, v)
         raise "Can't show popups for things that aren't placemarks"
     end
     a << "<Change><Placemark targetId=\"#{p.id}\"><visibility>#{v}</visibility></Placemark></Change>"
-    Document.instance.cur_tour << a
+    Document.instance.tour << a
 end
 
 def hide_popup_for(p)
@@ -750,4 +755,12 @@ end
 
 def get_kml
     Document.instance.to_kml
+end
+
+def name_tour(a)
+    Document.instance.tour.name = a
+end
+
+def name_folder(a)
+    Document.instance.folder.name = a
 end
