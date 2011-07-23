@@ -1,0 +1,7 @@
+A useful invocation:
+
+ruby rcm.rb < input_points.dat > output_points.dat
+
+Then, in gnuplot:
+
+splot 'input_points.dat', 'output_points.dat' with lines 2;

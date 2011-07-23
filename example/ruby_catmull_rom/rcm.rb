@@ -7,10 +7,10 @@
 #           T1 and T2 are tangent vectors to the first and second endpoints (see below)
 #           h is a matrix of Hermitian coefficients
 #
-#           | s^3 |            | P1 |             |  2  -2   1   1 |
-#      S =  | s^2 |       C =  | P2 |        h =  | -3   3  -2  -1 |
-#           | s^1 |            | T1 |             |  0   0   1   0 |
-#           | 1   |            | T2 |             |  1   0   0   0 |
+#                                         |  2  -2   1   1 |            | P1 |
+#      S =  | s^3  s^2  s  1 |       h =  | -3   3  -2  -1 |       C =  | P2 |
+#                                         |  0   0   1   0 |            | T1 |
+#                                         |  1   0   0   0 |            | T2 |
 #
 #  The Hermitian curve at any point s is S * h * C
 #
@@ -41,6 +41,7 @@ def do_spline(points)
 
     # Between every two points, calculate a spline
     (0 .. (points.length - 2)).each do |i|
+        STDERR.puts "Doing points #{i} and #{i+1}"
         p1 = points[i]
         p2 = points[i + 1]
 
@@ -55,20 +56,14 @@ def do_spline(points)
         # Build matrix of Hermite parameters
         c = Matrix[p1, p2, t1.row(0), t2.row(0)]
 
-        # I'm not sure how many steps to do, since presumably values of s could
-        # reach infinity, and presumably at some point I'll pass my endpoint
-        # and want to start on a new curve. For now I'll do 1..10 in .1 increments
-        (15..100).each do |t|
+        # Values for s should go from 0 to 1, apparently. This makes intuitive
+        # sense, now that I figured it out experimentally
+        (0..10).each do |t|
             r = t/10.0
-            s = Matrix[[r**3], [r**2], [r], [1]]
-            puts s.to_yaml
-            puts "------"
-            puts h.to_yaml
-            puts "------"
-            puts c.to_yaml
+            s = Matrix[[r**3, r**2, r, 1]]
             tmp = s * h
             point = tmp * c
-            puts point.to_yaml
+            puts "#{point[0, 0]}  #{point[0, 1]}  #{point[0, 2]}"
         end
 
     end
