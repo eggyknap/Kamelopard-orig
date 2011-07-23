@@ -65,3 +65,13 @@ Timing
 Or perhaps just assume there will be some tweaking to follow any KML
 production. I don't like that idea, though, because I'd like to be able to
 regenerate any KML from a Kameleopard script.
+
+SPLINE NOTES
+
+It makes sense to be able to take a bunch of points and interpolate a spline
+around them all. Hence the recently committed spline library stuff. We could
+meaningfully interpolate points in 1, 2, or 3 dimensions, as well as points in
+time and other stuff. Users will be able to set a spline type (GNU Scientific
+Language has six of them) and a resolution (how many points should this
+interpolation make). One possibility is to include lots of points when the
+derivative or second derivative changes rapidly, and few when it doesn't.

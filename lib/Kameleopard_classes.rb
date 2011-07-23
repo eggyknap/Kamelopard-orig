@@ -210,12 +210,14 @@ end
 
 class Document < Container
     include Singleton
-    attr_accessor :flyto_mode, :folders, :tours, :styles
+    attr_accessor :flyto_mode, :folders, :tours, :styles, :spline_type, :spline_step
 
     def initialize
         @tours = []
         @folders = []
         @styles = []
+        @spline_type = GSL::Interp::LINEAR
+        @spline_step = .1
     end
 
     def tour
@@ -681,7 +683,7 @@ class NDPointList
     end
 
     def <<(a)
-        # I wonder what's easier for people... we can
+        # XXX I wonder what's easier for people... we can
         #   1. Send this an array of arrays, where each inner array has one element for each list in @lists
         #   2. Send a one-dimensional array, with an element for @lists[1], then one for @lists[2], and so on
         #   3. Send an array of arrays, where the outer array's size is @size,
@@ -714,6 +716,10 @@ class NDPointList
         else
             raise "NDPointList of size #{@size} has no Z element"
         end
+    end
+
+    def interpolate(type = nil, resolution = nil)
+        vs = @lists.collect { |v| GSL::Interp.alloc(v) }
     end
 end
 
