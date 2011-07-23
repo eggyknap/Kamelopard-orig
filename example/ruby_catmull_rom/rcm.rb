@@ -1,4 +1,4 @@
-# vim:ts=4:sw:et:smartindent
+# vim:ts=4:sw=4:et:smartindent
 # Ruby implementation of Catmull-Rom splines (http://www.cubic.org/docs/hermite.htm)
 # These will be useful for calculating paths, etc., in N dimensions
 #
@@ -23,10 +23,14 @@
 require 'yaml'
 require 'matrix'
 
-def read_points()
+def get_points(n)
     points = []
-    STDIN.each do |a|
-        points << (a.split(/\s+/).map { |a| a.to_f })  unless a =~ /^#/
+    File.open('points.dat', 'w') do |pfile|
+        (1..n).each do
+            a = [ rand * 100 - 50, rand * 100 - 50, rand * 100 - 50 ]
+            pfile.puts "#{a[0]} #{a[1]} #{a[2]}"
+            points << a
+        end
     end
     return points
 end
@@ -39,35 +43,39 @@ def do_spline(points)
         [ 1,   0,   0,   0 ],
     ]
 
-    # Between every two points, calculate a spline
-    (0 .. (points.length - 2)).each do |i|
-        STDERR.puts "Doing points #{i} and #{i+1}"
-        p1 = points[i]
-        p2 = points[i + 1]
+    File.open('splines.dat', 'w') do |sfile|
+        # Between every two points, calculate a spline
+        (0 .. (points.length - 2)).each do |i|
+            STDERR.puts "Doing points #{i} and #{i+1}"
+            p1 = points[i]
+            p2 = points[i + 1]
 
-        # Get surrounding points for calculating tangents
-        if i <= 0 then pt1 = p1 else pt1 = points[i-1] end
-        if i == points.length - 2 then pt2 = p2 else pt2 = points[i+2] end
+            # Get surrounding points for calculating tangents
+            if i <= 0 then pt1 = p1 else pt1 = points[i-1] end
+            if i == points.length - 2 then pt2 = p2 else pt2 = points[i+2] end
 
-        # Build tangent points into matrices to calculate tangents.
-        t1 = 0.5 * ( Matrix[p2]  - Matrix[pt1] )
-        t2 = 0.5 * ( Matrix[pt2] - Matrix[p1] )
+            # Build tangent points into matrices to calculate tangents.
+            t1 = 0.5 * ( Matrix[p2]  - Matrix[pt1] )
+            t2 = 0.5 * ( Matrix[pt2] - Matrix[p1] )
 
-        # Build matrix of Hermite parameters
-        c = Matrix[p1, p2, t1.row(0), t2.row(0)]
+            # Build matrix of Hermite parameters
+            c = Matrix[p1, p2, t1.row(0), t2.row(0)]
 
-        # Values for s should go from 0 to 1, apparently. This makes intuitive
-        # sense, now that I figured it out experimentally
-        (0..10).each do |t|
-            r = t/10.0
-            s = Matrix[[r**3, r**2, r, 1]]
-            tmp = s * h
-            point = tmp * c
-            puts "#{point[0, 0]}  #{point[0, 1]}  #{point[0, 2]}"
+            # Values for s should go from 0 to 1, apparently. This makes intuitive
+            # sense, now that I figured it out experimentally
+            (0..10).each do |t|
+                r = t/10.0
+                s = Matrix[[r**3, r**2, r, 1]]
+                tmp = s * h
+                point = tmp * c
+                sfile.puts "#{point[0, 0]}  #{point[0, 1]}  #{point[0, 2]}"
+            end
         end
-
     end
 end
 
-points = read_points
+points = get_points 10
 do_spline points
+
+puts "Now run this in gnuplot:"
+puts "   splot 'points.dat', 'splines.dat' w li 2"
