@@ -1,4 +1,5 @@
 require 'singleton'
+require 'Kameleopard_pointlist'
 
 @@sequence = 0
 
@@ -81,7 +82,7 @@ end
 class Geometry < KMLObject
 end
 
-class Point < Geometry
+class KMLPoint < Geometry
     attr_accessor :id, :longitude, :latitude, :altitude, :altitudeMode, :extrude
     def initialize(long, lat, alt=0, altmode=:clampToGround, extrude=false)
         super()
@@ -93,7 +94,7 @@ class Point < Geometry
     end
 
     def to_s
-        "Point (#{@longitude}, #{@latitude}, #{@altitude}, mode = #{@altitudeMode}, #{ @extrude ? 'extruded' : 'not extruded' })"
+        "KMLPoint (#{@longitude}, #{@latitude}, #{@altitude}, mode = #{@altitudeMode}, #{ @extrude ? 'extruded' : 'not extruded' })"
     end
 
     def to_kml(indent = 0)
@@ -210,14 +211,12 @@ end
 
 class Document < Container
     include Singleton
-    attr_accessor :flyto_mode, :folders, :tours, :styles, :spline_type, :spline_step
+    attr_accessor :flyto_mode, :folders, :tours, :styles
 
     def initialize
         @tours = []
         @folders = []
         @styles = []
-        @spline_type = GSL::Interp::LINEAR
-        @spline_step = .1
     end
 
     def tour
@@ -543,7 +542,7 @@ class Placemark < Feature
     end
 
     def point
-        if @geometry.kind_of? Point then
+        if @geometry.kind_of? KMLPoint then
             @geometry
         else
             raise "This placemark uses a non-point geometry, but the operation you're trying requires a point object"
@@ -671,73 +670,3 @@ class Tour < KMLObject
         k
     end
 end
-
-class NDPointList
-# Contains X lists of equal length
-    def initialize(num)
-        @size = num
-        @lists = []
-        (i..num).each do |i|
-            @lists[i] = []
-        end
-    end
-
-    def <<(a)
-        # XXX I wonder what's easier for people... we can
-        #   1. Send this an array of arrays, where each inner array has one element for each list in @lists
-        #   2. Send a one-dimensional array, with an element for @lists[1], then one for @lists[2], and so on
-        #   3. Send an array of arrays, where the outer array's size is @size,
-        #      and append one of the arrays to each array in @lists
-        # For now I'll go with #3
-        (0..@size).each do |i|
-            @lists[i] << a[i]
-        end
-    end
-
-    def x
-        if @size >= 1 then
-            return @lists[1]
-        else
-            raise "NDPointList of size #{@size} has no X element"
-        end
-    end
-
-    def y
-        if @size >= 2 then
-            return @lists[2]
-        else
-            raise "NDPointList of size #{@size} has no Y element"
-        end
-    end
-
-    def z
-        if @size >= 3 then
-            return @lists[3]
-        else
-            raise "NDPointList of size #{@size} has no Z element"
-        end
-    end
-
-    def interpolate(type = nil, resolution = nil)
-        vs = @lists.collect { |v| GSL::Interp.alloc(v) }
-    end
-end
-
-class OneDPointList < NDPointList
-    def initialize
-        super 1
-    end
-end
-
-class TwoDPointList < NDPointList
-    def initialize
-        super 2
-    end
-end
-
-class ThreeDPointList < NDPointList
-    def initialize
-        super 3
-    end
-end
-

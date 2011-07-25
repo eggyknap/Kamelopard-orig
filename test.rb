@@ -1,3 +1,4 @@
+# vim:ts=4:sw=4:et:smartindent
 $LOAD_PATH << './lib'
 require 'Kameleopard'
 
@@ -106,9 +107,37 @@ def doc
     puts get_kml
 end
 
-def numberlist
-    n = NumberList.new
-    n.numbers << [1, 2, 3]
+def pointlist
+    n = NDPointList.new(3)
+    (1..10).each do
+        a = [ rand * 100 - 50, rand * 100 - 50, rand * 100 - 50 ]
+        puts "#{a[0]}  #{a[1]}  #{a[2]}"
+        n << a
+    end
+    i = n.interpolate()
+    (0..(i.size-1)).each do |a|
+        puts "#{i[a][0]}  #{i[a][1]}  #{i[a][2]}"
+    end
 end
 
-doc
+def pointlist_flyto
+    n = NDPointList.new(2)
+
+        # San Diego
+    n << point("117d9'25\" W", "32d42'56\" N")
+        # Paris
+    n << point("2d21'9\" E", "48d51'23\" N")
+        # Tallinn
+    n << point("26d42'54\" E", "58d22'14\" N")
+        # Stockholm
+    n << point("18d03'51\" E", "59d19'57\" N")
+
+    n.interpolate.each do |a|
+        p = point(a[0], a[1])
+        Placemark.new 'placemark', p
+        fly_to p, 13, 9000, 'smooth'
+    end
+    puts get_kml
+end
+
+pointlist_flyto

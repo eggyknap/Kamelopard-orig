@@ -24,7 +24,7 @@ def show_popup_for(p)
 end
 
 def point(lo, la, alt=0, mode=nil, extrude = false)
-    Point.new(lo, la, alt, mode.nil? ? :clampToGround : mode, extrude)
+    KMLPoint.new(lo, la, alt, mode.nil? ? :clampToGround : mode, extrude)
 end
 
 def get_kml
@@ -48,26 +48,4 @@ def zoom_out(dist = 1000, dur = 0, mode = nil)
     raise "No current position to zoom out from\n" if l.nil?
     l.range += dist
     FlyTo.new(l, nil, dur, mode)
-end
-
-def set_spline_type(a)
-    case a
-    when 'linear'
-        Document.instance.spline_type = GSL::Interp::LINEAER
-    when 'akima'
-        Document.instance.spline_type = GSL::Interp::AKIMA
-    when 'akima_periodic'
-        Document.instance.spline_type = GSL::Interp::AKIMA_PERIODIC
-    when 'cspline'
-        Document.instance.spline_type = GSL::Interp::CSPLINE
-    when 'cspline_periodic'
-        Document.instance.spline_type = GSL::Interp::CSPLINE_PERIODIC
-    when 'polynomial'
-        Document.instance.spline_type = GSL::Interp::POLYNOMIAL
-    else
-        raise "Invalid spline type #{a}. Valid options are: linear, cspline, cspline_periodic, akima, akima_periodic, polynomial"
-end
-
-def set_interp_step(a)
-    Document.instance.spline_step = a
 end
