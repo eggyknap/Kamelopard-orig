@@ -1,4 +1,4 @@
-# vim:ts=4:sw=4:et:smartindent
+# vim:ts=4:sw=4:et:smartindent:nowrap
 require 'singleton'
 require 'Kameleopard_pointlist'
 
