@@ -1,4 +1,4 @@
-# vim:ts=4:sw=4:et:smartindent
+# vim:ts=4:sw=4:et:smartindent:nowrap
 $LOAD_PATH << './lib'
 require 'Kameleopard'
 
@@ -140,4 +140,11 @@ def pointlist_flyto
     puts get_kml
 end
 
-pointlist_flyto
+def test_orbit
+    p = point("112d27'21.66\" W", "38d50'24.5\" N")
+    orbit p, 2000, 45, 270, -272
+    puts get_kml
+end
+
+test_orbit
+
