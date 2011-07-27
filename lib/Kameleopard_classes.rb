@@ -1,3 +1,4 @@
+# vim:ts=4:sw=4:et:smartindent
 require 'singleton'
 require 'Kameleopard_pointlist'
 
@@ -539,6 +540,22 @@ class Placemark < Feature
             @geometry.nil? ? '' : @geometry.to_kml(indent + 4)
         }
         a << "#{ ' ' * indent }</Placemark>\n"
+    end
+
+    def longitude
+        @geometry.longitude
+    end
+
+    def latitude
+        @geometry.latitude
+    end
+
+    def altitude
+        @geometry.altitude
+    end
+
+    def altitudeMode
+        @geometry.altitudeMode
     end
 
     def point
