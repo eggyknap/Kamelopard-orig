@@ -123,19 +123,27 @@ end
 def pointlist_flyto
     n = NDPointList.new(2)
 
-        # San Diego
-    n << point("117d9'25\" W", "32d42'56\" N")
-        # Paris
-    n << point("2d21'9\" E", "48d51'23\" N")
-        # Tallinn
-    n << point("26d42'54\" E", "58d22'14\" N")
-        # Stockholm
-    n << point("18d03'51\" E", "59d19'57\" N")
+    p = point("117d9'25\" W", "32d42'56\" N")
+    p.comment = 'San Diego'
+    n << p
+
+    p = point("2d21'9\" E", "48d51'23\" N")
+    p.comment = 'Paris'
+    n << p
+
+    p = point("26d42'54\" E", "58d22'14\" N")
+    p.comment = 'Tallinn'
+    n << p
+
+    p = point("18d03'51\" E", "59d19'57\" N")
+    p.comment = 'Stockholm'
+    n << p
 
     n.interpolate.each do |a|
         p = point(a[0], a[1])
         Placemark.new 'placemark', p
-        fly_to p, 13, 9000, 'smooth'
+        f = fly_to p, 13, 9000, 'smooth'
+        f.comment = "#{ a[0] } #{ a[1] }"
     end
     puts get_kml
 end
@@ -146,5 +154,17 @@ def test_orbit
     puts get_kml
 end
 
-test_orbit
+def comment_test
+    p = Placemark.new 'Tallinn', point("26d42'54\" E", "58d22'14\" N")
+    p.comment = 'Here is Tallinn'
+    q = Placemark.new 'Stockholm', point("18d03'51\" E", "59d19'57\" N")
+    q.comment = 'Here is Stockholm'
+    q.point.comment = 'Here is stockholm\'s point'
+    f = fly_to p, 3
+    f.comment = 'This is a flyto'
+    f = fly_to q, 3
+    f.comment = 'THis is another flyto'
+end
 
+comment_test
+puts get_kml

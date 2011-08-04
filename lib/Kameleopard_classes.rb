@@ -70,13 +70,19 @@ end
 
 class KMLObject
     attr_reader :id
+    attr_accessor :comment
 
-    def initialize
+    def initialize(comment = nil)
         @id = "#{self.class.name}_#{ get_next_id }"
+        @comment = comment.gsub(/</, '&lt;') unless comment.nil?
     end
 
     def to_kml(indent = 0)
-        raise "to_kml for this object (#{ self }) isn't yet defined!"
+        if @comment.nil? or @comment == '' then
+            ''
+        else
+            "#{ ' ' * indent }<!-- #{ @comment } -->\n"
+        end
     end
 end
 
@@ -99,8 +105,7 @@ class KMLPoint < Geometry
     end
 
     def to_kml(indent = 0)
-
-        <<-point_kml
+        super +  <<-point_kml
 #{ ' ' * indent }<Point id="#{ @id }">
 #{ ' ' * indent }    <extrude>#{ @extrude ? 1 : 0 }</extrude>
 #{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>
@@ -133,7 +138,7 @@ class LookAt < AbstractView
     end
 
     def to_kml(indent = 0)
-        k = "#{ ' ' * indent }<LookAt id=\"#{@id}\">\n"
+        k = super + "#{ ' ' * indent }<LookAt id=\"#{@id}\">\n"
         # XXX Need to include AbstractView stuff here sometime
         k << kml_array([
             [ @point.longitude, 'longitude', true ],
@@ -163,7 +168,8 @@ class Feature < KMLObject
     end
 
     def to_kml(indent = 0)
-        k = kml_array [
+        k = super 
+        k << kml_array([
                 [@name, 'name', true],
                 [(@visibility.nil? || @visibility) ? 1 : 0, 'visibility', true],
                 [(@open.nil? || ! @open) ? 1 : 0, 'open', true],
@@ -181,7 +187,7 @@ class Feature < KMLObject
                 [@region, 'Region', false ],                      # XXX
                 [@metadata, 'Metadata', false ],                  # XXX
                 [@extendeddata, 'ExtendedData', false ]           # XXX
-            ], (indent)
+            ], (indent))
         k << yield if block_given?
         k
     end
@@ -201,7 +207,7 @@ end
 class Folder < Container
     def to_kml(indent = 0)
         h = "#{ ' ' * indent }<Folder id=\"#{@id}\">\n"
-        h << super
+        h << super(indent + 4)
         @features.each do |a|
             h << a.to_kml(indent + 4)
         end
@@ -231,7 +237,7 @@ class Document < Container
     end
 
     def to_kml
-        h = <<-doc_header
+        h = super + <<-doc_header
 <?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
 <Document>
@@ -306,7 +312,7 @@ class ColorStyle < KMLObject
 
     def to_kml(indent = 0)
 
-        <<-colorstyle
+        super + <<-colorstyle
 #{ ' ' * indent }<color>#{@color}</color>
 #{ ' ' * indent }<colorMode>#{@colormode}</colorMode>
         colorstyle
@@ -326,8 +332,7 @@ class BalloonStyle < ColorStyle
     end
 
     def to_kml(indent = 0)
-
-        <<-balloonstyle
+        super + <<-balloonstyle
 #{ ' ' * indent }<BalloonStyle id="#{@id}">
 #{ ' ' * indent }    <bgColor>#{@bgcolor}</bgColor>
 #{ ' ' * indent }    <text>#{@text}</text>
@@ -353,8 +358,7 @@ class IconStyle < ColorStyle
     end
 
     def to_kml(indent = 0)
-
-        <<-iconstyle
+        super + <<-iconstyle
 #{ ' ' * indent }<IconStyle id="#{@id}">
 #{ super(indent + 4) }
 #{ ' ' * indent }    <scale>#{@scale}</scale>
@@ -377,8 +381,7 @@ class LabelStyle < ColorStyle
     end
 
     def to_kml(indent = 0)
-
-        <<-labelstyle
+        super + <<-labelstyle
 #{ ' ' * indent }<LabelStyle id="#{@id}">
 #{ super(indent + 4) }
 #{ ' ' * indent }    <scale>#{@scale}</scale>
@@ -399,8 +402,7 @@ class LineStyle < ColorStyle
     end
 
     def to_kml(indent = 0)
-
-        <<-linestyle
+        super + <<-linestyle
 #{ ' ' * indent }<LineStyle id="#{@id}">
 #{ super(indent + 4) }
 #{ ' ' * indent }    <width>#{@width}</width>
@@ -424,7 +426,7 @@ class ListStyle < ColorStyle
     end
 
     def to_kml(indent = 0)
-        k = "#{ ' ' * indent }<ListStyle id=\"#{@id}\">\n"
+        k = super + "#{ ' ' * indent }<ListStyle id=\"#{@id}\">\n"
         k << kml_array([
             [@listitemtype, 'listItemType', true],
             [@bgcolor, 'bgColor', true]
@@ -450,8 +452,7 @@ class PolyStyle < ColorStyle
     end
 
     def to_kml(indent = 0)
-
-        <<-polystyle
+        super + <<-polystyle
 #{ ' ' * indent }<PolyStyle id="#{@id}">
 #{ super(indent + 4) }
 #{ ' ' * indent }    <fill>#{@fill}</fill>
@@ -481,7 +482,7 @@ class Style < StyleSelector
     end
 
     def to_kml(indent = 0)
-        k = "#{ ' ' * indent }<Style id=\"#{@id}\">\n"
+        k = super + "#{ ' ' * indent }<Style id=\"#{@id}\">\n"
         k << @icon.to_kml(indent + 4) unless @icon.nil?
         k << @label.to_kml(indent + 4) unless @label.nil?
         k << @line.to_kml(indent + 4) unless @line.nil?
@@ -511,7 +512,7 @@ class StyleMap < StyleSelector
     end
 
     def to_kml(indent = 0)
-        k = "#{ ' ' * indent }<StyleMap id=\"#{@id}\">\n"
+        k = super + "#{ ' ' * indent }<StyleMap id=\"#{@id}\">\n"
         @pairs.each do |a|
             k << "#{ ' ' * indent }    <Pair id=\"Pair_#{ a[0] }\">\n"
             k << "#{ ' ' * indent }        <key>#{ a[1] }</key>\n"
@@ -589,7 +590,7 @@ class FlyTo < TourPrimitive
     end
 
     def to_kml(indent = 0)
-        k = "#{ ' ' * indent }<gx:FlyTo>\n"
+        k = super + "#{ ' ' * indent }<gx:FlyTo>\n"
         k << kml_array([
             [ @duration, 'gx:duration', true ],
             [ @mode, 'gx:flyToMode', true ]
@@ -622,7 +623,7 @@ class AnimatedUpdate < TourPrimitive
     end
 
     def to_kml(indent = 0)
-        k = <<-animatedupdate_kml
+        k = super + <<-animatedupdate_kml
 #{ ' ' * indent }<gx:AnimatedUpdate>
 #{ ' ' * indent }    <gx:duration>#{@duration}</gx:duration>
         animatedupdate_kml
@@ -646,8 +647,7 @@ class Wait < TourPrimitive
     end
 
     def to_kml(indent = 0)
-
-        <<-wait_kml
+        super + <<-wait_kml
 #{ ' ' * indent }<gx:Wait><gx:duration>#{@duration}</gx:duration></gx:Wait>
         wait_kml
     end
@@ -672,8 +672,7 @@ class Tour < KMLObject
     end
 
     def to_kml(indent = 0)
-
-        k = "#{ ' ' * indent }<gx:Tour id=\"#{ @id }\">\n"
+        k = super + "#{ ' ' * indent }<gx:Tour id=\"#{ @id }\">\n"
         k << kml_array([
             [ @name, 'name', true ],
             [ @description, 'description', true ],
