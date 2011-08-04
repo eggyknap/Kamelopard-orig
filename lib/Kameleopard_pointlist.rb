@@ -32,6 +32,10 @@ class NDPointList
         end
     end
 
+    def last
+        @points.last
+    end
+
     def [](i)
         @points[i]
     end
