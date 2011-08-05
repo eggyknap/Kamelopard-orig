@@ -343,18 +343,25 @@ class BalloonStyle < ColorStyle
     end
 end
 
+class KMLxy
+    attr_accessor :x, :y, :xunits, :yunits
+    def initialize(x = 0.5, y = 0.5, xunits = :fraction, yunits = :fraction)
+        @x = x
+        @y = y
+        @xunits = xunits
+        @yunits = yunits
+    end
+end
+
 class IconStyle < ColorStyle
-    attr_accessor :scale, :heading, :href, :hs_x, :hs_y, :hs_xunits, :hs_yunits
+    attr_accessor :scale, :heading, :href, :hotspot
 
     def initialize(href, scale = 1, heading = 0, hs_x = 0.5, hs_y = 0.5, hs_xunits = :fraction, hs_yunits = :fraction, color = 'ffffffff', colormode = :normal)
         super(color, colormode)
         @href = href
         @scale = scale
         @heading = heading
-        @hs_x = hs_x
-        @hs_y = hs_y
-        @hs_xunits = hs_xunits
-        @hs_yunits = hs_yunits
+        @hotspot = KMLxy.new(hs_x, hs_y, hs_xunits, hs_yunits)
     end
 
     def to_kml(indent = 0)
@@ -366,7 +373,7 @@ class IconStyle < ColorStyle
 #{ ' ' * indent }    <Icon>
 #{ ' ' * indent }        <href>#{@href}</href>
 #{ ' ' * indent }    </Icon>
-#{ ' ' * indent }    <hotSpot x="#{@hs_x}" y="#{@hs_y}" xunits="#{@hs_xunits}" yunits="#{@hs_yunits}" />
+#{ ' ' * indent }    <hotSpot x="#{@hotspot.x}" y="#{@hotspot.y}" xunits="#{@hotspot.xunits}" yunits="#{@hotspot.yunits}" />
 #{ ' ' * indent }</IconStyle>
         iconstyle
     end

@@ -166,5 +166,6 @@ def comment_test
     f.comment = 'THis is another flyto'
 end
 
-comment_test
-puts get_kml
+#comment_test
+#puts get_kml
+stylemap
