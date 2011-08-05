@@ -40,6 +40,10 @@ def name_tour(a)
     Document.instance.tour.name = a
 end
 
+def new_folder(name)
+    Folder.new(name)
+end
+
 def name_folder(a)
     Document.instance.folder.name = a
 end

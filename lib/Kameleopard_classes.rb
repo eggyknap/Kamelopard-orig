@@ -205,6 +205,11 @@ class Container < Feature
 end
 
 class Folder < Container
+    def initialize(name = nil)
+        @name = name
+        Document.instance.folders << self
+    end
+
     def to_kml(indent = 0)
         h = "#{ ' ' * indent }<Folder id=\"#{@id}\">\n"
         h << super(indent + 4)
@@ -351,31 +356,63 @@ class KMLxy
         @xunits = xunits
         @yunits = yunits
     end
+
+    def to_kml(name, indent = 0)
+        <<-kmlxy
+#{ ' ' * indent}<#{ name } x="#{ @x }" y="#{ @y }" xunits="#{ @xunits }" yunits="#{ @yunits }" />
+        kmlxy
+    end
+end
+
+class Icon
+    attr_accessor :href, :x, :y, :w, :h, :refreshMode, :refreshInterval, :viewRefreshMode, :viewRefreshTime, :viewBoundScale, :viewFormat, :httpQuery
+
+    def initialize(href = nil)
+        @href = href
+    end
+
+    def to_kml(indent = 0)
+        k = "#{ ' ' * indent }<Icon>\n"
+        k << kml_array([
+            [@href, 'href', true],
+            [@x, 'gx:x', true],
+            [@y, 'gx:y', true],
+            [@w, 'gx:w', true],
+            [@h, 'gx:h', true],
+            [@refreshMode, 'refreshMode', true],
+            [@refreshInterval, 'refreshInterval', true],
+            [@viewRefreshMode, 'viewRefreshMode', true],
+            [@viewBoundScale, 'viewBoundScale', true],
+            [@viewFormat, 'viewFormat', true],
+            [@httpQuery, 'httpQuery', true],
+        ], indent + 4)
+        k << "#{ ' ' * indent }</Icon>\n"
+    end
 end
 
 class IconStyle < ColorStyle
-    attr_accessor :scale, :heading, :href, :hotspot
+    attr_accessor :scale, :heading, :hotspot, :icon
 
     def initialize(href, scale = 1, heading = 0, hs_x = 0.5, hs_y = 0.5, hs_xunits = :fraction, hs_yunits = :fraction, color = 'ffffffff', colormode = :normal)
         super(color, colormode)
-        @href = href
         @scale = scale
         @heading = heading
+        @icon = Icon.new(href)
         @hotspot = KMLxy.new(hs_x, hs_y, hs_xunits, hs_yunits)
     end
 
     def to_kml(indent = 0)
-        super + <<-iconstyle
+        k = super + <<-iconstyle1
 #{ ' ' * indent }<IconStyle id="#{@id}">
 #{ super(indent + 4) }
 #{ ' ' * indent }    <scale>#{@scale}</scale>
 #{ ' ' * indent }    <heading>#{@heading}</heading>
-#{ ' ' * indent }    <Icon>
-#{ ' ' * indent }        <href>#{@href}</href>
-#{ ' ' * indent }    </Icon>
+       iconstyle1
+       k << @icon.to_kml(indent + 4)
+       k << <<-iconstyle2
 #{ ' ' * indent }    <hotSpot x="#{@hotspot.x}" y="#{@hotspot.y}" xunits="#{@hotspot.xunits}" yunits="#{@hotspot.yunits}" />
 #{ ' ' * indent }</IconStyle>
-        iconstyle
+        iconstyle2
     end
 end
 
@@ -691,5 +728,45 @@ class Tour < KMLObject
         k << "#{ ' ' * indent }    </gx:Playlist>\n"
         k << "#{ ' ' * indent }</gx:Tour>\n"
         k
+    end
+end
+
+class Overlay < Feature
+    attr_accessor :color, :drawOrder, :icon
+
+    def initialize(name = nil)
+        super(name)
+        Document.instance.folder << self
+    end
+
+    def to_kml(indent = 0)
+        super(indent) + kml_array([
+            [ @color, 'color', true ],
+            [ @drawOrder, 'drawOrder', true ],
+            [ @range, 'range', true ]
+        ], indent + 4)
+    end
+end
+
+class ScreenOverlay < Overlay
+    attr_accessor :overlayXY, :screenXY, :rotationXY, :size, :rotation
+    def initialize(name  = nil, size = nil, rotation = nil, overlayXY = nil, screenXY = nil, rotationXY = nil)
+        super(name)
+        @overlayXY = overlayXY
+        @screenXY = screenXY
+        @rotationXY = rotationXY
+        @size = size
+        @rotation = rotation
+    end
+
+    def to_kml(indent = 0)
+        k = "#{ ' ' * indent }<ScreenOverlay id=\"#{ @id }\">\n"
+        k << super(indent + 4)
+        k << @overlayXY.to_kml('overlayXY', indent + 4)   unless @overlayXY.nil?
+        k << @screenXY.to_kml('screenXY', indent + 4)     unless @screenXY.nil?
+        k << @rotationXY.to_kml('rotationXY', indent + 4) unless @rotationXY.nil?
+        k << @size.to_kml('size', indent + 4)             unless @size.nil?
+        k << "#{ ' ' * indent }    <rotation>#{ @rotation }</rotation>\n" unless @rotation.nil?
+        k << "#{ ' ' * indent }</ScreenOverlay>\n"
     end
 end

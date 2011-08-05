@@ -166,6 +166,16 @@ def comment_test
     f.comment = 'THis is another flyto'
 end
 
-#comment_test
-#puts get_kml
-stylemap
+def silverspring
+    s = ScreenOverlay.new('Test ScreenOverlay',
+        KMLxy.new(), nil,
+        KMLxy.new(0.5, 0.5),
+        KMLxy.new(0.5, 0.5),
+        nil
+    )
+    s.description = '<h1>Tour Introduction</h1>This screen overlay uses fractional positioning to put the image in the exact center of the screen'
+    name_folder 'Chicago Outage Tour Assets'
+end
+
+silverspring
+puts get_kml
