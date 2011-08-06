@@ -182,6 +182,14 @@ def photooverlay
     p = PhotoOverlay.new('test.png', s)
 end
 
+def groundoverlay
+    ll = point("112d27'21.66\" W", "38d50'24.5\" N")
+    lr = point("112d28'21.66\" W", "38d50'24.5\" N")
+    ur = point("112d28'21.66\" W", "39d50'24.5\" N")
+    ul = point("112d26'21.66\" W", "39d50'24.5\" N")
+    p = GroundOverlay.new('test.png', nil, LatLonQuad.new(ll, lr, ur, ul), 10, :relativeToSeaFloor)
+end
+
 #silverspring
-photooverlay
+groundoverlay
 puts get_kml

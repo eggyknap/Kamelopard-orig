@@ -242,11 +242,13 @@ class Document < Container
     end
 
     def to_kml
-        h = super + <<-doc_header
+        h = <<-doc_header
 <?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
 <Document>
         doc_header
+
+        h << super(4)
 
         # Print styles first
         @styles.map do |a| h << a.to_kml(4) end
@@ -848,5 +850,78 @@ class PhotoOverlay < Overlay
         k << "#{ ' ' * indent }    <rotation>#{ @rotation }</rotation>\n"
         k << "#{ ' ' * indent }    <shape>#{ @shape }</shape>\n"
         k << "#{ ' ' * indent }</PhotoOverlay>\n"
+    end
+end
+
+class LatLonBox
+    attr_accessor :north, :south, :east, :west, :rotation
+
+    def initialize(north, south, east, west, rotation = 0)
+        @north = north
+        @south = south
+        @east = east
+        @west = west
+        @rotation = rotation
+    end
+
+    def to_kml(indent = 0)
+
+        <<-latlonbox
+#{ ' ' * indent }<LatLonBox>
+#{ ' ' * indent }    <north>#{ @north }</north>
+#{ ' ' * indent }    <south>#{ @south }</south
+#{ ' ' * indent }    <east>#{ @east }</east
+#{ ' ' * indent }    <west>#{ @west }</west
+#{ ' ' * indent }    <rotation>#{ @rotation }</rotation
+#{ ' ' * indent }</LatLonBox>
+        latlonbox
+    end
+end
+
+class LatLonQuad
+    attr_accessor :lowerLeft, :lowerRight, :upperRight, :upperLeft
+    def initialize(lowerLeft, lowerRight, upperRight, upperLeft)
+        @lowerLeft = lowerLeft
+        @lowerRight = lowerRight
+        @upperRight = upperRight
+        @upperLeft = upperLeft
+    end
+
+    def to_kml(indent = 0)
+
+        <<-latlonquad
+#{ ' ' * indent }<gx:LatLonQuad>
+#{ ' ' * indent }    <coordinates>#{ @lowerLeft.longitude },#{ @lowerLeft.latitude } #{ @lowerRight.longitude },#{ @lowerRight.latitude } #{ @upperRight.longitude },#{ @upperRight.latitude } #{ @upperLeft.longitude },#{ @upperLeft.latitude }</coordinates>
+#{ ' ' * indent }</gx:LatLonQuad>
+        latlonquad
+    end
+end
+
+class GroundOverlay < Overlay
+    attr_accessor :altitude, :altitudeMode, :latlonbox, :latlonquad
+    def initialize(icon, latlonbox = nil, latlonquad = nil, altitude = 0, altitudeMode = :clampToGround)
+        super(icon)
+        @latlonbox = latlonbox
+        @latlonquad = latlonquad
+        @altitude = altitude
+        @altitudeMode = altitudeMode
+    end
+
+    def to_kml(indent = 0)
+        raise "Either latlonbox or latlonquad must be non-nil" if @latlonbox.nil? and @latlonquad.nil?
+
+        k = "#{ ' ' * indent}<GroundOverlay id=\"#{ @id }\">\n"
+        k << super(indent + 4)
+        k << "#{ ' ' * indent }    <altitude>#{ @altitude }</altitude>\n"
+        k << ' ' * indent
+        if @altitudeMode == :clampToGround or @altitudeMode == :absolute then
+            k << "    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
+        else
+            k << "    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
+        end
+        k << @latlonbox.to_kml(indent + 4) unless @latlonbox.nil?
+        k << @latlonquad.to_kml(indent + 4) unless @latlonquad.nil?
+        k << "#{ ' ' * indent }</GroundOverlay>\n"
+        k
     end
 end
