@@ -104,14 +104,14 @@ class KMLPoint < Geometry
         "KMLPoint (#{@longitude}, #{@latitude}, #{@altitude}, mode = #{@altitudeMode}, #{ @extrude ? 'extruded' : 'not extruded' })"
     end
 
-    def to_kml(indent = 0)
-        super +  <<-point_kml
-#{ ' ' * indent }<Point id="#{ @id }">
-#{ ' ' * indent }    <extrude>#{ @extrude ? 1 : 0 }</extrude>
-#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>
-#{ ' ' * indent }    <coordinates>#{ @longitude }, #{ @latitude }, #{ @altitude }</coordinates>
-#{ ' ' * indent }</Point>
-        point_kml
+    def to_kml(indent = 0, short = false)
+        # The short form includes only the coordinates tag
+        k = super(indent + 4) + "#{ ' ' * indent }<Point id=\"#{ @id }\">\n"
+        k << "#{ ' ' * indent }    <extrude>#{ @extrude ? 1 : 0 }</extrude>\n" unless short
+        k << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n" unless short
+        k << "#{ ' ' * indent }    <coordinates>#{ @longitude }, #{ @latitude }, #{ @altitude }</coordinates>\n"
+        k << "#{ ' ' * indent }</Point>\n"
+        k
     end
 end
 
@@ -206,8 +206,8 @@ end
 
 class Folder < Container
     def initialize(name = nil)
+        super()
         @name = name
-        Document.instance.folders << self
     end
 
     def to_kml(indent = 0)
@@ -734,24 +734,29 @@ end
 class Overlay < Feature
     attr_accessor :color, :drawOrder, :icon
 
-    def initialize(name = nil)
+    def initialize(icon, name = nil)
         super(name)
+        if icon.respond_to?('to_kml') then
+            @icon = icon
+        else
+            @icon = Icon.new(icon.to_s)
+        end
         Document.instance.folder << self
     end
 
     def to_kml(indent = 0)
-        super(indent) + kml_array([
+        k = super(indent) + kml_array([
             [ @color, 'color', true ],
             [ @drawOrder, 'drawOrder', true ],
-            [ @range, 'range', true ]
         ], indent + 4)
+        k << @icon.to_kml(indent)
     end
 end
 
 class ScreenOverlay < Overlay
     attr_accessor :overlayXY, :screenXY, :rotationXY, :size, :rotation
-    def initialize(name  = nil, size = nil, rotation = nil, overlayXY = nil, screenXY = nil, rotationXY = nil)
-        super(name)
+    def initialize(icon, name  = nil, size = nil, rotation = nil, overlayXY = nil, screenXY = nil, rotationXY = nil)
+        super(icon, name)
         @overlayXY = overlayXY
         @screenXY = screenXY
         @rotationXY = rotationXY
@@ -768,5 +773,80 @@ class ScreenOverlay < Overlay
         k << @size.to_kml('size', indent + 4)             unless @size.nil?
         k << "#{ ' ' * indent }    <rotation>#{ @rotation }</rotation>\n" unless @rotation.nil?
         k << "#{ ' ' * indent }</ScreenOverlay>\n"
+    end
+end
+
+class ViewVolume
+    attr_accessor :leftFov, :rightFov, :bottomFov, :topFov, :near
+    def initialize(near, leftFov = -45, rightFov = 45, bottomFov = -45, topFov = 45)
+        @leftFov = leftFov
+        @rightFov = rightFov
+        @bottomFov = bottomFov
+        @topFov = topFov
+        @near = near
+    end
+
+    def to_kml(indent = 0)
+
+        <<-viewvolume
+#{ ' ' * indent }<ViewVolume>
+#{ ' ' * indent }    <near>#{@near}</near>
+#{ ' ' * indent }    <leftFov>#{@leftFov}</leftFov>
+#{ ' ' * indent }    <rightFov>#{@rightFov}</rightFov>
+#{ ' ' * indent }    <bottomFov>#{@bottomFov}</bottomFov>
+#{ ' ' * indent }    <topFov>#{@topFov}</topFov>
+#{ ' ' * indent }</ViewVolume>
+        viewvolume
+    end
+end
+
+class ImagePyramid
+    attr_accessor :tileSize, :maxWidth, :maxHeight, :gridOrigin
+
+    def initialize(maxWidth, maxHeight, gridOrigin, tileSize = 256)
+        @tileSize = tileSize
+        @maxWidth = maxWidth
+        @maxHeight = maxHeight
+        @gridOrigin = gridOrigin
+    end
+
+    def to_kml(indent = 0)
+        
+        <<-imagepyramid
+#{ ' ' * indent }<ImagePyramid>
+#{ ' ' * indent }    <tileSize>#{@tileSize}</tileSize>
+#{ ' ' * indent }    <maxWidth>#{@maxWidth}</maxWidth>
+#{ ' ' * indent }    <maxHeight>#{@maxHeight}</maxHeight>
+#{ ' ' * indent }    <gridOrigin>#{@gridOrigin}</gridOrigin>
+#{ ' ' * indent }</ImagePyramid>
+        imagepyramid
+    end
+end
+
+class PhotoOverlay < Overlay
+    attr_accessor :rotation, :viewvolume, :imagepyramid, :point, :shape
+
+    def initialize(icon, point, rotation = 0, viewvolume = nil, imagepyramid = nil, shape = :rectangle)
+        super(icon)
+        if point.respond_to?('point')
+            @point = point.point
+        else
+            @point = point
+        end
+        @rotation = rotation
+        @viewVolume = viewvolume
+        @imagePyramid = imagepyramid
+        @shape = shape
+    end
+
+    def to_kml(indent = 0)
+        k = "#{ ' ' * indent }<PhotoOverlay>\n"
+        k << super(indent + 4)
+        k << @viewVolume.to_kml(indent + 4) unless @viewVolume.nil?
+        k << @imagePyramid.to_kml(indent + 4) unless @imagePyramid.nil?
+        k << @point.to_kml(indent + 4, true)
+        k << "#{ ' ' * indent }    <rotation>#{ @rotation }</rotation>\n"
+        k << "#{ ' ' * indent }    <shape>#{ @shape }</shape>\n"
+        k << "#{ ' ' * indent }</PhotoOverlay>\n"
     end
 end

@@ -177,5 +177,11 @@ def silverspring
     name_folder 'Chicago Outage Tour Assets'
 end
 
-silverspring
+def photooverlay
+    s = Placemark.new 'Stockholm', point("18d03'51\" E", "59d19'57\" N")
+    p = PhotoOverlay.new('test.png', s)
+end
+
+#silverspring
+photooverlay
 puts get_kml
