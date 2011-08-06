@@ -399,7 +399,7 @@ class IconStyle < ColorStyle
         super(color, colormode)
         @scale = scale
         @heading = heading
-        @icon = Icon.new(href)
+        @icon = Icon.new(href) unless href.nil?
         @hotspot = KMLxy.new(hs_x, hs_y, hs_xunits, hs_yunits)
     end
 
@@ -410,7 +410,7 @@ class IconStyle < ColorStyle
 #{ ' ' * indent }    <scale>#{@scale}</scale>
 #{ ' ' * indent }    <heading>#{@heading}</heading>
        iconstyle1
-       k << @icon.to_kml(indent + 4)
+       k << @icon.to_kml(indent + 4) unless @icon.nil?
        k << <<-iconstyle2
 #{ ' ' * indent }    <hotSpot x="#{@hotspot.x}" y="#{@hotspot.y}" xunits="#{@hotspot.xunits}" yunits="#{@hotspot.yunits}" />
 #{ ' ' * indent }</IconStyle>
@@ -740,7 +740,7 @@ class Overlay < Feature
         super(name)
         if icon.respond_to?('to_kml') then
             @icon = icon
-        else
+        elsif not icon.nil?
             @icon = Icon.new(icon.to_s)
         end
         Document.instance.folder << self
@@ -751,7 +751,8 @@ class Overlay < Feature
             [ @color, 'color', true ],
             [ @drawOrder, 'drawOrder', true ],
         ], indent + 4)
-        k << @icon.to_kml(indent)
+        k << @icon.to_kml(indent) unless @icon.nil?
+        k
     end
 end
 

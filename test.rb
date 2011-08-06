@@ -166,17 +166,6 @@ def comment_test
     f.comment = 'THis is another flyto'
 end
 
-def silverspring
-    s = ScreenOverlay.new('Test ScreenOverlay',
-        KMLxy.new(), nil,
-        KMLxy.new(0.5, 0.5),
-        KMLxy.new(0.5, 0.5),
-        nil
-    )
-    s.description = '<h1>Tour Introduction</h1>This screen overlay uses fractional positioning to put the image in the exact center of the screen'
-    name_folder 'Chicago Outage Tour Assets'
-end
-
 def photooverlay
     s = Placemark.new 'Stockholm', point("18d03'51\" E", "59d19'57\" N")
     p = PhotoOverlay.new('test.png', s)
@@ -190,6 +179,5 @@ def groundoverlay
     p = GroundOverlay.new('test.png', nil, LatLonQuad.new(ll, lr, ur, ul), 10, :relativeToSeaFloor)
 end
 
-#silverspring
 groundoverlay
 puts get_kml
