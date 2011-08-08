@@ -153,18 +153,56 @@ class LookAt < AbstractView
     end
 end
 
+class TimePrimitive < KMLObject
+end
+
+class TimeStamp < TimePrimitive
+    attr_accessor :when
+    def initialize(t_when)
+        super()
+        @when = t_when
+    end
+
+    def to_kml(indent = 0)
+        
+        <<-timestamp
+#{ ' ' * indent }<TimeStamp id="#{ @id }">
+#{ ' ' * indent }    <when>#{ @when }</when>
+#{ ' ' * indent }</TimeStamp>
+        timestamp
+    end
+end
+
+class TimeSpan < TimePrimitive
+    attr_accessor :begin, :end
+    def initialize(t_begin, t_end)
+        super()
+        @begin = t_begin
+        @end = t_end
+    end
+
+    def to_kml(indent = 0)
+        k = "#{ ' ' * indent }<TimeSpan id=\"#{ @id }\">\n"
+        k << "#{ ' ' * indent }    <begin>#{ @begin }</begin>\n" unless @begin.nil?
+        k << "#{ ' ' * indent }    <end>#{ @end }</end>\n" unless @end.nil?
+        k << "#{ ' ' * indent }</TimeSpan>\n"
+        k
+    end
+end
+
 class Feature < KMLObject
     # Abstract class
     attr_accessor :visibility, :open, :atom_author, :atom_link, :name,
         :addressdetails, :phonenumber, :snippet, :description, :abstractview,
-        :timeprimitive, :styleurl, :styleselector, :region, :metadata,
-        :extendeddata
+        :timestamp, :timespan, :styleurl, :styleselector, :region, :metadata,
+        :extendeddata, :styles
 
     def initialize (name = nil)
         super()
         @name = name
         @visibility = true
         @open = false
+        @styles = []
     end
 
     def to_kml(indent = 0)
@@ -181,14 +219,24 @@ class Feature < KMLObject
                 [@snippet, 'Snippet', true],
                 [@description, 'description', true],
                 [@abstractview, 'abstractview', false ],          # XXX
-                [@timeprimitive, 'timeprimitive', false ],        # XXX
                 [@styleurl, 'styleUrl', true],
                 [@styleselector, "<styleSelector>#{@styleselector.nil? ? '' : @styleselector.to_kml}</styleSelector>", false ],
                 [@region, 'Region', false ],                      # XXX
                 [@metadata, 'Metadata', false ],                  # XXX
                 [@extendeddata, 'ExtendedData', false ]           # XXX
             ], (indent))
+        k << styles_to_kml(indent)
+        k << @timestamp.to_kml(indent) unless @timestamp.nil?
+        k << @timespan.to_kml(indent) unless @timespan.nil?
         k << yield if block_given?
+        k
+    end
+    
+    def styles_to_kml(indent)
+        k = ''
+        @styles.each do |a|
+            k << a.to_kml(indent)
+        end
         k
     end
 end
@@ -205,9 +253,12 @@ class Container < Feature
 end
 
 class Folder < Container
+    attr_accessor :styles
     def initialize(name = nil)
         super()
         @name = name
+        @styles = []
+        Document.instance.folders << self
     end
 
     def to_kml(indent = 0)
@@ -221,9 +272,15 @@ class Folder < Container
     end
 end
 
+def get_stack_trace
+    k = ''
+    caller.each do |a| k << "#{a}\n" end
+    k
+end
+
 class Document < Container
     include Singleton
-    attr_accessor :flyto_mode, :folders, :tours, :styles
+    attr_accessor :flyto_mode, :folders, :tours
 
     def initialize
         @tours = []
@@ -237,8 +294,14 @@ class Document < Container
     end
 
     def folder
-        @folders << Folder.new if @folders.size == 0
+        if @folders.size == 0 then
+            Folder.new
+        end
         @folders.last
+    end
+
+    def styles_to_kml(indent)
+        ''
     end
 
     def to_kml
@@ -251,7 +314,7 @@ class Document < Container
         h << super(4)
 
         # Print styles first
-        @styles.map do |a| h << a.to_kml(4) end
+        @styles.map do |a| h << a.to_kml(4) unless a.attached? end
 
         # then folders
         @folders.map do |a| h << a.to_kml(4) end
@@ -400,21 +463,19 @@ class IconStyle < ColorStyle
         @scale = scale
         @heading = heading
         @icon = Icon.new(href) unless href.nil?
-        @hotspot = KMLxy.new(hs_x, hs_y, hs_xunits, hs_yunits)
+        @hotspot = KMLxy.new(hs_x, hs_y, hs_xunits, hs_yunits) unless (hs_x.nil? and hs_y.nil? and hs_xunits.nil? and hs_yunits.nil?)
     end
 
     def to_kml(indent = 0)
-        k = super + <<-iconstyle1
+        k = <<-iconstyle1
 #{ ' ' * indent }<IconStyle id="#{@id}">
 #{ super(indent + 4) }
 #{ ' ' * indent }    <scale>#{@scale}</scale>
 #{ ' ' * indent }    <heading>#{@heading}</heading>
        iconstyle1
        k << @icon.to_kml(indent + 4) unless @icon.nil?
-       k << <<-iconstyle2
-#{ ' ' * indent }    <hotSpot x="#{@hotspot.x}" y="#{@hotspot.y}" xunits="#{@hotspot.xunits}" yunits="#{@hotspot.yunits}" />
-#{ ' ' * indent }</IconStyle>
-        iconstyle2
+       k << "#{ ' ' * indent }    <hotSpot x=\"#{@hotspot.x}\" y=\"#{@hotspot.y}\" xunits=\"#{@hotspot.xunits}\" yunits=\"#{@hotspot.yunits}\" />\n" unless @hotspot.nil?
+       k << "#{ ' ' * indent }</IconStyle>\n"
     end
 end
 
@@ -427,7 +488,8 @@ class LabelStyle < ColorStyle
     end
 
     def to_kml(indent = 0)
-        super + <<-labelstyle
+
+        <<-labelstyle
 #{ ' ' * indent }<LabelStyle id="#{@id}">
 #{ super(indent + 4) }
 #{ ' ' * indent }    <scale>#{@scale}</scale>
@@ -448,7 +510,8 @@ class LineStyle < ColorStyle
     end
 
     def to_kml(indent = 0)
-        super + <<-linestyle
+
+        <<-linestyle
 #{ ' ' * indent }<LineStyle id="#{@id}">
 #{ super(indent + 4) }
 #{ ' ' * indent }    <width>#{@width}</width>
@@ -472,7 +535,7 @@ class ListStyle < ColorStyle
     end
 
     def to_kml(indent = 0)
-        k = super + "#{ ' ' * indent }<ListStyle id=\"#{@id}\">\n"
+        k = "#{ ' ' * indent }<ListStyle id=\"#{@id}\">\n" + super
         k << kml_array([
             [@listitemtype, 'listItemType', true],
             [@bgcolor, 'bgColor', true]
@@ -498,20 +561,33 @@ class PolyStyle < ColorStyle
     end
 
     def to_kml(indent = 0)
-        super + <<-polystyle
+
+        k = <<-polystyle
 #{ ' ' * indent }<PolyStyle id="#{@id}">
 #{ super(indent + 4) }
 #{ ' ' * indent }    <fill>#{@fill}</fill>
-#{ ' ' * indent }    <outline>#{@outline}</outline>
-#{ ' ' * indent }</PolyStyle>
         polystyle
+        k << "#{ ' ' * indent }    <outline>#{@outline}</outline>\n" unless @outline.nil?
+        k << "#{ ' ' * indent }</PolyStyle>\n"
+        k
     end
 end
 
 class StyleSelector < KMLObject
+    attr_accessor :attached
     def initialize
         super
+        @attached = false
         Document.instance.styles << self
+    end
+
+    def attached?
+        @attached
+    end
+
+    def attach(obj)
+        @attached = true
+        obj.styles << self
     end
 end
 
@@ -528,7 +604,8 @@ class Style < StyleSelector
     end
 
     def to_kml(indent = 0)
-        k = super + "#{ ' ' * indent }<Style id=\"#{@id}\">\n"
+        k = ''
+        k << super + "#{ ' ' * indent }<Style id=\"#{@id}\">\n"
         k << @icon.to_kml(indent + 4) unless @icon.nil?
         k << @label.to_kml(indent + 4) unless @label.nil?
         k << @line.to_kml(indent + 4) unless @line.nil?
