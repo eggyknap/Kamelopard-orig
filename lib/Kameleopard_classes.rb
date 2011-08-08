@@ -108,7 +108,13 @@ class KMLPoint < Geometry
         # The short form includes only the coordinates tag
         k = super(indent + 4) + "#{ ' ' * indent }<Point id=\"#{ @id }\">\n"
         k << "#{ ' ' * indent }    <extrude>#{ @extrude ? 1 : 0 }</extrude>\n" unless short
-        k << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n" unless short
+        if not short then
+            if @altitudeMode == :clampToGround or @altitudeMode == :absolute then
+                k << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
+            else
+                k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
+            end
+        end
         k << "#{ ' ' * indent }    <coordinates>#{ @longitude }, #{ @latitude }, #{ @altitude }</coordinates>\n"
         k << "#{ ' ' * indent }</Point>\n"
         k
@@ -116,9 +122,62 @@ class KMLPoint < Geometry
 end
 
 class AbstractView < KMLObject
+    attr_accessor :timestamp, :timespan
+
+    def to_kml(indent = 0)
+#   XXX
+#  <gx:ViewerOptions>
+#    <option> name=" " type="boolean">     <!-- name="streetview", "historicalimagery", "sunlight", or "groundnavigation" -->
+#    </option>
+#  </gx:ViewerOptions>
+        if not @timestamp.nil? then
+            @timestamp.to_kml(indent+4, 'gx')
+        elsif not @timespan.nil? then
+            @timespan.to_kml(indent+4, 'gx')
+        else
+            ''
+        end
+    end
 end
 
 class Camera < AbstractView
+    attr_accessor :longitude, :latitude, :altitude, :heading, :tilt, :roll, :altitudeMode
+    def initialize(long = 0, lat = 0, alt = 0, heading = 0, tilt = 0, roll = 0, mode = :clampToGround)
+        super()
+        @longitude = long
+        @latitude = lat
+        @altitude = alt
+        @heading = heading
+        @tilt = tilt
+        @roll = roll
+        @altitudeMode = mode
+    end
+
+    def point=(point)
+        @longitude = point.longitude
+        @latitude = point.latitude
+        @altitude = point.altitude
+    end
+
+    def to_kml(indent = 0)
+
+        k = "#{ ' ' * indent }<Camera id=\"#{ @id }\">\n"
+        k << super(indent)
+        k << <<-camera
+#{ ' ' * indent }    <longitude>#{ @longitude }</longitude>
+#{ ' ' * indent }    <latitude>#{ @latitude }</latitude>
+#{ ' ' * indent }    <altitude>#{ @altitude }</altitude>
+#{ ' ' * indent }    <heading>#{ @heading }</heading>
+#{ ' ' * indent }    <roll>#{ @roll }</roll>
+#{ ' ' * indent }    <tilt>#{ @tilt }</tilt>
+        camera
+        if @altitudeMode == :clampToGround or @altitudeMode == :absolute then
+            k << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
+        else
+            k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
+        end
+        k << "#{ ' ' * indent }</Camera>\n"
+    end
 end
 
 class LookAt < AbstractView
@@ -138,17 +197,21 @@ class LookAt < AbstractView
     end
 
     def to_kml(indent = 0)
-        k = super + "#{ ' ' * indent }<LookAt id=\"#{@id}\">\n"
-        # XXX Need to include AbstractView stuff here sometime
+        k = "#{ ' ' * indent }<LookAt id=\"#{@id}\">\n"
+        k << super
         k << kml_array([
             [ @point.longitude, 'longitude', true ],
             [ @point.latitude, 'latitude', true ],
             [ @point.altitude, 'altitude', true ],
-            [ @point.altitudeMode, 'altitudeMode', true ],
             [ @heading, 'heading', true ],
             [ @tilt, 'tilt', true ],
             [ @range, 'range', true ]
         ], indent + 4)
+        if @altitudeMode == :clampToGround or @altitudeMode == :absolute then
+            k << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
+        else
+            k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
+        end
         k << "#{ ' ' * indent }</LookAt>\n"
     end
 end
@@ -163,12 +226,14 @@ class TimeStamp < TimePrimitive
         @when = t_when
     end
 
-    def to_kml(indent = 0)
+    def to_kml(indent = 0, ns = nil)
+        prefix = ''
+        prefix = ns + ':' unless ns.nil?
         
         <<-timestamp
-#{ ' ' * indent }<TimeStamp id="#{ @id }">
+#{ ' ' * indent }<#{ prefix }TimeStamp id="#{ @id }">
 #{ ' ' * indent }    <when>#{ @when }</when>
-#{ ' ' * indent }</TimeStamp>
+#{ ' ' * indent }</#{ prefix }TimeStamp>
         timestamp
     end
 end
@@ -181,11 +246,14 @@ class TimeSpan < TimePrimitive
         @end = t_end
     end
 
-    def to_kml(indent = 0)
-        k = "#{ ' ' * indent }<TimeSpan id=\"#{ @id }\">\n"
+    def to_kml(indent = 0, ns = nil)
+        prefix = ''
+        prefix = ns + ':' unless ns.nil?
+
+        k = "#{ ' ' * indent }<#{ prefix }TimeSpan id=\"#{ @id }\">\n"
         k << "#{ ' ' * indent }    <begin>#{ @begin }</begin>\n" unless @begin.nil?
         k << "#{ ' ' * indent }    <end>#{ @end }</end>\n" unless @end.nil?
-        k << "#{ ' ' * indent }</TimeSpan>\n"
+        k << "#{ ' ' * indent }</#{ prefix }TimeSpan>\n"
         k
     end
 end
@@ -470,9 +538,9 @@ class IconStyle < ColorStyle
         k = <<-iconstyle1
 #{ ' ' * indent }<IconStyle id="#{@id}">
 #{ super(indent + 4) }
-#{ ' ' * indent }    <scale>#{@scale}</scale>
-#{ ' ' * indent }    <heading>#{@heading}</heading>
        iconstyle1
+       k << "#{ ' ' * indent }    <scale>#{@scale}</scale>\n" unless @scale.nil?
+       k << "#{ ' ' * indent }    <heading>#{@heading}</heading>\n" unless @heading.nil?
        k << @icon.to_kml(indent + 4) unless @icon.nil?
        k << "#{ ' ' * indent }    <hotSpot x=\"#{@hotspot.x}\" y=\"#{@hotspot.y}\" xunits=\"#{@hotspot.xunits}\" yunits=\"#{@hotspot.yunits}\" />\n" unless @hotspot.nil?
        k << "#{ ' ' * indent }</IconStyle>\n"
@@ -708,7 +776,9 @@ class FlyTo < TourPrimitive
         else
             @view = LookAt.new(view)
         end
-        @view.range = range unless range.nil?
+        if view.respond_to? 'range' and not range.nil? then
+            @view.range = range
+        end
         super()
     end
 
@@ -993,9 +1063,9 @@ class GroundOverlay < Overlay
         k << "#{ ' ' * indent }    <altitude>#{ @altitude }</altitude>\n"
         k << ' ' * indent
         if @altitudeMode == :clampToGround or @altitudeMode == :absolute then
-            k << "    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
+            k << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
         else
-            k << "    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
+            k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
         end
         k << @latlonbox.to_kml(indent + 4) unless @latlonbox.nil?
         k << @latlonquad.to_kml(indent + 4) unless @latlonquad.nil?
