@@ -1,4 +1,6 @@
 # vim:ts=4:sw=4:et:smartindent:nowrap
+
+# XXX add some geocoding feature
 require 'singleton'
 require 'Kameleopard_pointlist'
 
@@ -289,13 +291,13 @@ class Feature < KMLObject
                 [@abstractview, 'abstractview', false ],          # XXX
                 [@styleurl, 'styleUrl', true],
                 [@styleselector, "<styleSelector>#{@styleselector.nil? ? '' : @styleselector.to_kml}</styleSelector>", false ],
-                [@region, 'Region', false ],                      # XXX
                 [@metadata, 'Metadata', false ],                  # XXX
                 [@extendeddata, 'ExtendedData', false ]           # XXX
             ], (indent))
         k << styles_to_kml(indent)
         k << @timestamp.to_kml(indent) unless @timestamp.nil?
         k << @timespan.to_kml(indent) unless @timespan.nil?
+        k << @region.to_kml(indent) unless @region.nil?
         k << yield if block_given?
         k
     end
@@ -734,6 +736,10 @@ class Placemark < Feature
         a << "#{ ' ' * indent }</Placemark>\n"
     end
 
+    def to_s
+        "Placemark id #{ @id } named #{ @name }"
+    end
+
     def longitude
         @geometry.longitude
     end
@@ -1002,27 +1008,58 @@ class PhotoOverlay < Overlay
 end
 
 class LatLonBox
-    attr_accessor :north, :south, :east, :west, :rotation
+    attr_reader :north, :south, :east, :west
+    attr_accessor :rotation, :minAltitude, :maxAltitude, :altitudeMode
 
-    def initialize(north, south, east, west, rotation = 0)
-        @north = north
-        @south = south
-        @east = east
-        @west = west
+    def initialize(north, south, east, west, rotation = 0, minAltitude = nil, maxAltitude = nil, altitudeMode = :clampToGround)
+        @north = convert_coord north
+        @south = convert_coord south
+        @east = convert_coord east
+        @west = convert_coord west
+        @minAltitude = minAltitude
+        @maxAltitude = maxAltitude
+        @altitudeMode = altitudeMode
         @rotation = rotation
     end
 
-    def to_kml(indent = 0)
+    def north=(a)
+        @north = convert_coord a
+    end
 
-        <<-latlonbox
-#{ ' ' * indent }<LatLonBox>
+    def south=(a)
+        @south = convert_coord a
+    end
+
+    def east=(a)
+        @east = convert_coord a
+    end
+
+    def west=(a)
+        @west = convert_coord a
+    end
+
+    def to_kml(indent = 0, alt = false)
+        name = alt ? 'LatLonAltBox' : 'LatLonBox'
+        k = <<-latlonbox
+#{ ' ' * indent }<#{ name }>
 #{ ' ' * indent }    <north>#{ @north }</north>
-#{ ' ' * indent }    <south>#{ @south }</south
-#{ ' ' * indent }    <east>#{ @east }</east
-#{ ' ' * indent }    <west>#{ @west }</west
-#{ ' ' * indent }    <rotation>#{ @rotation }</rotation
-#{ ' ' * indent }</LatLonBox>
+#{ ' ' * indent }    <south>#{ @south }</south>
+#{ ' ' * indent }    <east>#{ @east }</east>
+#{ ' ' * indent }    <west>#{ @west }</west>
         latlonbox
+        k << "#{ ' ' * indent }    <minAltitude>#{ @minAltitude }</minAltitude>\n" unless @minAltitude.nil?
+        k << "#{ ' ' * indent }    <maxAltitude>#{ @maxAltitude }</maxAltitude>\n" unless @maxAltitude.nil?
+        if (not @minAltitude.nil? or not @maxAltitude.nil?) then
+            if @altitudeMode == :clampToGround or @altitudeMode == :absolute then
+                altitudeModeString = "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
+            else
+                altitudeModeString = "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
+            end
+        end
+        k << <<-latlonbox2
+#{ ' ' * indent }    <rotation>#{ @rotation }</rotation>
+#{ ' ' * indent }</#{ name }>
+        latlonbox2
     end
 end
 
@@ -1070,6 +1107,46 @@ class GroundOverlay < Overlay
         k << @latlonbox.to_kml(indent + 4) unless @latlonbox.nil?
         k << @latlonquad.to_kml(indent + 4) unless @latlonquad.nil?
         k << "#{ ' ' * indent }</GroundOverlay>\n"
+        k
+    end
+end
+
+class Lod
+    attr_accessor :minpixels, :maxpixels, :minfade, :maxfade
+    def initialize(minpixels, maxpixels, minfade, maxfade)
+        @minpixels = minpixels
+        @maxpixels = maxpixels
+        @minfade = minfade
+        @maxfade = maxfade
+    end
+
+    def to_kml(indent = 0)
+
+        <<-lod
+#{ ' ' * indent }<Lod>
+#{ ' ' * indent }    <minLodPixels>#{ @minpixels }</minLodPixels>
+#{ ' ' * indent }    <maxLodPixels>#{ @maxpixels }</maxLodPixels>
+#{ ' ' * indent }    <minFadeExtent>#{ @minfade }</minFadeExtent>
+#{ ' ' * indent }    <maxFadeExtent>#{ @maxfade }</maxFadeExtent>
+#{ ' ' * indent }</Lod>
+        lod
+    end
+end
+
+class Region < KMLObject
+    attr_accessor :latlonaltbox, :lod
+
+    def initialize(latlonaltbox, lod)
+        super()
+        @latlonaltbox = latlonaltbox
+        @lod = lod
+    end
+
+    def to_kml(indent = 0)
+        k = "#{' ' * indent}<Region id=\"#{@id}\">\n"
+        k << @latlonaltbox.to_kml(indent + 4, true) unless @latlonaltbox.nil?
+        k << @lod.to_kml(indent + 4) unless @lod.nil?
+        k << "#{' ' * indent}</Region>\n"
         k
     end
 end

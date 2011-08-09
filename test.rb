@@ -163,7 +163,7 @@ def comment_test
     f = fly_to p, 3
     f.comment = 'This is a flyto'
     f = fly_to q, 3
-    f.comment = 'THis is another flyto'
+    f.comment = 'This is another flyto'
 end
 
 def photooverlay
@@ -179,5 +179,13 @@ def groundoverlay
     p = GroundOverlay.new('test.png', nil, LatLonQuad.new(ll, lr, ur, ul), 10, :relativeToSeaFloor)
 end
 
-groundoverlay
+def region
+    Placemark.new 'Fred\'s house', point("10d34'24\" E", "-18d54'34\" N")
+    f = Placemark.new 'Fred\'s other house', point("10d34'20\" E", "-18d54'34\" N")
+    latlon = LatLonBox.new( "-18d54'00\" N", "-18d56'00\" N", "10d34'00\" E", "10d30'00\" E", 10 )
+    lod = Lod.new(128, 1024, 128, 128)
+    f.region = Region.new(latlon, lod)
+end
+
+region
 puts get_kml
