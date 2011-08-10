@@ -71,8 +71,7 @@ def convert_coord(a)
 end
 
 class KMLObject
-    attr_reader :id
-    attr_accessor :comment
+    attr_accessor :id, :comment
 
     def initialize(comment = nil)
         @id = "#{self.class.name}_#{ get_next_id }"
@@ -263,8 +262,8 @@ end
 class Feature < KMLObject
     # Abstract class
     attr_accessor :visibility, :open, :atom_author, :atom_link, :name,
-        :addressdetails, :phonenumber, :snippet, :description, :abstractview,
-        :timestamp, :timespan, :styleurl, :styleselector, :region, :metadata,
+        :addressdetails, :phonenumber, :snippet, :description, :abstractView,
+        :timestamp, :timespan, :styleUrl, :styleselector, :region, :metadata,
         :extendeddata, :styles
 
     def initialize (name = nil)
@@ -273,6 +272,16 @@ class Feature < KMLObject
         @visibility = true
         @open = false
         @styles = []
+    end
+
+    def styleUrl=(a)
+        if a.is_a? String then
+            @styleUrl = a
+        elsif a.respond_to? 'id' then
+            @styleUrl = "##{ a.id }"
+        else
+            @styleUrl = a.to_s
+        end
     end
 
     def to_kml(indent = 0)
@@ -288,13 +297,13 @@ class Feature < KMLObject
                 [@phonenumber, 'phoneNumber', true],
                 [@snippet, 'Snippet', true],
                 [@description, 'description', true],
-                [@abstractview, 'abstractview', false ],          # XXX
-                [@styleurl, 'styleUrl', true],
+                [@styleUrl, 'styleUrl', true],
                 [@styleselector, "<styleSelector>#{@styleselector.nil? ? '' : @styleselector.to_kml}</styleSelector>", false ],
                 [@metadata, 'Metadata', false ],                  # XXX
                 [@extendeddata, 'ExtendedData', false ]           # XXX
             ], (indent))
         k << styles_to_kml(indent)
+        k << @abstractView.to_kml(indent) unless @abstractView.nil?
         k << @timestamp.to_kml(indent) unless @timestamp.nil?
         k << @timespan.to_kml(indent) unless @timespan.nil?
         k << @region.to_kml(indent) unless @region.nil?
@@ -605,7 +614,7 @@ class ListStyle < ColorStyle
     end
 
     def to_kml(indent = 0)
-        k = "#{ ' ' * indent }<ListStyle id=\"#{@id}\">\n" + super
+        k = "#{ ' ' * indent }<ListStyle id=\"#{@id}\">\n"
         k << kml_array([
             [@listitemtype, 'listItemType', true],
             [@bgcolor, 'bgColor', true]
