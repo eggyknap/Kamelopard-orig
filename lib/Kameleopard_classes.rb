@@ -122,6 +122,48 @@ class KMLPoint < Geometry
     end
 end
 
+class LineString < Geometry
+    attr_accessor :altitudeOffset, :extrude, :tessellate, :altitudeMode, :drawOrder, :longitude, :latitude, :altitude
+
+    def initialize(coords, altMode = :clampToGround)
+        super()
+        @altitudeMode = altMode
+# XXX Do convert_coords here
+        if coords.respond_to? '[]' then
+            @coordinates = coords
+        else
+            @coordinates = [ coords ]
+        end
+    end
+
+    def <<(a)
+        # Coordinate values should be arrays of two or three values: longitude, latitude, and (optionally) altitude
+        @coordinates << a
+    end
+
+    def to_kml(indent = 0)
+
+        k = "#{ ' ' * indent }<LineString id =\"#{ @id }\">\n"
+        k << kml_array([
+            [@altitudeOffset, 'gx:altitudeOffset', true],
+            [@extrude, 'extrude', true],
+            [@tessellate, 'tessellate', true],
+            [@drawOrder, 'gx:drawOrder', true[
+        ], indent + 4)
+        k << "#{ ' ' * indent }    <coordinates>\n#{ ' ' * indent }        "
+        @coordinates.each do |a|
+            k << "#{ a[0] },#{ a[1] }"
+            k << ",#{ a[2] }" if a.size > 2
+        end
+        k << "\n#{ ' ' * indent}    </coordinates>\n"
+        if @altitudeMode == :clampToGround or @altitudeMode == :absolute then
+            k << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
+        else
+            k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
+        end
+    end
+end
+
 class AbstractView < KMLObject
     attr_accessor :timestamp, :timespan
 
@@ -332,7 +374,8 @@ class Container < Feature
 end
 
 class Folder < Container
-    attr_accessor :styles
+    attr_accessor :styles, :folders, :parentFolder
+
     def initialize(name = nil)
         super()
         @name = name
@@ -348,6 +391,10 @@ class Folder < Container
         end
         h << "#{ ' ' * indent }</Folder>\n";
         h
+    end
+
+    def has_parent?
+        return @parentFolder.nil?
     end
 end
 
@@ -396,7 +443,7 @@ class Document < Container
         @styles.map do |a| h << a.to_kml(4) unless a.attached? end
 
         # then folders
-        @folders.map do |a| h << a.to_kml(4) end
+        @folders.map do |a| h << a.to_kml(4) unless a.has_parent? end
 
         # then tours
         @tours.map do |a| h << a.to_kml(4) end
@@ -734,13 +781,17 @@ class Placemark < Feature
     def initialize(name = nil, geo = nil)
         super(name)
         Document.instance.folder << self
-        @geometry = geo
+        if geo.respond_to? '[]' then
+            @geometry = geo
+        else
+            @geometry = [ geo ]
+        end
     end
     
     def to_kml(indent = 0)
         a = "#{ ' ' * indent }<Placemark id=\"#{ @id }\">\n"
         a << super(indent + 4) {
-            @geometry.nil? ? '' : @geometry.to_kml(indent + 4)
+            @geometry.each do |a| a.nil? ? '' : a.to_kml(indent + 4) end
         }
         a << "#{ ' ' * indent }</Placemark>\n"
     end
