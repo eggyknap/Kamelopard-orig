@@ -242,19 +242,10 @@ class LineString < Geometry
 end
 
 class LinearRing < Geometry
-<LinearRing id="ID">
-  <!-- specific to LinearRing -->
-  <gx:altitudeOffset>0</gx:altitudeOffset>   <!-- double -->
-  <extrude>0</extrude>                       <!-- boolean -->
-  <tessellate>0</tessellate>                 <!-- boolean -->
-  <altitudeMode>clampToGround</altitudeMode> 
-    <!-- kml:altitudeModeEnum: clampToGround, relativeToGround, or absolute -->
-    <!-- or, substitute gx:altitudeMode: clampToSeaFloor, relativeToSeaFloor -->
-  <coordinates>...</coordinates>             <!-- lon,lat[,alt] tuples --> 
-</LinearRing>
     attr_accessor :altitudeOffset, :extrude, :tessellate, :altitudeMode, :coordinates
 
-    def initialize(coordinates = nil, tessellate = 0, extrude = 0, altitudeMode = :clampToGround, altitudeOffset = 0)
+    def initialize(coordinates = nil, tessellate = 0, extrude = 0, altitudeMode = :clampToGround, altitudeOffset = nil)
+        super()
         if coordinates.nil? then
             @coordinates = nil
         elsif coordinates.kind_of? CoordinateList then
@@ -280,7 +271,7 @@ class LinearRing < Geometry
                 k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
             end
         end
-# XXX print out coordinates
+        k << @coordinates.to_kml(indent + 4)
         k << "#{ ' ' * indent }</LinearRing>\n"
         k
     end
