@@ -122,22 +122,102 @@ class KMLPoint < Geometry
     end
 end
 
+class CoordinateList
+    attr_reader :coordinates
+
+    def initialize(coords = nil)
+        # Internally we store coordinates as an array of three-element
+        # arrays
+        @coordinates = []
+        if not coords.nil? then
+            add_element coords
+        else
+            @coordinates = []
+        end
+    end
+
+    def to_kml(indent = 0)
+        k = "#{ ' ' * indent }<coordinates>\n#{ ' ' * indent }    "
+        if not @coordinates.nil? then
+            @coordinates.each do |a|
+                k << "#{ a[0] },#{ a[1] }"
+                k << ",#{ a[2] }" if a.size > 2
+                k << ' '
+            end
+        end
+        k << "\n#{ ' ' * indent}</coordinates>\n"
+        k
+    end
+
+    def <<(a)
+        add_element a
+    end
+
+    def add_element(a)
+        if a.kind_of? Enumerable then
+            # We've got some sort of array or list. It could be a list of
+            # floats, to become one coordinate, or it could be several
+            # coordinates
+            t = a.to_a.first
+            if t.kind_of? Enumerable then
+                # At this point we assume we've got an array of float-like
+                # objects. The second-level arrays need to have two or three
+                # entries -- long, lat, and (optionally) alt
+                a.each do |i|
+                    if i.size < 2 then
+                        raise "There aren't enough objects here to make a 2- or 3-element coordinate"
+                    elsif i.size >= 3 then
+                        @coordinates << [ i[0].to_f, i[1].to_f, i[2].to_f ]
+                    else
+                        @coordinates << [ i[0].to_f, i[1].to_f ]
+                    end
+                end
+            elsif t.respond_to? 'longitude' and
+                t.respond_to? 'latitude' and
+                t.respond_to? 'altitude' then
+                # This object can cough up a set of coordinates
+                a.each do |i|
+                    @coordinates << [i.longitude, i.latitude, i.altitude]
+                end
+            else
+                # I dunno what it is
+                raise "Kameleopard can't understand this object as a coordinate"
+            end
+        elsif a.kind_of CoordinateList then
+            # Append this coordinate list
+            @coordinates << a.coordinates
+        else
+            # This is one element. It better know how to make latitude, longitude, etc.
+            if a.respond_to? 'longitude' and
+                a.respond_to? 'latitude' and
+                a.respond_to? 'altitude' then
+                @coordinates << [a.longitude, a.latitude, a.altitude]
+            else
+                raise "Kameleopard can't understand this object as a coordinate"
+            end
+        end
+    end
+end
+
 class LineString < Geometry
     attr_accessor :altitudeOffset, :extrude, :tessellate, :altitudeMode, :drawOrder, :longitude, :latitude, :altitude
+    attr_reader :coordinates
 
     def initialize(coords, altMode = :clampToGround)
         super()
         @altitudeMode = altMode
-# XXX Do convert_coords here
-        if coords.respond_to? '[]' then
-            @coordinates = coords
+        set_coords coords
+    end
+
+    def set_coords(a)
+        if a.kind_of? CoordinateList then
+            @coordinates = a
         else
-            @coordinates = [ coords ]
+            @coordinates = CoordinateList.new(a)
         end
     end
 
     def <<(a)
-        # Coordinate values should be arrays of two or three values: longitude, latitude, and (optionally) altitude
         @coordinates << a
     end
 
@@ -148,19 +228,61 @@ class LineString < Geometry
             [@altitudeOffset, 'gx:altitudeOffset', true],
             [@extrude, 'extrude', true],
             [@tessellate, 'tessellate', true],
-            [@drawOrder, 'gx:drawOrder', true[
+            [@drawOrder, 'gx:drawOrder', true]
         ], indent + 4)
-        k << "#{ ' ' * indent }    <coordinates>\n#{ ' ' * indent }        "
-        @coordinates.each do |a|
-            k << "#{ a[0] },#{ a[1] }"
-            k << ",#{ a[2] }" if a.size > 2
-        end
-        k << "\n#{ ' ' * indent}    </coordinates>\n"
+        k << @coordinates.to_kml(indent + 4) unless @coordinates.nil?
         if @altitudeMode == :clampToGround or @altitudeMode == :absolute then
             k << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
         else
             k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
         end
+        k << "#{ ' ' * indent }</LineString>\n"
+        k
+    end
+end
+
+class LinearRing < Geometry
+<LinearRing id="ID">
+  <!-- specific to LinearRing -->
+  <gx:altitudeOffset>0</gx:altitudeOffset>   <!-- double -->
+  <extrude>0</extrude>                       <!-- boolean -->
+  <tessellate>0</tessellate>                 <!-- boolean -->
+  <altitudeMode>clampToGround</altitudeMode> 
+    <!-- kml:altitudeModeEnum: clampToGround, relativeToGround, or absolute -->
+    <!-- or, substitute gx:altitudeMode: clampToSeaFloor, relativeToSeaFloor -->
+  <coordinates>...</coordinates>             <!-- lon,lat[,alt] tuples --> 
+</LinearRing>
+    attr_accessor :altitudeOffset, :extrude, :tessellate, :altitudeMode, :coordinates
+
+    def initialize(coordinates = nil, tessellate = 0, extrude = 0, altitudeMode = :clampToGround, altitudeOffset = 0)
+        if coordinates.nil? then
+            @coordinates = nil
+        elsif coordinates.kind_of? CoordinateList then
+            @coordinates = coordinates
+        else
+            @coordinates = CoordinateList.new(coordinates)
+        end
+        @tessellate = tessellate
+        @extrude = extrude
+        @altitudeMode = altitudeMode
+        @altitudeOffset = altitudeOffset
+    end
+
+    def to_kml(indent = 0)
+        k = "#{ ' ' * indent }<LinearRing id=\"#{ @id }\">\n"
+        k << "#{ ' ' * indent }    <gx:altitudeOffset>#{ @altitudeOffset }</gx:altitudeOffset>\n" unless @altitudeOffset.nil?
+        k << "#{ ' ' * indent }    <tessellate>#{ @tessellate }</tessellate>\n" unless @tessellate.nil?
+        k << "#{ ' ' * indent }    <extrude>#{ @extrude }</extrude>\n" unless @extrude.nil?
+        if not @altitudeMode.nil? then
+            if @altitudeMode == :clampToGround or @altitudeMode == :absolute then
+                k << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
+            else
+                k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
+            end
+        end
+# XXX print out coordinates
+        k << "#{ ' ' * indent }</LinearRing>\n"
+        k
     end
 end
 
@@ -394,7 +516,7 @@ class Folder < Container
     end
 
     def has_parent?
-        return @parentFolder.nil?
+        not @parentFolder.nil?
     end
 end
 
@@ -791,7 +913,9 @@ class Placemark < Feature
     def to_kml(indent = 0)
         a = "#{ ' ' * indent }<Placemark id=\"#{ @id }\">\n"
         a << super(indent + 4) {
-            @geometry.each do |a| a.nil? ? '' : a.to_kml(indent + 4) end
+            k = ''
+            @geometry.each do |i| k << i.to_kml(indent + 4) unless i.nil? end
+            k
         }
         a << "#{ ' ' * indent }</Placemark>\n"
     end
