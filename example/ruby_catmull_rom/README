@@ -1,4 +1,0 @@
-This script finds itself 10 random points in three dimensions, calculates a
-Catmull-Rom spline between them, and creates data files such that it's easy to
-get gnuplot to plot them. Simply run the Ruby script and it will walk you
-through the rest.
