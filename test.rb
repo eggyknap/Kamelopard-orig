@@ -1,5 +1,5 @@
 # vim:ts=4:sw=4:et:smartindent:nowrap
-$LOAD_PATH << './lib'
+require 'rubygems'
 require 'kameleopard'
 
 def ids
