@@ -4,6 +4,7 @@ require 'net/http'
 require 'uri'
 require 'cgi'
 require 'rexml/document'
+require 'yaml'
 include REXML
 
 # Geocoder base class
@@ -20,7 +21,7 @@ end
 # Uses Yahoo's PlaceFinder geocoding service: http://developer.yahoo.com/geo/placefinder/guide/requests.html
 # Google's would seem most obvious, but since it requires you to display
 # results on a map, ... I didn't want to have to evaluate other possible
-# restrictions
+# restrictions. The argument to the constructor is a PlaceFinder API key, but testing suggests it's actually unnecessary
 class YahooGeocoder < Geocoder
     def initialize(key)
         @api_key = key
@@ -31,6 +32,9 @@ class YahooGeocoder < Geocoder
     end
 
     def lookup(address)
+        # The argument can be a string, in which case PlaceFinder does the parsing
+        # The argument can also be a hash, with several possible keys. See the PlaceFinder documentation for details
+        # http://developer.yahoo.com/geo/placefinder/guide/requests.html
         http = Net::HTTP.new(@host)
         if address.kind_of? Hash then
             p = @params.merge address
@@ -41,7 +45,6 @@ class YahooGeocoder < Geocoder
         u = URI::HTTP.build([nil, @host, nil, @path, q, nil])
 
         resp = Net::HTTP.get u
-#        puts resp
         parse_response resp
     end
 
@@ -52,19 +55,18 @@ class YahooGeocoder < Geocoder
         ['Error', 'ErrorMessage', 'Locale', 'Quality', 'Found'].map do |t|
             r[t] = d.root.elements["/ResultSet/#{ t }"].text
         end
-        puts "Found #{ r['Found'] } elements"
         r['Results'] = []
-        d.root.elements["/ResultSet/Result"].each do |e|
+        d.elements.each("/ResultSet/Result") do |e|
             p = {}
-            puts e.elements['quality']
-#            ['quality', 'latitude', 'longitude', 'offsetlat', 'offsetlon', 'radius',
-#                'name', 'line1', 'line2', 'line3', 'line4', 'house', 'street', 'xstreet',
-#                'unittype', 'unit', 'postal', 'neighborhood', 'city', 'county', 'state',
-#                'country', 'countrycode', 'statecode', 'countycode', 'uzip', 'hash',
-#                'woeid', 'woetype'
-#            ].map do |t|
-#                p[t] = e.elements["#{t}"].text
-#            end
+            ['quality', 'latitude', 'longitude', 'offsetlat', 'offsetlon', 'radius',
+                'name', 'line1', 'line2', 'line3', 'line4', 'house', 'street', 'xstreet',
+                'unittype', 'unit', 'postal', 'neighborhood', 'city', 'county', 'state',
+                'country', 'countrycode', 'statecode', 'countycode', 'uzip', 'hash',
+                'woeid', 'woetype'
+            ].map do |t|
+                a = e.elements["#{t}"].text
+                p[t] = a unless a.nil?
+            end
             r['Results'] << p
         end
         r
@@ -72,47 +74,6 @@ class YahooGeocoder < Geocoder
 end
 
 g = YahooGeocoder.new('dj0yJmk9Z0pwcTlFa01BR0c4JmQ9WVdrOWFteHlhR05tTjJFbWNHbzlNekkzTURZME5UWXkmcz1jb25zdW1lcnNlY3JldCZ4PTM5')
+g = YahooGeocoder.new('')
 #g.lookup('3192 S 1940 E Salt Lake City, Utah')
-puts g.lookup({ 'city' => 'Portland', 'count' => '100' }).to_s
-<?xml version="1.0" encoding="UTF-8"?>
-# <ResultSet version="1.0">
-#     <Error>0</Error>
-#     <ErrorMessage>No error</ErrorMessage>
-#     <Locale>us_US</Locale>
-#     <Quality>87</Quality>
-#     <Found>1</Found>
-#     <Result>
-#         <quality>87</quality>
-#         <latitude>40.700957</latitude>
-#         <longitude>-111.835866</longitude>
-#         <offsetlat>40.700958</offsetlat>
-#         <offsetlon>-111.836036</offsetlon>
-#         <radius>500</radius>
-#         <name></name>
-#         <line1>3192 S 1940 E</line1>
-#         <line2>Salt Lake City, UT  84106-3918</line2>
-#         <line3></line3>
-#         <line4>United States</line4>
-#         <house>3192</house>
-#         <street>S 1940 E</street>
-#         <xstreet></xstreet>
-#         <unittype></unittype>
-#         <unit></unit>
-#         <postal>84106-3918</postal>
-#         <neighborhood></neighborhood>
-#         <city>Salt Lake City</city>
-#         <county>Salt Lake County</county>
-#         <state>Utah</state>
-#         <country>United States</country>
-#         <countrycode>US</countrycode>
-#         <statecode>UT</statecode>
-#         <countycode></countycode>
-#         <uzip>84106</uzip>
-#         <hash>68E15391DA0AC231</hash>
-#         <woeid>12794129</woeid>
-#         <woetype>11</woetype>
-#     </Result>
-# </ResultSet>
-# <!-- gws14.maps.bf1.yahoo.com uncompressed/chunked Wed Aug 10 17:14:02 PDT 2011 -->
-# <!-- wws02.geotech.bf1.yahoo.com uncompressed/chunked Wed Aug 10 17:14:02 PDT 2011 -->
-
+puts g.lookup({ 'city' => 'Kanosh', 'state' => 'Utah', 'count' => '100' }).to_yaml
