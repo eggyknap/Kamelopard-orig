@@ -54,6 +54,10 @@ def convert_coord(a)
     if a =~ /^\d+(\.\d+)?$/ then
         # coord needs no transformation
         1
+    elsif a =~ /^\d+D\d+m\d+(\.\d+)?s$/ then
+        # coord is in dms
+        p = a.split /[D"']/
+        a = p[0].to_f + (p[2].to_f / 60.0 + p[1].to_f) / 60.0
     elsif a =~ /^\d+D\d+'\d+(\.\d+)?"$/ then
         # coord is in d'"
         p = a.split /[D"']/
