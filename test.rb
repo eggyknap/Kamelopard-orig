@@ -193,5 +193,11 @@ def region
 #    f.region = Region.new(latlon, lod)
 end
 
-region
-puts get_kml
+def geocode
+    require 'json'
+    g = YahooGeocoder.new('')
+    puts g.lookup({ 'city' => 'Springfield', 'count' => '100' }).to_json
+end
+
+geocode
+#puts get_kml
