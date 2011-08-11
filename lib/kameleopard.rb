@@ -1,2 +1,2 @@
-require 'kameleopard_classes'
-require 'kameleopard_functions'
+require 'kameleopard/classes'
+require 'kameleopard/functions'
