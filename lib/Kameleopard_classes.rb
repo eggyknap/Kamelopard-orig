@@ -1,6 +1,5 @@
 # vim:ts=4:sw=4:et:smartindent:nowrap
 
-# XXX add some geocoding feature
 require 'singleton'
 require 'Kameleopard_pointlist'
 
