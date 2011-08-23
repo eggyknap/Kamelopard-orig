@@ -1337,3 +1337,19 @@ class Region < KMLObject
         k
     end
 end
+
+class SoundCue < TourPrimitive
+    attr_accessor :href, :delayedStart
+    def initialize(href, delayedStart = nil)
+        super()
+        @href = href
+        @delayedStart = delayedStart
+    end
+
+    def to_kml(indent = 0)
+        k = "#{ ' ' * indent }<gx:SoundCue id=\"#{ @id }\">\n"
+        k << "#{ ' ' * indent }    <href>#{ @href }</href>\n"
+        k << "#{ ' ' * indent }    <gx:delayedStart>#{ @delayedStart }</gx:delayedStart>\n" unless @delayedStart.nil?
+        k << "#{ ' ' * indent}</gx:SoundCue>\n"
+    end
+end

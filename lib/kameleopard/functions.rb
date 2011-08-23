@@ -14,6 +14,7 @@ def mod_popup_for(p, v)
         raise "Can't show popups for things that aren't placemarks"
     end
     a << "<Change><Placemark targetId=\"#{p.id}\"><visibility>#{v}</visibility></Placemark></Change>"
+    a
 end
 
 def hide_popup_for(p)
@@ -85,6 +86,10 @@ def orbit(center, range = 100, tilt = 0, startHeading = 0, endHeading = 360)
     if lastval != endHeading then
         fly_to LookAt.new(center, endHeading, tilt, range), 2, nil, 'smooth'
     end
+end
+
+def sound_cue(href, ds = nil)
+    SoundCue.new href, ds
 end
 
 # XXX This implementation of orbit is trying to do things the hard way, but the code might be useful for other situations where the hard way is the only possible one
