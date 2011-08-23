@@ -490,12 +490,13 @@ class Container < Feature
 end
 
 class Folder < Container
-    attr_accessor :styles, :folders, :parentFolder
+    attr_accessor :styles, :folders, :parent_folder
 
     def initialize(name = nil)
         super()
         @name = name
         @styles = []
+        @folders = []
         Document.instance.folders << self
     end
 
@@ -505,12 +506,20 @@ class Folder < Container
         @features.each do |a|
             h << a.to_kml(indent + 4)
         end
+        @folders.each do |a|
+            h << a.to_kml(indent + 4)
+        end
         h << "#{ ' ' * indent }</Folder>\n";
         h
     end
 
     def has_parent?
-        not @parentFolder.nil?
+        not @parent_folder.nil?
+    end
+
+    def parent_folder=(a)
+        @parent_folder = a
+        a.folders << self
     end
 end
 
