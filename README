@@ -13,11 +13,9 @@ Install via RubyGems:
 
   gem install kameleopard
 
-The hard way (this may have been superseded by something better, and no one
-updated the docs):
+From source:
 
-  gem build kameleopard.gemspec
-  gem install kameleopard-0.0.1.gem    <-- Note the version number may change without warning
+  rake install
 
 == Copying
 
