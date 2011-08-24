@@ -5,7 +5,7 @@
 # description of KML
 
 require 'singleton'
-require 'kameleopard/pointlist'
+require 'kamelopard/pointlist'
 
 @@sequence = 0
 
@@ -81,7 +81,7 @@ def convert_coord(a)    # :nodoc
     return a
 end
 
-# Base class for all Kameleopard objects. Manages object ID and a single
+# Base class for all Kamelopard objects. Manages object ID and a single
 # comment string associated with the object
 class KMLObject
     attr_accessor :id, :comment
@@ -210,7 +210,7 @@ class CoordinateList
                 end
             else
                 # I dunno what it is
-                raise "Kameleopard can't understand this object as a coordinate"
+                raise "Kamelopard can't understand this object as a coordinate"
             end
         elsif a.kind_of CoordinateList then
             # Append this coordinate list
@@ -222,7 +222,7 @@ class CoordinateList
                 a.respond_to? 'altitude' then
                 @coordinates << [a.longitude, a.latitude, a.altitude]
             else
-                raise "Kameleopard can't understand this object as a coordinate"
+                raise "Kamelopard can't understand this object as a coordinate"
             end
         end
     end
@@ -574,7 +574,7 @@ def get_stack_trace   # :nodoc
     k
 end
 
-# Represents KML's Document class. This is a Singleton object; Kameleopard
+# Represents KML's Document class. This is a Singleton object; Kamelopard
 # scripts can (for now) manage only one Document at a time.
 class Document < Container
     include Singleton

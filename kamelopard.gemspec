@@ -1,5 +1,5 @@
 Gem::Specification.new do |s|
-    s.name = 'kameleopard'
+    s.name = 'kamelopard'
     s.version = '0.0.2'
     s.date = '2011-08-24'
     s.files = Dir['lib/**/*.rb']

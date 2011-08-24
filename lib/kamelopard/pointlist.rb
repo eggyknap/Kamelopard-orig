@@ -1,6 +1,6 @@
 # vim:ts=4:sw=4:et:smartindent:nowrap
 require 'matrix'
-#require 'kameleopard_classes'
+#require 'kamelopard_classes'
 
 class NDPointList
     # Contains a list of N-dimensional numeric arrays

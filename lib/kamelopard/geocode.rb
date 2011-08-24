@@ -57,6 +57,6 @@ end
 
 # EXAMPLE
 # require 'rubygems'
-# require 'kameleopard'
+# require 'kamelopard'
 # g = YahooGeocoder.new('some-api-key')
 # puts g.lookup({ 'city' => 'Springfield', 'count' => '100' })

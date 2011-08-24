@@ -1,6 +1,6 @@
 # vim:ts=4:sw=4:et:smartindent:nowrap
 $LOAD_PATH << './lib'
-require 'kameleopard'
+require 'kamelopard'
 
 def ids
     l = LookAt.new()
