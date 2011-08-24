@@ -1,15 +1,20 @@
 # vim:ts=4:sw=4:et:smartindent:nowrap
 
+# Classes to manage various KML objects. See
+# http://code.google.com/apis/kml/documentation/kmlreference.html for a
+# description of KML
+
 require 'singleton'
 require 'kameleopard/pointlist'
 
 @@sequence = 0
 
-def get_next_id
+def get_next_id   # :nodoc
     @@sequence += 1
     @@sequence
 end
 
+#--
 # Print out a set of kml fields. Expects an array argument. Each entry in the
 # array is itself an array, containing two strings and a boolean. If the first
 # string is nil, the function won't print anything for that element. If it's
@@ -17,7 +22,8 @@ end
 # second string as a KML element name, and print it along with XML decorators
 # and the field value. False values mean just print the second string, with no
 # decorators and no other values
-def kml_array(m, indent = 0)
+#++
+def kml_array(m, indent = 0) # :nodoc
     k = ''
     m.map do |a|
         r = ''
@@ -33,8 +39,10 @@ def kml_array(m, indent = 0)
     k
 end
 
-# Accepts XdX'X.X" or X.XXXX with either +/- or N/E/S/W
-def convert_coord(a)
+#--
+# Accepts XdX'X.X", XDXmX.XXs, XdXmX.XXs, or X.XXXX with either +/- or N/E/S/W
+#++
+def convert_coord(a)    # :nodoc
     # XXX Make sure coordinate is valid for the type of coordinate the caller wants, based on some other value passed in
     a = a.to_s.upcase.strip
 
@@ -73,6 +81,8 @@ def convert_coord(a)
     return a
 end
 
+# Base class for all Kameleopard objects. Manages object ID and a single
+# comment string associated with the object
 class KMLObject
     attr_accessor :id, :comment
 
@@ -81,6 +91,7 @@ class KMLObject
         @comment = comment.gsub(/</, '&lt;') unless comment.nil?
     end
 
+    # Returns KML string for this object. Objects should override this method
     def to_kml(indent = 0)
         if @comment.nil? or @comment == '' then
             ''
@@ -90,11 +101,13 @@ class KMLObject
     end
 end
 
+# Abstract base class for KMLPoint and several other classes
 class Geometry < KMLObject
 end
 
+# Represents a Point in KML.
 class KMLPoint < Geometry
-    attr_accessor :id, :longitude, :latitude, :altitude, :altitudeMode, :extrude
+    attr_accessor :longitude, :latitude, :altitude, :altitudeMode, :extrude
     def initialize(long, lat, alt=0, altmode=:clampToGround, extrude=false)
         super()
         @longitude = convert_coord(long)
@@ -103,7 +116,7 @@ class KMLPoint < Geometry
         @altitudeMode = altmode
         @extrude = extrude
     end
-
+    
     def to_s
         "KMLPoint (#{@longitude}, #{@latitude}, #{@altitude}, mode = #{@altitudeMode}, #{ @extrude ? 'extruded' : 'not extruded' })"
     end
@@ -125,9 +138,12 @@ class KMLPoint < Geometry
     end
 end
 
+# Helper class for KML objects which need to know about several points at once
 class CoordinateList
     attr_reader :coordinates
 
+    # Accepts an optional array of coordinates in any format add_element
+    # accepts
     def initialize(coords = nil)
         # Internally we store coordinates as an array of three-element
         # arrays
@@ -152,10 +168,20 @@ class CoordinateList
         k
     end
 
+    # Alias for add_element
     def <<(a)
         add_element a
     end
 
+    # Adds one or more elements to this CoordinateList. The argument can be in any of several formats:
+    # * An array of arrays of numeric objects, in the form [ longitude,
+    #   latitude, altitude (optional) ]
+    # * A KMLPoint, or some other object that response to latitude, longitude, and altitude methods
+    # * An array of the above
+    # * Another CoordinateList, to append to this on
+    # Note that this will not accept a one-dimensional array of numbers to add
+    # a single point. Instead, create a KMLPoint with those numbers, and pass
+    # it to add_element
     def add_element(a)
         if a.kind_of? Enumerable then
             # We've got some sort of array or list. It could be a list of
@@ -202,6 +228,7 @@ class CoordinateList
     end
 end
 
+# Corresponds to the KML LineString object
 class LineString < Geometry
     attr_accessor :altitudeOffset, :extrude, :tessellate, :altitudeMode, :drawOrder, :longitude, :latitude, :altitude
     attr_reader :coordinates
@@ -212,6 +239,7 @@ class LineString < Geometry
         set_coords coords
     end
 
+    # Sets @coordinates element
     def set_coords(a)
         if a.kind_of? CoordinateList then
             @coordinates = a
@@ -220,6 +248,7 @@ class LineString < Geometry
         end
     end
 
+    # Appends an element to this LineString's CoordinateList. See CoordinateList#add_element
     def <<(a)
         @coordinates << a
     end
@@ -244,6 +273,7 @@ class LineString < Geometry
     end
 end
 
+# Corresponds to KML's LinearRing object
 class LinearRing < Geometry
     attr_accessor :altitudeOffset, :extrude, :tessellate, :altitudeMode, :coordinates
 
@@ -280,6 +310,7 @@ class LinearRing < Geometry
     end
 end
 
+# Abstract class corresponding to KML's AbstractView object
 class AbstractView < KMLObject
     attr_accessor :timestamp, :timespan
 
@@ -299,6 +330,7 @@ class AbstractView < KMLObject
     end
 end
 
+# Corresponds to KML's Camera object
 class Camera < AbstractView
     attr_accessor :longitude, :latitude, :altitude, :heading, :tilt, :roll, :altitudeMode
     def initialize(long = 0, lat = 0, alt = 0, heading = 0, tilt = 0, roll = 0, mode = :clampToGround)
@@ -339,6 +371,7 @@ class Camera < AbstractView
     end
 end
 
+# Corresponds to KML's LookAt object
 class LookAt < AbstractView
     attr_accessor :longitude, :latitude, :altitude, :heading, :tilt, :range, :altitudeMode
     def initialize(point = nil, heading = 0, tilt = 0, range = 0)
@@ -375,9 +408,11 @@ class LookAt < AbstractView
     end
 end
 
+# Abstract class corresponding to KML's TimePrimitive object
 class TimePrimitive < KMLObject
 end
 
+# Corresponds to KML's TimeStamp object. The @when attribute must be in a format KML understands.
 class TimeStamp < TimePrimitive
     attr_accessor :when
     def initialize(t_when)
@@ -397,6 +432,8 @@ class TimeStamp < TimePrimitive
     end
 end
 
+# Corresponds to KML's TimeSpan object. @begin and @end must be in a format KML
+# understands.
 class TimeSpan < TimePrimitive
     attr_accessor :begin, :end
     def initialize(t_begin, t_end)
@@ -417,6 +454,7 @@ class TimeSpan < TimePrimitive
     end
 end
 
+# Abstract class corresponding to KML's Feature object.
 class Feature < KMLObject
     # Abstract class
     attr_accessor :visibility, :open, :atom_author, :atom_link, :name,
@@ -432,6 +470,8 @@ class Feature < KMLObject
         @styles = []
     end
 
+    # This function accepts either a StyleSelector object, or a string
+    # containing the desired StyleSelector's @id
     def styleUrl=(a)
         if a.is_a? String then
             @styleUrl = a
@@ -478,17 +518,20 @@ class Feature < KMLObject
     end
 end
 
+# Abstract class corresponding to KML's Container object.
 class Container < Feature
     def initialize
         super
         @features = []
     end
 
+    # Adds a new object to this container.
     def <<(a)
         @features << a
     end
 end
 
+# Corresponds to KML's Folder object.
 class Folder < Container
     attr_accessor :styles, :folders, :parent_folder
 
@@ -513,22 +556,26 @@ class Folder < Container
         h
     end
 
+    # Folders can have parent folders; returns true if this folder has one
     def has_parent?
         not @parent_folder.nil?
     end
 
+    # Folders can have parent folders; sets this folder's parent
     def parent_folder=(a)
         @parent_folder = a
         a.folders << self
     end
 end
 
-def get_stack_trace
+def get_stack_trace   # :nodoc
     k = ''
     caller.each do |a| k << "#{a}\n" end
     k
 end
 
+# Represents KML's Document class. This is a Singleton object; Kameleopard
+# scripts can (for now) manage only one Document at a time.
 class Document < Container
     include Singleton
     attr_accessor :flyto_mode, :folders, :tours
@@ -539,11 +586,13 @@ class Document < Container
         @styles = []
     end
 
+    # Returns the current Tour object
     def tour
         @tours << Tour.new if @tours.length == 0
         @tours.last
     end
 
+    # Returns the current Folder object
     def folder
         if @folders.size == 0 then
             Folder.new
@@ -578,6 +627,9 @@ class Document < Container
     end
 end
 
+# Corresponds to KML's ColorStyle object. Color is stored as an 8-character hex
+# string, with two characters each of alpha, blue, green, and red values, in
+# that order, matching the ordering the KML spec demands.
 class ColorStyle < KMLObject
     attr_accessor :color
     attr_reader :colormode
@@ -586,16 +638,16 @@ class ColorStyle < KMLObject
         super()
         # Note: color element order is aabbggrr
         @color = color
-        check_colormode colormode
+        validate_colormode colormode
         @colormode = colormode # Can be :normal or :random
     end
 
-    def check_colormode(a)
+    def validate_colormode(a)
         raise "colorMode must be either \"normal\" or \"random\"" unless a == :normal or a == :random
     end
 
     def colormode=(a)
-        check_colormode a
+        validate_colormode a
         @colormode = a
     end
 
@@ -640,6 +692,9 @@ class ColorStyle < KMLObject
     end
 end
 
+# Corresponds to KML's BalloonStyle object. Color is stored as an 8-character hex
+# string, with two characters each of alpha, blue, green, and red values, in
+# that order, matching the ordering the KML spec demands.
 class BalloonStyle < ColorStyle
     attr_accessor :bgcolor, :text, :textcolor, :displaymode
 
@@ -664,6 +719,7 @@ class BalloonStyle < ColorStyle
     end
 end
 
+# Internal class used where KML requires X and Y values and units
 class KMLxy
     attr_accessor :x, :y, :xunits, :yunits
     def initialize(x = 0.5, y = 0.5, xunits = :fraction, yunits = :fraction)
@@ -674,12 +730,14 @@ class KMLxy
     end
 
     def to_kml(name, indent = 0)
+
         <<-kmlxy
 #{ ' ' * indent}<#{ name } x="#{ @x }" y="#{ @y }" xunits="#{ @xunits }" yunits="#{ @yunits }" />
         kmlxy
     end
 end
 
+# Corresponds to the KML Icon object
 class Icon
     attr_accessor :href, :x, :y, :w, :h, :refreshMode, :refreshInterval, :viewRefreshMode, :viewRefreshTime, :viewBoundScale, :viewFormat, :httpQuery
 
@@ -706,6 +764,7 @@ class Icon
     end
 end
 
+# Corresponds to KML's IconStyle object.
 class IconStyle < ColorStyle
     attr_accessor :scale, :heading, :hotspot, :icon
 
@@ -730,6 +789,7 @@ class IconStyle < ColorStyle
     end
 end
 
+# Corresponds to KML's LabelStyle object
 class LabelStyle < ColorStyle
     attr_accessor :scale
 
@@ -749,6 +809,9 @@ class LabelStyle < ColorStyle
     end
 end
 
+# Corresponds to KML's LineStyle object. Color is stored as an 8-character hex
+# string, with two characters each of alpha, blue, green, and red values, in
+# that order, matching the ordering the KML spec demands.
 class LineStyle < ColorStyle
     attr_accessor :outercolor, :outerwidth, :physicalwidth, :width
 
@@ -774,6 +837,9 @@ class LineStyle < ColorStyle
     end
 end
 
+# Corresponds to KML's ListStyle object. Color is stored as an 8-character hex
+# string, with two characters each of alpha, blue, green, and red values, in
+# that order, matching the ordering the KML spec demands.
 class ListStyle < ColorStyle
     attr_accessor :listitemtype, :bgcolor, :state, :href
 
@@ -802,6 +868,9 @@ class ListStyle < ColorStyle
     end
 end
 
+# Corresponds to KML's PolyStyle object. Color is stored as an 8-character hex
+# string, with two characters each of alpha, blue, green, and red values, in
+# that order, matching the ordering the KML spec demands.
 class PolyStyle < ColorStyle
     attr_accessor :fill, :outline
 
@@ -824,6 +893,7 @@ class PolyStyle < ColorStyle
     end
 end
 
+# Abstract class corresponding to KML's StyleSelector object.
 class StyleSelector < KMLObject
     attr_accessor :attached
     def initialize
@@ -842,6 +912,8 @@ class StyleSelector < KMLObject
     end
 end
 
+# Corresponds to KML's Style object. Attributes are expected to be IconStyle,
+# LabelStyle, LineStyle, PolyStyle, BalloonStyle, and ListStyle objects.
 class Style < StyleSelector
     attr_accessor :icon, :label, :line, :poly, :balloon, :list
     def initialize(icon = nil, label = nil, line = nil, poly = nil, balloon = nil, list = nil)
@@ -868,6 +940,7 @@ class Style < StyleSelector
     end
 end
 
+# Corresponds to KML's StyleMap object.
 class StyleMap < StyleSelector
     # StyleMap manages pairs. The first entry in each pair is a string key, the
     # second is either a Style or a styleUrl. It will be assumed to be the
@@ -880,6 +953,13 @@ class StyleMap < StyleSelector
         end
     end
 
+    # Adds a new Style to the StyleMap. Strangely, the argument should be an
+    # array (not a hash) where the first element is the string key, and the
+    # second is the Style object or an ID thereof. This will probably change in
+    # the future.
+    #--
+    # XXX Make this accept a hash instead
+    #++
     def <<(a)
         id = get_next_id
         @pairs << [id, a[0], a[1]]
@@ -901,6 +981,8 @@ class StyleMap < StyleSelector
     end
 end
 
+# Corresponds to KML's Placemark objects. The geometry attribute requires a
+# descendant of Geometry
 class Placemark < Feature
     attr_accessor :name, :geometry
     def initialize(name = nil, geo = nil)
@@ -952,12 +1034,16 @@ class Placemark < Feature
     end
 end
 
+# Abstract class corresponding to KML's gx:TourPrimitive object. Tours are made up
+# of descendants of these.
 class TourPrimitive < KMLObject
     def initialize
         Document.instance.tour << self
     end
 end
 
+# Cooresponds to KML's gx:FlyTo object. The @view parameter needs to look like an
+# AbstractView object
 class FlyTo < TourPrimitive
     attr_accessor :duration, :mode, :view
 
@@ -986,11 +1072,15 @@ class FlyTo < TourPrimitive
     end
 end
 
+# Corresponds to KML's gx:AnimatedUpdate object. For now at least, this isn't very
+# intelligent; you've got to manually craft the <Change> tag(s) within the
+# object.
 class AnimatedUpdate < TourPrimitive
     # For now, the user has to specify the change / create / delete elements in
     # the <Update> manually, rather than creating objects.
     attr_accessor :target, :delayedstart, :updates, :duration
 
+    # The updates argument is an array of strings containing <Change> elements
     def initialize(updates = [], duration = 0, target = '', delayedstart = nil)
         super()
         begin
@@ -1004,6 +1094,7 @@ class AnimatedUpdate < TourPrimitive
         @delayedstart = delayedstart
     end
 
+    # Adds another update string, presumably containing a <Change> element
     def <<(a)
         @updates << a << "\n"
     end
@@ -1022,9 +1113,14 @@ class AnimatedUpdate < TourPrimitive
     end
 end
 
+# Corresponds to a KML gx:TourControl object. NB! Not yet implemented
+#--
+# XXX Implement this
+#++
 class TourControl < TourPrimitive
 end
 
+# Corresponds to a KML gx:Wait object
 class Wait < TourPrimitive
     attr_accessor :duration
     def initialize(duration = 0)
@@ -1039,9 +1135,24 @@ class Wait < TourPrimitive
     end
 end
 
+# Corresponds to a KML gx:SoundCue object
 class SoundCue < TourPrimitive
+    attr_accessor :href, :delayedStart
+    def initialize(href, delayedStart = nil)
+        super()
+        @href = href
+        @delayedStart = delayedStart
+    end
+
+    def to_kml(indent = 0)
+        k = "#{ ' ' * indent }<gx:SoundCue id=\"#{ @id }\">\n"
+        k << "#{ ' ' * indent }    <href>#{ @href }</href>\n"
+        k << "#{ ' ' * indent }    <gx:delayedStart>#{ @delayedStart }</gx:delayedStart>\n" unless @delayedStart.nil?
+        k << "#{ ' ' * indent}</gx:SoundCue>\n"
+    end
 end
 
+# Corresponds to a KML gx:Tour object
 class Tour < KMLObject
     attr_accessor :name, :description, :last_abs_view
     def initialize(name = nil, description = nil)
@@ -1051,7 +1162,7 @@ class Tour < KMLObject
         @items = []
     end
 
-    # Add another element to a tour
+    # Add another element to this Tour
     def <<(a)
         @items << a
         @last_abs_view = a.view if a.kind_of? FlyTo
@@ -1073,6 +1184,7 @@ class Tour < KMLObject
     end
 end
 
+# Abstract class corresponding to the KML Overlay object
 class Overlay < Feature
     attr_accessor :color, :drawOrder, :icon
 
@@ -1096,6 +1208,7 @@ class Overlay < Feature
     end
 end
 
+# Corresponds to KML's ScreenOverlay object
 class ScreenOverlay < Overlay
     attr_accessor :overlayXY, :screenXY, :rotationXY, :size, :rotation
     def initialize(icon, name  = nil, size = nil, rotation = nil, overlayXY = nil, screenXY = nil, rotationXY = nil)
@@ -1119,6 +1232,7 @@ class ScreenOverlay < Overlay
     end
 end
 
+# Supporting object for the PhotoOverlay class
 class ViewVolume
     attr_accessor :leftFov, :rightFov, :bottomFov, :topFov, :near
     def initialize(near, leftFov = -45, rightFov = 45, bottomFov = -45, topFov = 45)
@@ -1143,6 +1257,7 @@ class ViewVolume
     end
 end
 
+# Supporting object for the PhotoOverlay class
 class ImagePyramid
     attr_accessor :tileSize, :maxWidth, :maxHeight, :gridOrigin
 
@@ -1166,6 +1281,7 @@ class ImagePyramid
     end
 end
 
+# Corresponds to KML's PhotoOverlay class
 class PhotoOverlay < Overlay
     attr_accessor :rotation, :viewvolume, :imagepyramid, :point, :shape
 
@@ -1194,6 +1310,7 @@ class PhotoOverlay < Overlay
     end
 end
 
+# Corresponds to KML's LatLonBox and LatLonAltBox
 class LatLonBox
     attr_reader :north, :south, :east, :west
     attr_accessor :rotation, :minAltitude, :maxAltitude, :altitudeMode
@@ -1250,6 +1367,7 @@ class LatLonBox
     end
 end
 
+# Corresponds to KML's gx:LatLonQuad object
 class LatLonQuad
     attr_accessor :lowerLeft, :lowerRight, :upperRight, :upperLeft
     def initialize(lowerLeft, lowerRight, upperRight, upperLeft)
@@ -1269,6 +1387,7 @@ class LatLonQuad
     end
 end
 
+# Corresponds to KML's GroundOverlay object
 class GroundOverlay < Overlay
     attr_accessor :altitude, :altitudeMode, :latlonbox, :latlonquad
     def initialize(icon, latlonbox = nil, latlonquad = nil, altitude = 0, altitudeMode = :clampToGround)
@@ -1298,6 +1417,7 @@ class GroundOverlay < Overlay
     end
 end
 
+# Corresponds to the LOD (Level of Detail) object
 class Lod
     attr_accessor :minpixels, :maxpixels, :minfade, :maxfade
     def initialize(minpixels, maxpixels, minfade, maxfade)
@@ -1320,6 +1440,7 @@ class Lod
     end
 end
 
+# Corresponds to the KML Region object
 class Region < KMLObject
     attr_accessor :latlonaltbox, :lod
 
@@ -1335,21 +1456,5 @@ class Region < KMLObject
         k << @lod.to_kml(indent + 4) unless @lod.nil?
         k << "#{' ' * indent}</Region>\n"
         k
-    end
-end
-
-class SoundCue < TourPrimitive
-    attr_accessor :href, :delayedStart
-    def initialize(href, delayedStart = nil)
-        super()
-        @href = href
-        @delayedStart = delayedStart
-    end
-
-    def to_kml(indent = 0)
-        k = "#{ ' ' * indent }<gx:SoundCue id=\"#{ @id }\">\n"
-        k << "#{ ' ' * indent }    <href>#{ @href }</href>\n"
-        k << "#{ ' ' * indent }    <gx:delayedStart>#{ @delayedStart }</gx:delayedStart>\n" unless @delayedStart.nil?
-        k << "#{ ' ' * indent}</gx:SoundCue>\n"
     end
 end
