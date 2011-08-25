@@ -201,13 +201,13 @@ end
 
 def model
     m = Model.new(
-            Link.new('files/welcome_to_sibos.dae'),
+            Link.new('files/test.dae'),
             point(-105.283, 40.017, 25000000, :relativeToGround),
             Orientation.new(0, 0, 0),
             Scale.new(10, 10, 10),
             ResourceMap.new()
     )
-    Placemark.new 'Welcome to Citi Sibos 2011', m
+    Placemark.new 'test', m
 end
 
 model
