@@ -21,5 +21,6 @@ end
 
 desc 'Push gem to RubyGems'
 task :push => :build do
+    system "gem yank #{gemspec.name} -v #{gemspec.version}"
     system "gem push #{gemspec.name}-#{gemspec.version}.gem"
 end

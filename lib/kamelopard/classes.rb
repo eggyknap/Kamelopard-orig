@@ -991,7 +991,6 @@ class Placemark < Feature
         if geo.respond_to? '[]' then
             @geometry = geo
         else
-            STDERR.puts "Not an array"
             @geometry = [ geo ]
         end
     end
