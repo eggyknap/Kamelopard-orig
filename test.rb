@@ -199,5 +199,16 @@ def geocode
     puts g.lookup({ 'city' => 'Springfield', 'count' => '100' }).to_json
 end
 
-geocode
-#puts get_kml
+def model
+    m = Model.new(
+            Link.new('files/welcome_to_sibos.dae'),
+            point(-105.283, 40.017, 25000000, :relativeToGround),
+            Orientation.new(0, 0, 0),
+            Scale.new(10, 10, 10),
+            ResourceMap.new()
+    )
+    Placemark.new 'Welcome to Citi Sibos 2011', m
+end
+
+model
+puts get_kml

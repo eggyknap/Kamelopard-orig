@@ -1458,3 +1458,144 @@ class Region < KMLObject
         k
     end
 end
+
+# Sub-object in the KML Model class
+class Orientation
+    attr_accessor :heading, :tilt, :roll
+    def initialize(heading, tilt, roll)
+        @heading = heading
+        raise "Heading should be between 0 and 360 inclusive; you gave #{ heading }" unless @heading <= 360 and @heading >= 0
+        @tilt = tilt
+        raise "Tilt should be between 0 and 180 inclusive; you gave #{ tilt }" unless @tilt <= 180 and @tilt >= 0
+        @roll = roll
+        raise "Roll should be between 0 and 180 inclusive; you gave #{ roll }" unless @roll <= 180 and @roll >= 0
+    end
+
+    def to_kml(indent = 0)
+        k = "#{ ' ' * indent }<Orientation>\n"
+        k << "#{ ' ' * indent }    <heading>#{ @heading }</heading>\n"
+        k << "#{ ' ' * indent }    <tilt>#{ @tilt }</tilt>\n"
+        k << "#{ ' ' * indent }    <roll>#{ @roll }</roll>\n"
+        k << "#{ ' ' * indent }</Orientation>\n"
+        k
+    end
+end
+
+# Sub-object in the KML Model class
+class Scale
+    attr_accessor :x, :y, :z
+    def initialize(x, y, z = 1)
+        @x = x
+        @y = y
+        @z = z
+    end
+
+    def to_kml(indent = 0)
+        k = "#{ ' ' * indent }<Scale>\n"
+        k << "#{ ' ' * indent }    <x>#{ x }</x>\n"
+        k << "#{ ' ' * indent }    <y>#{ y }</y>\n"
+        k << "#{ ' ' * indent }    <z>#{ z }</z>\n"
+        k << "#{ ' ' * indent }</Scale>\n"
+    end
+end
+
+# Sub-object in the KML ResourceMap class
+class Alias
+    attr_accessor :targetHref, :sourceHref
+    def initialize(targetHref = nil, sourceHref = nil)
+        @targetHref = targetHref
+        @sourceHref = sourceHref
+    end
+
+    def to_kml(indent = 0)
+        k = "#{ ' ' * indent }<Alias>\n"
+        k << "#{ ' ' * indent }    <targetHref>#{ @targetHref }</targetHref>\n"
+        k << "#{ ' ' * indent }    <sourceHref>#{ @sourceHref }</sourceHref>\n"
+        k << "#{ ' ' * indent }</Alias>\n"
+        k
+    end
+end
+
+# Sub-object in the KML Model class
+class ResourceMap
+    attr_accessor :aliases
+    def initialize(aliases = [])
+        @aliases = []
+        if not aliases.nil? then
+            if aliases.kind_of? Enumerable then
+                @aliases += aliases
+            else
+                @aliases << aliases
+            end
+        end
+    end
+
+    def to_kml(indent = 0)
+        return '' if @aliases.size == 0
+        k = "#{ ' ' * indent }<ResourceMap>\n"
+        k << "#{ ' ' * indent }</ResourceMap>\n"
+        @aliases.each do |a| k << a.to_kml(indent + 4) end
+        k
+    end
+end
+
+# Corresponds to KML's Link object
+class Link < KMLObject
+    attr_accessor :href, :refreshMode, :refreshInterval, :viewRefreshMode, :viewBoundScale, :viewFormat, :httpQuery
+    def initialize(href = '', refreshMode = :onChange, viewRefreshMode = :never)
+        super()
+        @href = href
+        @refreshMode = refreshMode
+        @viewRefreshMode = viewRefreshMode
+    end
+
+    def to_kml(indent = 0)
+        k = "#{ ' ' * indent }<Link id=\"#{ @id }\">\n"
+        k << "#{ ' ' * indent }    <href>#{ @href }</href>\n"
+        k << "#{ ' ' * indent }    <refreshMode>#{ @refreshMode }</refreshMode>\n"
+        k << "#{ ' ' * indent }    <viewRefreshMode>#{ @viewRefreshMode }</viewRefreshMode>\n"
+        k << "#{ ' ' * indent }    <refreshInterval>#{ @refreshInterval }</refreshInterval>\n" unless @refreshInterval.nil?
+        k << "#{ ' ' * indent }    <viewBoundScale>#{ @viewBoundScale }</viewBoundScale>\n" unless @viewBoundScale.nil?
+        k << "#{ ' ' * indent }    <viewFormat>#{ @viewFormat }</viewFormat>\n" unless @viewFormat.nil?
+        k << "#{ ' ' * indent }    <httpQuery>#{ @httpQuery }</httpQuery>\n" unless @httpQuery.nil?
+        k << "#{ ' ' * indent }</Link>\n"
+        k
+    end
+end
+
+# Corresponds to the KML Model class
+class Model < Geometry
+    attr_accessor :link, :location, :orientation, :scale, :resourceMap
+
+    # location should be a KMLPoint, or some object that can behave like one,
+    # including a Placemark. Model will get its Location and altitudeMode data
+    # from this attribute
+    def initialize(link, location, orientation, scale, resourceMap)
+        super()
+        @link = link
+        @location = location
+        @orientation = orientation
+        @scale = scale
+        @resourceMap = resourceMap
+    end
+
+    def to_kml(indent = 0)
+        k = "#{ ' ' * indent }<Model id=\"#{ @id }\">\n"
+        k << @link.to_kml(indent + 4)
+        if @location.altitudeMode == :clampToGround or @location.altitudeMode == :absolute then
+            k << "#{ ' ' * indent }    <altitudeMode>#{ @location.altitudeMode }</altitudeMode>\n"
+        else
+            k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @location.altitudeMode }</gx:altitudeMode>\n"
+        end
+        k << "#{ ' ' * indent }    <Location>\n"
+        k << "#{ ' ' * indent }        <longitide>#{ @location.longitude }</longitude>\n"
+        k << "#{ ' ' * indent }        <latitide>#{ @location.latitude }</latitude>\n"
+        k << "#{ ' ' * indent }        <altitide>#{ @location.altitude }</altitude>\n"
+        k << "#{ ' ' * indent }    </Location>\n"
+        k << @orientation.to_kml(indent + 4)
+        k << @scale.to_kml(indent + 4)
+        k << @resourceMap.to_kml(indent + 4)
+        k << "#{ ' ' * indent }</Model>\n"
+        k
+    end
+end
