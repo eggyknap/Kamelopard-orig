@@ -991,6 +991,7 @@ class Placemark < Feature
         if geo.respond_to? '[]' then
             @geometry = geo
         else
+            STDERR.puts "Not an array"
             @geometry = [ geo ]
         end
     end
@@ -1026,8 +1027,8 @@ class Placemark < Feature
     end
 
     def point
-        if @geometry.kind_of? KMLPoint then
-            @geometry
+        if @geometry[0].kind_of? KMLPoint then
+            @geometry[0]
         else
             raise "This placemark uses a non-point geometry, but the operation you're trying requires a point object"
         end
