@@ -29,6 +29,7 @@ def point(lo, la, alt=0, mode=nil, extrude = false)
     KMLPoint.new(lo, la, alt, mode.nil? ? :clampToGround : mode, extrude)
 end
 
+# Returns the KML that makes up the current Document, as a string.
 def get_kml
     Document.instance.to_kml
 end

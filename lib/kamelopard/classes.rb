@@ -1588,9 +1588,9 @@ class Model < Geometry
             k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @location.altitudeMode }</gx:altitudeMode>\n"
         end
         k << "#{ ' ' * indent }    <Location>\n"
-        k << "#{ ' ' * indent }        <longitide>#{ @location.longitude }</longitude>\n"
-        k << "#{ ' ' * indent }        <latitide>#{ @location.latitude }</latitude>\n"
-        k << "#{ ' ' * indent }        <altitide>#{ @location.altitude }</altitude>\n"
+        k << "#{ ' ' * indent }        <longitude>#{ @location.longitude }</longitude>\n"
+        k << "#{ ' ' * indent }        <latitude>#{ @location.latitude }</latitude>\n"
+        k << "#{ ' ' * indent }        <altitude>#{ @location.altitude }</altitude>\n"
         k << "#{ ' ' * indent }    </Location>\n"
         k << @orientation.to_kml(indent + 4)
         k << @scale.to_kml(indent + 4)
