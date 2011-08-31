@@ -210,5 +210,16 @@ def model
     Placemark.new 'test', m
 end
 
-model
+def abstract_view
+    a = KMLPoint.new("10d11'2.23\" S", '123.283')
+    b = Placemark.new 'my placemark', a
+
+    t = Tour.new 'my tour'
+    l = LookAt.new b
+    t << FlyTo.new(l, 4)
+    l[:sunlight] = true
+    l[:streetview] = false
+end
+
+abstract_view
 puts get_kml

@@ -43,7 +43,6 @@ end
 # Accepts XdX'X.X", XDXmX.XXs, XdXmX.XXs, or X.XXXX with either +/- or N/E/S/W
 #++
 def convert_coord(a)    # :nodoc
-    # XXX Make sure coordinate is valid for the type of coordinate the caller wants, based on some other value passed in
     a = a.to_s.upcase.strip
 
     mult = 1
@@ -312,21 +311,42 @@ end
 
 # Abstract class corresponding to KML's AbstractView object
 class AbstractView < KMLObject
-    attr_accessor :timestamp, :timespan
+    attr_accessor :timestamp, :timespan, :options
+
+    def initialize()
+        super
+        @options = {}
+    end
+
+    def [](a)
+        return @options[a]
+    end
+
+    def []=(a, b)
+        if not b.kind_of? FalseClass and not b.kind_of? TrueClass then
+            raise 'Option value must be boolean'
+        end
+        if a != :streetview and a != :historicalimagery and a != :sunlight then
+            raise 'Option index must be :streetview, :historicalimagery, or :sunlight'
+        end
+        @options[a] = b
+    end
 
     def to_kml(indent = 0)
-#   XXX
-#  <gx:ViewerOptions>
-#    <option> name=" " type="boolean">     <!-- name="streetview", "historicalimagery", "sunlight", or "groundnavigation" -->
-#    </option>
-#  </gx:ViewerOptions>
-        if not @timestamp.nil? then
-            @timestamp.to_kml(indent+4, 'gx')
-        elsif not @timespan.nil? then
-            @timespan.to_kml(indent+4, 'gx')
-        else
-            ''
+        k = ''
+        if @options.keys.length > 0 then
+            k << "#{ ' ' * indent }    <gx:ViewerOptions>\n"
+            @options.keys.each do |a|
+                k << "#{ ' ' * ( indent + 8 ) }<gx:option name=\"#{ a }\" enabled=\"#{ @options[a] ? 'true' : 'false' }\" />\n"
+            end
+            k << "#{ ' ' * indent }    </gx:ViewerOptions>\n"
         end
+        if not @timestamp.nil? then
+            k << @timestamp.to_kml(indent+4, 'gx')
+        elsif not @timespan.nil? then
+            k << @timespan.to_kml(indent+4, 'gx')
+        end
+        k
     end
 end
 
@@ -458,9 +478,10 @@ end
 class Feature < KMLObject
     # Abstract class
     attr_accessor :visibility, :open, :atom_author, :atom_link, :name,
-        :addressdetails, :phonenumber, :snippet, :description, :abstractView,
+        :phonenumber, :snippet, :description, :abstractView,
         :timestamp, :timespan, :styleUrl, :styleselector, :region, :metadata,
         :extendeddata, :styles
+    attr_reader :addressdetails
 
     def initialize (name = nil)
         super()
@@ -468,6 +489,15 @@ class Feature < KMLObject
         @visibility = true
         @open = false
         @styles = []
+    end
+
+    def addressdetails=(a)
+        if a.nil? or a == '' then
+            Document.instance.uses_xal = false
+        else
+            Document.instance.uses_xal = true
+        end
+        @addressdetails = a
     end
 
     # This function accepts either a StyleSelector object, or a string
@@ -491,14 +521,14 @@ class Feature < KMLObject
                 [@atom_author, "<atom:author><atom:name>#{ @atom_author }</atom:name></atom:author>", false],
                 [@atom_link, 'atom:link', true],
                 [@address, 'address', true],
-                [@addressdetails, 'xal:AddressDetails', false],   # XXX
+                [@addressdetails, 'xal:AddressDetails', false],
                 [@phonenumber, 'phoneNumber', true],
                 [@snippet, 'Snippet', true],
                 [@description, 'description', true],
                 [@styleUrl, 'styleUrl', true],
                 [@styleselector, "<styleSelector>#{@styleselector.nil? ? '' : @styleselector.to_kml}</styleSelector>", false ],
-                [@metadata, 'Metadata', false ],                  # XXX
-                [@extendeddata, 'ExtendedData', false ]           # XXX
+                [@metadata, 'Metadata', false ],
+                [@extendeddata, 'ExtendedData', false ]
             ], (indent))
         k << styles_to_kml(indent)
         k << @abstractView.to_kml(indent) unless @abstractView.nil?
@@ -578,7 +608,7 @@ end
 # scripts can (for now) manage only one Document at a time.
 class Document < Container
     include Singleton
-    attr_accessor :flyto_mode, :folders, :tours
+    attr_accessor :flyto_mode, :folders, :tours, :uses_xal
 
     def initialize
         @tours = []
@@ -605,9 +635,13 @@ class Document < Container
     end
 
     def to_kml
+        xal = ''
+        if @uses_xal then
+            xal = ' xmlns:xal="urn:oasis:names:tc:ciq:xsdschema:xAL:2.0"'
+        end
         h = <<-doc_header
 <?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom"#{ xal }>
 <Document>
         doc_header
 
@@ -1113,11 +1147,17 @@ class AnimatedUpdate < TourPrimitive
     end
 end
 
-# Corresponds to a KML gx:TourControl object. NB! Not yet implemented
-#--
-# XXX Implement this
-#++
+# Corresponds to a KML gx:TourControl object
 class TourControl < TourPrimitive
+    def initialize
+        super
+    end
+
+    def to_kml(indent = 0)
+        k = "#{ ' ' * indent }<gx:TourControl id=\"#{ @id }\">\n"
+        k << "#{ ' ' * indent }    <gx:playMode>pause</gx:playMode>\n"
+        k << "#{ ' ' * indent }</gx:TourControl>\n"
+    end
 end
 
 # Corresponds to a KML gx:Wait object
