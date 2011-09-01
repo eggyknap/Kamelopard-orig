@@ -28,9 +28,7 @@ def stylemap
     a = Style.new(nil, nil, nil, nil, nil, list)
 
     s = StyleMap.new( :a => a, :b => 'test')
-    puts s.to_kml
     b = Style.new(ico, nil, nil, nil, nil, nil)
-    puts b.to_kml
 end
 
 def style
@@ -221,5 +219,5 @@ def abstract_view
     l[:streetview] = false
 end
 
-abstract_view
+stylemap
 puts get_kml

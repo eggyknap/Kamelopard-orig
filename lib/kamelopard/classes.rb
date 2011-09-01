@@ -61,7 +61,7 @@ def convert_coord(a)    # :nodoc
     if a =~ /^\d+(\.\d+)?$/ then
         # coord needs no transformation
         1
-    elsif a =~ /^\d+D\d+m\d+(\.\d+)?s$/ then
+    elsif a =~ /^\d+D\d+M\d+(\.\d+)?S$/ then
         # coord is in dms
         p = a.split /[D"']/
         a = p[0].to_f + (p[2].to_f / 60.0 + p[1].to_f) / 60.0
@@ -75,8 +75,7 @@ def convert_coord(a)    # :nodoc
 
     # check that it's within range
     a = a.to_f * mult
-    a -= 180 if a > 180
-    a += 180 if a < -180
+    raise "Coordinate #{a} out of range" if a > 180 or a < -180
     return a
 end
 
@@ -333,20 +332,20 @@ class AbstractView < KMLObject
     end
 
     def to_kml(indent = 0)
-        k = ''
+        t = ''
         if @options.keys.length > 0 then
-            k << "#{ ' ' * indent }    <gx:ViewerOptions>\n"
-            @options.keys.each do |a|
-                k << "#{ ' ' * ( indent + 8 ) }<gx:option name=\"#{ a }\" enabled=\"#{ @options[a] ? 'true' : 'false' }\" />\n"
+            t << "#{ ' ' * indent }    <gx:ViewerOptions>\n"
+            @options.each do |k, v|
+                t << "#{ ' ' * ( indent + 8 ) }<gx:option name=\"#{ k }\" enabled=\"#{ v ? 'true' : 'false' }\" />\n"
             end
-            k << "#{ ' ' * indent }    </gx:ViewerOptions>\n"
+            t << "#{ ' ' * indent }    </gx:ViewerOptions>\n"
         end
         if not @timestamp.nil? then
-            k << @timestamp.to_kml(indent+4, 'gx')
+            t << @timestamp.to_kml(indent+4, 'gx')
         elsif not @timespan.nil? then
-            k << @timespan.to_kml(indent+4, 'gx')
+            t << @timespan.to_kml(indent+4, 'gx')
         end
-        k
+        t
     end
 end
 
@@ -981,37 +980,28 @@ class StyleMap < StyleSelector
     # latter if its kind_of? method doesn't claim it's a Style object
     def initialize(pairs = {})
         super()
-        @pairs = []
-        pairs.each do |k, v|
-            self << [k, v]
-        end
+        @pairs = pairs
     end
 
-    # Adds a new Style to the StyleMap. Strangely, the argument should be an
-    # array (not a hash) where the first element is the string key, and the
-    # second is the Style object or an ID thereof. This will probably change in
-    # the future.
-    #--
-    # XXX Make this accept a hash instead
-    #++
-    def <<(a)
-        id = get_next_id
-        @pairs << [id, a[0], a[1]]
+    # Adds a new Style to the StyleMap.
+    def merge(a)
+        @pairs.merge(a)
     end
 
     def to_kml(indent = 0)
-        k = super + "#{ ' ' * indent }<StyleMap id=\"#{@id}\">\n"
-        @pairs.each do |a|
-            k << "#{ ' ' * indent }    <Pair id=\"Pair_#{ a[0] }\">\n"
-            k << "#{ ' ' * indent }        <key>#{ a[1] }</key>\n"
-            if a[2].kind_of? Style then
-                k << "#{ ' ' * indent }    " << a[2].to_kml
+        t = super + "#{ ' ' * indent }<StyleMap id=\"#{@id}\">\n"
+        @pairs.each do |k, v|
+            t << "#{ ' ' * indent }    <Pair>\n"
+            t << "#{ ' ' * indent }        <key>#{ k }</key>\n"
+            if v.kind_of? Style then
+                t << ( ' ' * indent ) << v.to_kml(indent + 8)
             else
-                k << "#{ ' ' * indent }    <styleUrl>#{ a[2] }</styleUrl>\n"
+                t << "#{ ' ' * indent }        <styleUrl>#{ v }</styleUrl>\n"
             end
-            k << "#{ ' ' * indent }    </Pair>\n"
+            t << "#{ ' ' * indent }    </Pair>\n"
         end
-        k << "#{ ' ' * indent }</StyleMap>\n"
+        t << "#{ ' ' * indent }</StyleMap>\n"
+        t
     end
 end
 
