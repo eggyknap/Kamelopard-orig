@@ -4,6 +4,11 @@ require 'kamelopard'
 require 'rexml/document'
 
 shared_examples_for 'KMLObject' do
+    it 'descends from KMLObject' do
+        a = @o.kind_of? KMLObject
+        a.should == true
+    end
+
     it 'has an id' do
         @o.id.should_not be_nil
     end
@@ -52,6 +57,53 @@ shared_examples_for 'KML_producer' do
     end
 end
 
+shared_examples_for 'Geometry' do
+    it 'descends from Geometry' do
+        a = @o.kind_of? Geometry
+        a.should == true
+    end
+end
+ 
+shared_examples_for 'CoordinateList' do
+    it 'returns coordinates in its KML' do
+        @o << [[1,2,3], [2,3,4], [3,4,5]]
+        k = @o.to_kml
+        k.should =~ /<coordinates>\n.*\n\s*<\/coordinates>/
+        k.should =~ /1.0,2.0,3.0/
+        k.should =~ /2.0,3.0,4.0/
+        k.should =~ /3.0,4.0,5.0/
+    end
+
+    describe 'when adding elements' do
+        it 'accepts arrays of arrays' do
+            @o << [[1,2,3], [2,3,4], [3,4,5]]
+        end
+
+        it 'accepts KMLPoints' do
+            @o << KMLPoint.new(3,2,1)
+        end
+
+        it 'accepts arrays of points' do
+            q = []
+            [[1,2,3], [2,3,4], [3,4,5]].each do |a|
+                q << KMLPoint.new(a[0], a[1], a[2])
+            end
+            @o << q
+        end
+
+        it 'accepts another CoordinateList' do
+            p = CoordinateList.new( [[1,2,3], [2,3,4], [3,4,5]] )
+            @o << p
+        end
+
+        it 'complains when trying to add something weird' do
+            a = REXML::Document.new('<a>b</a>')
+            lambda { @o << a }.should raise_error
+        end
+    end
+
+end
+
 describe 'KMLObject' do
     before(:each) do
         @o = KMLObject.new()
@@ -69,11 +121,7 @@ describe 'KMLPoint' do
 
     it_should_behave_like 'KMLObject'
     it_should_behave_like 'KML_includes_id'
-
-    it 'descends from the right class' do
-        a = @o.kind_of? Geometry
-        a.should == true
-    end
+    it_should_behave_like 'Geometry'
 
     it 'accepts different coordinate formats' do
         coords = [ [ '123D30m12.2s S', '34D56m24.4s E' ],
@@ -148,40 +196,96 @@ describe 'CoordinateList' do
         @o.should respond_to(:add_element)
     end
 
-    describe 'when adding elements' do
-        it 'accepts arrays of arrays' do
-            @o << [[1,2,3], [2,3,4], [3,4,5]]
-        end
+    it_should_behave_like 'CoordinateList'
+end
 
-        it 'accepts KMLPoints' do
-            @o << KMLPoint.new(3,2,1)
-        end
-
-        it 'accepts arrays of points' do
-            q = []
-            [[1,2,3], [2,3,4], [3,4,5]].each do |a|
-                q << KMLPoint.new(a[0], a[1], a[2])
-            end
-            @o << q
-        end
-
-        it 'accepts another CoordinateList' do
-            p = CoordinateList.new( [[1,2,3], [2,3,4], [3,4,5]] )
-            @o << p
-        end
-
-        it 'complains when trying to add something weird' do
-            a = REXML::Document.new('<a>b</a>')
-            lambda { @o << a }.should raise_error
-        end
+describe 'LineString' do
+    before(:each) do
+        @o = LineString.new([ [1,2,3], [2,3,4], [3,4,5] ])
     end
 
-    it 'returns decent KML' do
-        @o << [[1,2,3], [2,3,4], [3,4,5]]
-        k = @o.to_kml
-        k.should =~ /<coordinates>\n.*\n<\/coordinates>/
-        k.should =~ /1.0,2.0,3.0/
-        k.should =~ /2.0,3.0,4.0/
-        k.should =~ /3.0,4.0,5.0/
+    it_should_behave_like 'KMLObject'
+    it_should_behave_like 'altitudeMode'
+    it_should_behave_like 'KML_includes_id'
+    it_should_behave_like 'KML_producer'
+    it_should_behave_like 'Geometry'
+    it_should_behave_like 'CoordinateList'
+
+    it 'has the right attributes' do
+        @o.should respond_to(:altitudeOffset)
+        @o.should respond_to(:extrude)
+        @o.should respond_to(:tessellate)
+        @o.should respond_to(:altitudeMode)
+        @o.should respond_to(:drawOrder)
+        @o.should respond_to(:longitude)
+        @o.should respond_to(:latitude)
+        @o.should respond_to(:altitude)
+        @o.should respond_to(:altitudeOffset=)
+        @o.should respond_to(:extrude=)
+        @o.should respond_to(:tessellate=)
+        @o.should respond_to(:altitudeMode=)
+        @o.should respond_to(:drawOrder=)
+        @o.should respond_to(:longitude=)
+        @o.should respond_to(:latitude=)
+        @o.should respond_to(:altitude=)
+        @o.should respond_to(:coordinates)
+    end
+
+    it 'contains the right KML attributes' do
+        @o.altitudeOffset = nil
+        @o.to_kml.should_not =~ /gx:altitudeOffset/
+        @o.altitudeOffset = 1
+        @o.to_kml.should =~ /gx:altitudeOffset/
+        @o.extrude = nil
+        @o.to_kml.should_not =~ /extrude/
+        @o.extrude = true 
+        @o.to_kml.should =~ /extrude/
+        @o.tessellate = nil
+        @o.to_kml.should_not =~ /tessellate/
+        @o.tessellate = true 
+        @o.to_kml.should =~ /tessellate/
+        @o.drawOrder = nil
+        @o.to_kml.should_not =~ /gx:drawOrder/
+        @o.drawOrder = true 
+        @o.to_kml.should =~ /gx:drawOrder/
+    end
+end
+
+describe 'LinearRing' do
+    before(:each) do
+        @o = LinearRing.new([ [1,2,3], [2,3,4], [3,4,5] ])
+    end
+
+    it_should_behave_like 'KMLObject'
+    it_should_behave_like 'altitudeMode'
+    it_should_behave_like 'KML_includes_id'
+    it_should_behave_like 'KML_producer'
+    it_should_behave_like 'Geometry'
+    it_should_behave_like 'CoordinateList'
+
+    it 'has the right attributes' do
+        @o.should respond_to(:altitudeOffset)
+        @o.should respond_to(:extrude)
+        @o.should respond_to(:tessellate)
+        @o.should respond_to(:altitudeMode)
+        @o.should respond_to(:extrude=)
+        @o.should respond_to(:tessellate=)
+        @o.should respond_to(:altitudeMode=)
+        @o.should respond_to(:coordinates)
+    end
+
+    it 'contains the right KML attributes' do
+        @o.altitudeOffset = nil
+        @o.to_kml.should_not =~ /gx:altitudeOffset/
+        @o.altitudeOffset = 1
+        @o.to_kml.should =~ /gx:altitudeOffset/
+        @o.extrude = nil
+        @o.to_kml.should_not =~ /extrude/
+        @o.extrude = true 
+        @o.to_kml.should =~ /extrude/
+        @o.tessellate = nil
+        @o.to_kml.should_not =~ /tessellate/
+        @o.tessellate = true 
+        @o.to_kml.should =~ /tessellate/
     end
 end

@@ -253,7 +253,7 @@ class LineString < Geometry
 
     def to_kml(indent = 0)
 
-        k = "#{ ' ' * indent }<LineString id =\"#{ @id }\">\n"
+        k = super(indent + 4) + "#{ ' ' * indent }<LineString id =\"#{ @id }\">\n"
         k << kml_array([
             [@altitudeOffset, 'gx:altitudeOffset', true],
             [@extrude, 'extrude', true],
@@ -290,8 +290,22 @@ class LinearRing < Geometry
         @altitudeOffset = altitudeOffset
     end
 
+    # Sets @coordinates element
+    def set_coords(a)
+        if a.kind_of? CoordinateList then
+            @coordinates = a
+        else
+            @coordinates = CoordinateList.new(a)
+        end
+    end
+
+    # Appends an element to this LinearRing's CoordinateList. See CoordinateList#add_element
+    def <<(a)
+        @coordinates << a
+    end
+
     def to_kml(indent = 0)
-        k = "#{ ' ' * indent }<LinearRing id=\"#{ @id }\">\n"
+        k = super(indent + 4) + "#{ ' ' * indent }<LinearRing id=\"#{ @id }\">\n"
         k << "#{ ' ' * indent }    <gx:altitudeOffset>#{ @altitudeOffset }</gx:altitudeOffset>\n" unless @altitudeOffset.nil?
         k << "#{ ' ' * indent }    <tessellate>#{ @tessellate }</tessellate>\n" unless @tessellate.nil?
         k << "#{ ' ' * indent }    <extrude>#{ @extrude }</extrude>\n" unless @extrude.nil?
