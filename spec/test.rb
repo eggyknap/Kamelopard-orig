@@ -58,9 +58,62 @@ shared_examples_for 'KML_producer' do
 end
 
 shared_examples_for 'Geometry' do
+    it_should_behave_like 'KMLObject'
+
     it 'descends from Geometry' do
         a = @o.kind_of? Geometry
         a.should == true
+    end
+end
+
+shared_examples_for 'AbstractView' do
+    it_should_behave_like 'KMLObject'
+    it_should_behave_like 'altitudeMode'
+    it_should_behave_like 'KML_includes_id'
+    it_should_behave_like 'KML_producer'
+
+    it 'descends from AbstractView' do
+        a = @o.kind_of? AbstractView
+        a.should == true
+    end
+
+    it 'has the right attributes' do
+        @o.should respond_to(:timestamp)
+        @o.should respond_to(:timespan)
+        @o.should respond_to(:options)
+        @o.should respond_to(:timestamp=)
+        @o.should respond_to(:timespan=)
+        @o.should respond_to(:options=)
+    end
+
+    it 'accepts viewer options and includes them in the KML' do
+        k = @o.to_kml
+        k.should_not =~ /ViewerOptions/
+
+        @o[:streetview] = true
+        @o[:sunlight] = true
+        @o[:historicalimagery] = true
+        k = @o.to_kml
+        k.should =~ /ViewerOptions/
+        k.should =~ /"sunlight" enabled="true"/
+        k.should =~ /"streetview" enabled="true"/
+        k.should =~ /"historicalimagery" enabled="true"/
+
+        @o[:streetview] = false
+        @o[:sunlight] = false
+        @o[:historicalimagery] = false
+        k = @o.to_kml
+        k.should =~ /ViewerOptions/
+        k.should =~ /"sunlight" enabled="false"/
+        k.should =~ /"streetview" enabled="false"/
+        k.should =~ /"historicalimagery" enabled="false"/
+    end
+
+    it 'whines when a strange option is provided' do
+        lambda { @o[:something_strange] = true }.should raise_exception
+        lambda { @o[:streetview] = true }.should_not raise_exception
+        lambda { @o[:sunlight] = true }.should_not raise_exception
+        lambda { @o[:historicalimagery] = true }.should_not raise_exception
     end
 end
  
@@ -104,6 +157,38 @@ shared_examples_for 'CoordinateList' do
 
 end
 
+shared_examples_for 'Camera-like' do
+    it_should_behave_like 'AbstractView'
+
+    it 'has the right attributes' do
+        @o.should respond_to(:longitude)
+        @o.should respond_to(:latitude)
+        @o.should respond_to(:altitude)
+        @o.should respond_to(:heading)
+        @o.should respond_to(:tilt)
+        @o.should respond_to(:roll)
+        @o.should respond_to(:altitudeMode)
+        @o.should respond_to(:longitude=)
+        @o.should respond_to(:latitude=)
+        @o.should respond_to(:altitude=)
+        @o.should respond_to(:heading=)
+        @o.should respond_to(:tilt=)
+        @o.should respond_to(:roll=)
+        @o.should respond_to(:altitudeMode=)
+    end
+
+    it 'contains the right KML attributes' do
+        @o.heading = 12
+        @o.tilt = 12
+        k = @o.to_kml
+        k.should =~ /<longitude>/
+        k.should =~ /<latitude>/
+        k.should =~ /<altitude>/
+        k.should =~ /<heading>/
+        k.should =~ /<tilt>/
+    end
+end
+
 describe 'KMLObject' do
     before(:each) do
         @o = KMLObject.new()
@@ -119,7 +204,6 @@ describe 'KMLPoint' do
         @o = KMLPoint.new @attrs[:long], @attrs[:lat], @attrs[:alt]
     end
 
-    it_should_behave_like 'KMLObject'
     it_should_behave_like 'KML_includes_id'
     it_should_behave_like 'Geometry'
 
@@ -204,7 +288,6 @@ describe 'LineString' do
         @o = LineString.new([ [1,2,3], [2,3,4], [3,4,5] ])
     end
 
-    it_should_behave_like 'KMLObject'
     it_should_behave_like 'altitudeMode'
     it_should_behave_like 'KML_includes_id'
     it_should_behave_like 'KML_producer'
@@ -256,7 +339,6 @@ describe 'LinearRing' do
         @o = LinearRing.new([ [1,2,3], [2,3,4], [3,4,5] ])
     end
 
-    it_should_behave_like 'KMLObject'
     it_should_behave_like 'altitudeMode'
     it_should_behave_like 'KML_includes_id'
     it_should_behave_like 'KML_producer'
@@ -287,5 +369,34 @@ describe 'LinearRing' do
         @o.to_kml.should_not =~ /tessellate/
         @o.tessellate = true 
         @o.to_kml.should =~ /tessellate/
+    end
+end
+
+describe 'Camera' do
+    before(:each) do
+        @o = Camera.new KMLPoint.new(123, -123, 123), 10, 10, 10, :clampToGround
+    end
+
+    it_should_behave_like 'Camera-like'
+
+    it 'contains the right KML attributes' do
+        @o.roll = 12
+        k = @o.to_kml
+        k.should =~ /<Camera/
+        k.should =~ /<roll>/
+    end
+end
+
+describe 'LookAt' do
+    before(:each) do
+        @o = LookAt.new KMLPoint.new(123, -123, 123), 10, 10, 10, :clampToGround
+    end
+
+    it_should_behave_like 'Camera-like'
+    it 'contains the right KML attributes' do
+        @o.range = 10
+        k = @o.to_kml
+        k.should =~ /<LookAt/
+        k.should =~ /<range>/
     end
 end

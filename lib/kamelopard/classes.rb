@@ -324,11 +324,100 @@ end
 
 # Abstract class corresponding to KML's AbstractView object
 class AbstractView < KMLObject
-    attr_accessor :timestamp, :timespan, :options
-
-    def initialize()
-        super
+    attr_accessor :timestamp, :timespan, :options, :point, :heading, :tilt, :roll, :range, :altitudeMode
+    def initialize(className, point = nil, heading = 0, tilt = 0, roll = 0, range = 0, altitudeMode = :clampToGround)
+        raise "className argument must not be nil" if className.nil?
+        super()
+        @point = point
         @options = {}
+        @className = className
+        if point.nil? then
+            @point = nil
+        elsif point.kind_of? Placemark then
+            @point = point.point
+        else
+            @point = point
+        end
+        @heading = heading
+        @tilt = tilt
+        @roll = roll
+        @range = range
+        @altitudeMode = altitudeMode
+    end
+
+    def point=(point)
+        @point.longitude = point.longitude
+        @point.latitude = point.latitude
+        @point.altitude = point.altitude
+    end
+
+    def longitude
+        @point.nil? ? nil : @point.longitude
+    end
+
+    def latitude
+        @point.nil? ? nil : @point.latitude
+    end
+
+    def altitude
+        @point.nil? ? nil : @point.altitude
+    end
+
+    def longitude=(a)
+        if @point.nil? then
+            @point = KMLPoint.new(a, 0)
+        else
+            @point.longitude = a
+        end
+    end
+
+    def latitude=(a)
+        if @point.nil? then
+            @point = KMLPoint.new(0, a)
+        else
+            @point.latitude = a
+        end
+    end
+
+    def altitude=(a)
+        if @point.nil? then
+            @point = KMLPoint.new(0, 0, a)
+        else
+            @point.altitude = a
+        end
+    end
+
+    def to_kml(indent = 0)
+        t = "#{ ' ' * indent }<#{ @className } id=\"#{ @id }\">\n"
+        t << super(indent)
+        t << kml_array([
+            [ @point.nil? ? nil : @point.longitude, 'longitude', true ],
+            [ @point.nil? ? nil : @point.latitude, 'latitude', true ],
+            [ @point.nil? ? nil : @point.altitude, 'altitude', true ],
+            [ @heading, 'heading', true ],
+            [ @tilt, 'tilt', true ],
+            [ @range, 'range', true ],
+            [ @roll, 'roll', true ]
+        ], indent + 4)
+        if @altitudeMode == :clampToGround or @altitudeMode == :relativeToGround or @altitudeMode == :absolute then
+            t << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
+        else
+            t << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
+        end
+        if @options.keys.length > 0 then
+            t << "#{ ' ' * indent }    <gx:ViewerOptions>\n"
+            @options.each do |k, v|
+                t << "#{ ' ' * ( indent + 8 ) }<gx:option name=\"#{ k }\" enabled=\"#{ v ? 'true' : 'false' }\" />\n"
+            end
+            t << "#{ ' ' * indent }    </gx:ViewerOptions>\n"
+        end
+        if not @timestamp.nil? then
+            t << @timestamp.to_kml(indent+4, 'gx')
+        elsif not @timespan.nil? then
+            t << @timespan.to_kml(indent+4, 'gx')
+        end
+        t << "#{ ' ' * indent }</#{ @className }>\n"
+        t
     end
 
     def [](a)
@@ -344,100 +433,35 @@ class AbstractView < KMLObject
         end
         @options[a] = b
     end
-
-    def to_kml(indent = 0)
-        t = ''
-        if @options.keys.length > 0 then
-            t << "#{ ' ' * indent }    <gx:ViewerOptions>\n"
-            @options.each do |k, v|
-                t << "#{ ' ' * ( indent + 8 ) }<gx:option name=\"#{ k }\" enabled=\"#{ v ? 'true' : 'false' }\" />\n"
-            end
-            t << "#{ ' ' * indent }    </gx:ViewerOptions>\n"
-        end
-        if not @timestamp.nil? then
-            t << @timestamp.to_kml(indent+4, 'gx')
-        elsif not @timespan.nil? then
-            t << @timespan.to_kml(indent+4, 'gx')
-        end
-        t
-    end
 end
 
 # Corresponds to KML's Camera object
 class Camera < AbstractView
-    attr_accessor :longitude, :latitude, :altitude, :heading, :tilt, :roll, :altitudeMode
-    def initialize(long = 0, lat = 0, alt = 0, heading = 0, tilt = 0, roll = 0, mode = :clampToGround)
-        super()
-        @longitude = long
-        @latitude = lat
-        @altitude = alt
-        @heading = heading
-        @tilt = tilt
-        @roll = roll
-        @altitudeMode = mode
+    def initialize(point = nil, heading = 0, tilt = 0, roll = 0, altitudeMode = :clampToGround)
+        super('Camera', point, heading, tilt, roll, nil, altitudeMode)
     end
 
-    def point=(point)
-        @longitude = point.longitude
-        @latitude = point.latitude
-        @altitude = point.altitude
+    def range
+        raise "The range element is part of LookAt objects, not Camera objects"
     end
 
-    def to_kml(indent = 0)
-
-        k = "#{ ' ' * indent }<Camera id=\"#{ @id }\">\n"
-        k << super(indent)
-        k << <<-camera
-#{ ' ' * indent }    <longitude>#{ @longitude }</longitude>
-#{ ' ' * indent }    <latitude>#{ @latitude }</latitude>
-#{ ' ' * indent }    <altitude>#{ @altitude }</altitude>
-#{ ' ' * indent }    <heading>#{ @heading }</heading>
-#{ ' ' * indent }    <roll>#{ @roll }</roll>
-#{ ' ' * indent }    <tilt>#{ @tilt }</tilt>
-        camera
-        if @altitudeMode == :clampToGround or @altitudeMode == :relativeToGround or @altitudeMode == :absolute then
-            k << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
-        else
-            k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
-        end
-        k << "#{ ' ' * indent }</Camera>\n"
+    def range=
+        # The range element doesn't exist in Camera objects
     end
 end
 
 # Corresponds to KML's LookAt object
 class LookAt < AbstractView
-    attr_accessor :longitude, :latitude, :altitude, :heading, :tilt, :range, :altitudeMode
-    def initialize(point = nil, heading = 0, tilt = 0, range = 0)
-        super()
-        if point.nil? then
-            @point = nil
-        elsif point.kind_of? Placemark then
-            @point = point.point
-        else
-            @point = point
-        end
-        @heading = heading
-        @tilt = tilt
-        @range = range
+    def initialize(point = nil, heading = 0, tilt = 0, range = 0, altitudeMode = :clampToGround)
+        super('LookAt', point, heading, tilt, nil, range, altitudeMode)
     end
 
-    def to_kml(indent = 0)
-        k = "#{ ' ' * indent }<LookAt id=\"#{@id}\">\n"
-        k << super
-        k << kml_array([
-            [ @point.longitude, 'longitude', true ],
-            [ @point.latitude, 'latitude', true ],
-            [ @point.altitude, 'altitude', true ],
-            [ @heading, 'heading', true ],
-            [ @tilt, 'tilt', true ],
-            [ @range, 'range', true ]
-        ], indent + 4)
-        if @altitudeMode == :clampToGround or @altitudeMode == :relativeToGround or @altitudeMode == :absolute then
-            k << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
-        else
-            k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
-        end
-        k << "#{ ' ' * indent }</LookAt>\n"
+    def roll
+        raise "The roll element is part of Camera objects, not LookAt objects"
+    end
+
+    def roll=
+        # The roll element doesn't exist in LookAt objects
     end
 end
 
