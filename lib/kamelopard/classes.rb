@@ -481,7 +481,8 @@ class TimeStamp < TimePrimitive
         prefix = ''
         prefix = ns + ':' unless ns.nil?
         
-        <<-timestamp
+        k = super(indent + 4)
+        k << <<-timestamp
 #{ ' ' * indent }<#{ prefix }TimeStamp id="#{ @id }">
 #{ ' ' * indent }    <when>#{ @when }</when>
 #{ ' ' * indent }</#{ prefix }TimeStamp>
@@ -503,7 +504,7 @@ class TimeSpan < TimePrimitive
         prefix = ''
         prefix = ns + ':' unless ns.nil?
 
-        k = "#{ ' ' * indent }<#{ prefix }TimeSpan id=\"#{ @id }\">\n"
+        k = super(indent + 4) + "#{ ' ' * indent }<#{ prefix }TimeSpan id=\"#{ @id }\">\n"
         k << "#{ ' ' * indent }    <begin>#{ @begin }</begin>\n" unless @begin.nil?
         k << "#{ ' ' * indent }    <end>#{ @end }</end>\n" unless @end.nil?
         k << "#{ ' ' * indent }</#{ prefix }TimeSpan>\n"

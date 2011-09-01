@@ -189,6 +189,17 @@ shared_examples_for 'Camera-like' do
     end
 end
 
+shared_examples_for "TimePrimitive" do
+    it_should_behave_like 'KMLObject'
+    it_should_behave_like 'KML_producer'
+    it_should_behave_like 'KML_includes_id'
+
+    it 'descends from TimePrimitive' do
+        a = @o.kind_of? TimePrimitive
+        a.should == true
+    end
+end
+
 describe 'KMLObject' do
     before(:each) do
         @o = KMLObject.new()
@@ -398,5 +409,49 @@ describe 'LookAt' do
         k = @o.to_kml
         k.should =~ /<LookAt/
         k.should =~ /<range>/
+    end
+end
+
+describe 'TimeStamp' do
+    before(:each) do
+        @when = '01 Dec 1934 12:12:12 PM'
+        @o = TimeStamp.new @when
+    end
+
+    it_should_behave_like 'TimePrimitive'
+
+    it 'has the right attributes' do
+        @o.should respond_to(:when)
+        @o.should respond_to(:when=)
+    end
+
+    it 'has the right KML elements' do
+        k = @o.to_kml
+        k.should =~ /TimeStamp/
+        k.should =~ /<when>#{ @when }<\/when>/
+    end
+end
+
+describe 'TimeSpan' do
+    before(:each) do
+        @begin = '01 Dec 1934 12:12:12 PM'
+        @end = '02 Dec 1934 12:12:12 PM'
+        @o = TimeSpan.new @begin, @end
+    end
+
+    it_should_behave_like 'TimePrimitive'
+
+    it 'has the right attributes' do
+        @o.should respond_to(:begin)
+        @o.should respond_to(:begin=)
+        @o.should respond_to(:end)
+        @o.should respond_to(:end=)
+    end
+
+    it 'has the right KML elements' do
+        k = @o.to_kml
+        k.should =~ /TimeSpan/
+        k.should =~ /<begin>#{ @begin }<\/begin>/
+        k.should =~ /<end>#{ @end }<\/end>/
     end
 end
