@@ -124,7 +124,7 @@ class KMLPoint < Geometry
         k = super(indent + 4) + "#{ ' ' * indent }<Point id=\"#{ @id }\">\n"
         k << "#{ ' ' * indent }    <extrude>#{ @extrude ? 1 : 0 }</extrude>\n" unless short
         if not short then
-            if @altitudeMode == :clampToGround or @altitudeMode == :absolute then
+            if @altitudeMode == :clampToGround or @altitudeMode == :relativeToGround or @altitudeMode == :absolute then
                 k << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
             else
                 k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
@@ -210,7 +210,7 @@ class CoordinateList
                 # I dunno what it is
                 raise "Kamelopard can't understand this object as a coordinate"
             end
-        elsif a.kind_of CoordinateList then
+        elsif a.kind_of? CoordinateList then
             # Append this coordinate list
             @coordinates << a.coordinates
         else
@@ -261,7 +261,7 @@ class LineString < Geometry
             [@drawOrder, 'gx:drawOrder', true]
         ], indent + 4)
         k << @coordinates.to_kml(indent + 4) unless @coordinates.nil?
-        if @altitudeMode == :clampToGround or @altitudeMode == :absolute then
+        if @altitudeMode == :clampToGround or @altitudeMode == :relativeToGround or @altitudeMode == :absolute then
             k << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
         else
             k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
@@ -296,7 +296,7 @@ class LinearRing < Geometry
         k << "#{ ' ' * indent }    <tessellate>#{ @tessellate }</tessellate>\n" unless @tessellate.nil?
         k << "#{ ' ' * indent }    <extrude>#{ @extrude }</extrude>\n" unless @extrude.nil?
         if not @altitudeMode.nil? then
-            if @altitudeMode == :clampToGround or @altitudeMode == :absolute then
+            if @altitudeMode == :clampToGround or @altitudeMode == :relativeToGround or @altitudeMode == :absolute then
                 k << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
             else
                 k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
@@ -381,7 +381,7 @@ class Camera < AbstractView
 #{ ' ' * indent }    <roll>#{ @roll }</roll>
 #{ ' ' * indent }    <tilt>#{ @tilt }</tilt>
         camera
-        if @altitudeMode == :clampToGround or @altitudeMode == :absolute then
+        if @altitudeMode == :clampToGround or @altitudeMode == :relativeToGround or @altitudeMode == :absolute then
             k << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
         else
             k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
@@ -418,7 +418,7 @@ class LookAt < AbstractView
             [ @tilt, 'tilt', true ],
             [ @range, 'range', true ]
         ], indent + 4)
-        if @altitudeMode == :clampToGround or @altitudeMode == :absolute then
+        if @altitudeMode == :clampToGround or @altitudeMode == :relativeToGround or @altitudeMode == :absolute then
             k << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
         else
             k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
@@ -1384,7 +1384,7 @@ class LatLonBox
         k << "#{ ' ' * indent }    <minAltitude>#{ @minAltitude }</minAltitude>\n" unless @minAltitude.nil?
         k << "#{ ' ' * indent }    <maxAltitude>#{ @maxAltitude }</maxAltitude>\n" unless @maxAltitude.nil?
         if (not @minAltitude.nil? or not @maxAltitude.nil?) then
-            if @altitudeMode == :clampToGround or @altitudeMode == :absolute then
+            if @altitudeMode == :clampToGround or @altitudeMode == :relativeToGround or @altitudeMode == :absolute then
                 altitudeModeString = "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
             else
                 altitudeModeString = "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
@@ -1435,7 +1435,7 @@ class GroundOverlay < Overlay
         k << super(indent + 4)
         k << "#{ ' ' * indent }    <altitude>#{ @altitude }</altitude>\n"
         k << ' ' * indent
-        if @altitudeMode == :clampToGround or @altitudeMode == :absolute then
+        if @altitudeMode == :clampToGround or @altitudeMode == :relativeToGround or @altitudeMode == :absolute then
             k << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
         else
             k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
@@ -1612,7 +1612,7 @@ class Model < Geometry
     def to_kml(indent = 0)
         k = "#{ ' ' * indent }<Model id=\"#{ @id }\">\n"
         k << @link.to_kml(indent + 4)
-        if @location.altitudeMode == :clampToGround or @location.altitudeMode == :absolute then
+        if @location.altitudeMode == :clampToGround or @location.altitudeMode == :relativeToGround or @location.altitudeMode == :absolute then
             k << "#{ ' ' * indent }    <altitudeMode>#{ @location.altitudeMode }</altitudeMode>\n"
         else
             k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @location.altitudeMode }</gx:altitudeMode>\n"
