@@ -513,13 +513,16 @@ class TimeSpan < TimePrimitive
 end
 
 # Abstract class corresponding to KML's Feature object.
+#--
+# Fix Snippet so it has a maxLines attribute
+#++
 class Feature < KMLObject
     # Abstract class
     attr_accessor :visibility, :open, :atom_author, :atom_link, :name,
-        :phonenumber, :snippet, :description, :abstractView,
-        :timestamp, :timespan, :styleUrl, :styleselector, :region, :metadata,
-        :extendeddata, :styles
-    attr_reader :addressdetails
+        :phoneNumber, :snippet, :description, :abstractView,
+        :timestamp, :timespan, :styleUrl, :styleSelector, :region, :metadata,
+        :extendedData, :styles
+    attr_reader :addressDetails
 
     def initialize (name = nil)
         super()
@@ -529,13 +532,13 @@ class Feature < KMLObject
         @styles = []
     end
 
-    def addressdetails=(a)
+    def addressDetails=(a)
         if a.nil? or a == '' then
             Document.instance.uses_xal = false
         else
             Document.instance.uses_xal = true
         end
-        @addressdetails = a
+        @addressDetails = a
     end
 
     # This function accepts either a StyleSelector object, or a string
@@ -555,18 +558,18 @@ class Feature < KMLObject
         k << kml_array([
                 [@name, 'name', true],
                 [(@visibility.nil? || @visibility) ? 1 : 0, 'visibility', true],
-                [(@open.nil? || ! @open) ? 1 : 0, 'open', true],
+                [(! @open.nil? && @open) ? 1 : 0, 'open', true],
                 [@atom_author, "<atom:author><atom:name>#{ @atom_author }</atom:name></atom:author>", false],
                 [@atom_link, 'atom:link', true],
                 [@address, 'address', true],
-                [@addressdetails, 'xal:AddressDetails', false],
-                [@phonenumber, 'phoneNumber', true],
+                [@addressDetails, 'xal:AddressDetails', true],
+                [@phoneNumber, 'phoneNumber', true],
                 [@snippet, 'Snippet', true],
                 [@description, 'description', true],
                 [@styleUrl, 'styleUrl', true],
-                [@styleselector, "<styleSelector>#{@styleselector.nil? ? '' : @styleselector.to_kml}</styleSelector>", false ],
-                [@metadata, 'Metadata', false ],
-                [@extendeddata, 'ExtendedData', false ]
+                [@styleSelector, "<styleSelector>#{@styleSelector.nil? ? '' : @styleSelector.to_kml}</styleSelector>", false ],
+                [@metadata, 'Metadata', true ],
+                [@extendedData, 'ExtendedData', true ]
             ], (indent))
         k << styles_to_kml(indent)
         k << @abstractView.to_kml(indent) unless @abstractView.nil?
@@ -577,7 +580,7 @@ class Feature < KMLObject
         k
     end
     
-    def styles_to_kml(indent)
+    def styles_to_kml(indent = 0)
         k = ''
         @styles.each do |a|
             k << a.to_kml(indent)

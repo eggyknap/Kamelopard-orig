@@ -3,10 +3,20 @@ $LOAD_PATH << './lib'
 require 'kamelopard'
 require 'rexml/document'
 
+def get_test_styles()
+    si = Style.new IconStyle.new('')
+    sl = Style.new nil, nil, nil, nil, nil, ListStyle.new()
+    sm = StyleMap.new( { :icon => si, :list => sl } )
+    si.id = 'icon'
+    sl.id = 'list'
+    sm.id = 'map'
+
+    [ si, sl, sm ]
+end
+
 shared_examples_for 'KMLObject' do
     it 'descends from KMLObject' do
-        a = @o.kind_of? KMLObject
-        a.should == true
+        @o.kind_of?(KMLObject).should == true
     end
 
     it 'has an id' do
@@ -61,8 +71,7 @@ shared_examples_for 'Geometry' do
     it_should_behave_like 'KMLObject'
 
     it 'descends from Geometry' do
-        a = @o.kind_of? Geometry
-        a.should == true
+        @o.kind_of?(Geometry).should == true
     end
 end
 
@@ -73,8 +82,7 @@ shared_examples_for 'AbstractView' do
     it_should_behave_like 'KML_producer'
 
     it 'descends from AbstractView' do
-        a = @o.kind_of? AbstractView
-        a.should == true
+        @o.kind_of?(AbstractView).should == true
     end
 
     it 'has the right attributes' do
@@ -195,8 +203,165 @@ shared_examples_for "TimePrimitive" do
     it_should_behave_like 'KML_includes_id'
 
     it 'descends from TimePrimitive' do
-        a = @o.kind_of? TimePrimitive
-        a.should == true
+        @o.kind_of?(TimePrimitive).should == true
+    end
+end
+
+shared_examples_for 'Feature' do
+    it_should_behave_like 'KMLObject'
+    it_should_behave_like 'KML_includes_id'
+    it_should_behave_like 'KML_producer'
+
+    it 'descends from Feature' do
+        @o.kind_of?(Feature).should == true
+    end
+
+    it 'has the right attributes' do
+        @o.should respond_to(:visibility=)
+        @o.should respond_to(:open=)
+        @o.should respond_to(:atom_author=)
+        @o.should respond_to(:atom_link=)
+        @o.should respond_to(:name=)
+        @o.should respond_to(:phoneNumber=)
+        @o.should respond_to(:snippet=)
+        @o.should respond_to(:description=)
+        @o.should respond_to(:abstractView=)
+        @o.should respond_to(:timestamp=)
+        @o.should respond_to(:timespan=)
+        @o.should respond_to(:styleUrl=)
+        @o.should respond_to(:styleSelector=)
+        @o.should respond_to(:region=)
+        @o.should respond_to(:metadata=)
+        @o.should respond_to(:extendedData=)
+        @o.should respond_to(:styles=)
+
+        @o.should respond_to(:visibility)
+        @o.should respond_to(:open)
+        @o.should respond_to(:atom_author)
+        @o.should respond_to(:atom_link)
+        @o.should respond_to(:name)
+        @o.should respond_to(:phoneNumber)
+        @o.should respond_to(:snippet)
+        @o.should respond_to(:description)
+        @o.should respond_to(:abstractView)
+        @o.should respond_to(:timestamp)
+        @o.should respond_to(:timespan)
+        @o.should respond_to(:styleUrl)
+        @o.should respond_to(:styleSelector)
+        @o.should respond_to(:region)
+        @o.should respond_to(:metadata)
+        @o.should respond_to(:extendedData)
+        @o.should respond_to(:styles)
+
+        @o.should respond_to(:addressDetails)
+    end
+
+    it 'handles extended address stuff correctly' do
+        @o.addressDetails = 'These are some extended details'
+        k = get_kml
+        k.should =~ /xmlns:xal="urn:oasis:names:tc:ciq:xsdschema:xAL:2.0"/
+        k = @o.to_kml
+        k.should =~ /<xal:AddressDetails>These are some extended details<\/xal:AddressDetails/
+    end
+
+    it 'handles styles correctly' do
+        get_test_styles().each do |s|
+            @o.styleUrl = s
+            @o.to_kml.should =~ /<styleUrl>##{s.id}<\/styleUrl>/
+        end
+        @o.styleUrl = '#random'
+        @o.to_kml.should =~ /<styleUrl>#random<\/styleUrl>/
+    end
+
+    it 'returns style KML correctly' do
+        get_test_styles().each do |s|
+            @o.styles << s
+        end
+
+        header = <<-header
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+        header
+        d = REXML::Document.new( header + @o.styles_to_kml + '</Document></kml>')
+        
+        si = REXML::XPath.first( d, "/kml/Document/Style[@id='icon']")
+        si.should_not be_nil
+        sl = REXML::XPath.first( d, "/kml/Document/Style[@id='list']")
+        sl.should_not be_nil
+        sm = REXML::XPath.first( d, "/kml/Document/StyleMap[@id='map']")
+        sm.should_not be_nil
+
+        si = REXML::XPath.first( d, "/kml/Document/StyleMap/Pair/Style[@id='icon']")
+        si.should_not be_nil
+        sl = REXML::XPath.first( d, "/kml/Document/StyleMap/Pair/Style[@id='list']")
+        sl.should_not be_nil
+    end
+
+    it 'returns the right KML for simple fields' do
+        marker = 'Look for this string'
+        fields = %w( name address phoneNumber description styleUrl )
+        fields.each do |f|
+            @o = Feature.new()
+            @o.instance_variable_set("@#{f}".to_sym, marker)
+            @o.to_kml.should =~ /<#{f}>#{marker}<\/#{f}>/
+        end
+    end
+
+    it 'returns the right KML for more complex fields' do
+        marker = 'Look for this string'
+        [
+            [ :@addressDetails, 'xal:AddressDetails' ],
+            [ :@snippet, 'Snippet' ],
+            [ :@metadata, 'Metadata' ],
+            [ :@extendedData, 'ExtendedData' ],
+            [ :@atom_link, 'atom:link' ]
+        ].each do |a|
+            @o = Feature.new()
+            @o.instance_variable_set(a[0], marker)
+            @o.to_kml.should =~ /<#{a[1]}>#{marker}<\/#{a[1]}>/
+        end
+    end
+
+    it 'correctly KML-ifies the atom:author field' do
+        @o = Feature.new()
+        marker = 'Look for this text'
+        @o.atom_author = marker
+        @o.to_kml.should =~ /<atom:author><atom:name>#{ marker }<\/atom:name><\/atom:author>/
+    end
+
+    it 'returns the right KML for boolean fields' do
+        %w( visibility open ).each do |k|
+            [false, true].each do |v|
+                @o = Feature.new()
+                @o.instance_variable_set("@#{k}".to_sym, v)
+                @o.to_kml.should =~ /<#{k}>#{v ? 1 : 0}<\/#{k}>/
+            end
+        end
+    end
+
+    it 'Snippet handles maxlines correctly' do
+        pending 'implement snippet'
+    end
+
+    it 'correctly KML\'s the Snippet' do
+        pending 'someone needs to write this test'
+    end
+
+    it 'correctly KML\'s the Region' do
+        pending 'someone needs to write this test'
+    end
+
+    it 'correctly KML\'s the StyleSelector' do
+        pending 'someone needs to write this test'
+    end
+
+    it 'correctly KML\'s the TimePrimitive' do
+        pending 'someone needs to write this test'
+    end
+
+    it 'correctly KML\'s the AbstractView' do
+        pending 'someone needs to write this test'
     end
 end
 
@@ -454,4 +619,12 @@ describe 'TimeSpan' do
         k.should =~ /<begin>#{ @begin }<\/begin>/
         k.should =~ /<end>#{ @end }<\/end>/
     end
+end
+
+describe 'Feature' do
+    before(:each) do
+        @o = Feature.new('Some feature')
+    end
+
+    it_should_behave_like 'Feature'
 end
