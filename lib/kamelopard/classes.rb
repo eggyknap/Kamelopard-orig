@@ -532,7 +532,7 @@ class Feature < KMLObject
     # Abstract class
     attr_accessor :visibility, :open, :atom_author, :atom_link, :name,
         :phoneNumber, :snippet, :description, :abstractView,
-        :timestamp, :timespan, :styleUrl, :styleSelector, :region, :metadata,
+        :timeprimitive, :styleUrl, :styleSelector, :region, :metadata,
         :extendedData, :styles
     attr_reader :addressDetails
 
@@ -542,6 +542,22 @@ class Feature < KMLObject
         @visibility = true
         @open = false
         @styles = []
+    end
+
+    def timestamp
+        @timeprimitive
+    end
+
+    def timespan
+        @timeprimitive
+    end
+
+    def timestamp=(t)
+        @timeprimitive = t
+    end
+
+    def timespan=(t)
+        @timeprimitive = t
     end
 
     def addressDetails=(a)
@@ -587,8 +603,7 @@ class Feature < KMLObject
         k << styles_to_kml(indent)
         k << @snippet.to_kml(indent) unless @snippet.nil?
         k << @abstractView.to_kml(indent) unless @abstractView.nil?
-        k << @timestamp.to_kml(indent) unless @timestamp.nil?
-        k << @timespan.to_kml(indent) unless @timespan.nil?
+        k << @timeprimitive.to_kml(indent) unless @timeprimitive.nil?
         k << @region.to_kml(indent) unless @region.nil?
         k << yield if block_given?
         if self.is_a? Feature then k << "#{ ' ' * indent }</Feature>\n" end

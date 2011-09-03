@@ -14,6 +14,25 @@ def get_test_styles()
     [ si, sl, sm ]
 end
 
+def check_time_primitive(set_var_lambda, get_kml_lambda, xpath)
+    b = '2011-01-01'
+    e = '2011-02-01'
+    w = '2011-01-01'
+    tn = TimeSpan.new(b, e)
+    tm = TimeStamp.new(w)
+
+    set_var_lambda.call(tn)
+    d = get_kml_lambda.call
+    t = d.elements[xpath + '//TimeSpan' ]
+    t.elements['begin'].text.should == b
+    t.elements['end'].text.should == e
+
+    set_var_lambda.call(tm)
+    d = get_kml_lambda.call
+    t = d.elements[xpath + '//TimeStamp' ]
+    t.elements['when'].text.should == w
+end
+
 def get_kml_header
     <<-header
 <?xml version="1.0" encoding="UTF-8"?>
@@ -231,9 +250,9 @@ shared_examples_for 'Feature' do
         true
     end
 
-    def get_KML_document(o)
+    def get_KML_document(k)
         header = get_kml_header
-        REXML::Document.new( header + o.to_kml + '</Document></kml>')
+        REXML::Document.new( header + k + '</Document></kml>')
     end
 
     it_should_behave_like 'KMLObject'
@@ -307,7 +326,7 @@ shared_examples_for 'Feature' do
         end
 
         header = get_kml_header
-        d = REXML::Document.new( header + @o.styles_to_kml + '</Document></kml>')
+        d = get_KML_document @o.styles_to_kml
         
         document_has_styles(d).should == true
     end
@@ -357,7 +376,7 @@ shared_examples_for 'Feature' do
         maxlines = 2
         text = "This is my snippet\nIt's more than two lines long.\nNo, really."
         @o.snippet = Snippet.new(text, maxlines)
-        d = get_KML_document @o
+        d = get_KML_document @o.to_kml
         
         s = REXML::XPath.first( d, "/kml/Document/Feature[@id='#{ @o.id }']/Snippet[@maxLines='#{ maxlines }']" )
         s.should_not be_nil
@@ -372,7 +391,7 @@ shared_examples_for 'Feature' do
             @r = Region.new(@latlon, @lod)
             @o.region = @r
 
-            @d = get_KML_document @o
+            @d = get_KML_document @o.to_kml
 
             @reg = REXML::XPath.first( @d, '/kml/Document/Feature/Region' )
             @l = @reg.elements['LatLonAltBox']
@@ -405,12 +424,16 @@ shared_examples_for 'Feature' do
     it 'correctly KML\'s the StyleSelector' do
         @o = Feature.new 'StyleSelector test'
         get_test_styles.each do |s| @o.styles << s end
-        d = get_KML_document @o
+        d = get_KML_document @o.to_kml
         document_has_styles(d.root.elements['/kml/Document/Feature']).should == true
     end
 
     it 'correctly KML\'s the TimePrimitive' do
-        pending 'someone needs to write this test'
+        check_time_primitive(
+            lambda { |t| @o.timeprimitive = t },
+            lambda { get_KML_document @o.to_kml },
+            '/kml/Document/Feature'
+        )
     end
 
     it 'correctly KML\'s the AbstractView' do
