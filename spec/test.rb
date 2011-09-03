@@ -14,6 +14,14 @@ def get_test_styles()
     [ si, sl, sm ]
 end
 
+def get_kml_header
+    <<-header
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+    header
+end
+
 shared_examples_for 'KMLObject' do
     it 'descends from KMLObject' do
         @o.kind_of?(KMLObject).should == true
@@ -208,6 +216,26 @@ shared_examples_for "TimePrimitive" do
 end
 
 shared_examples_for 'Feature' do
+    def document_has_styles(d)
+        si = REXML::XPath.first( d, "//Style[@id='icon']")
+        raise 'Could not find iconstyle' if si.nil?
+        sl = REXML::XPath.first( d, "//Style[@id='list']")
+        raise 'Could not find liststyle' if sl.nil?
+        sm = REXML::XPath.first( d, "//StyleMap[@id='map']")
+        raise 'Could not find stylemap' if sm.nil?
+
+        si = REXML::XPath.first( d, "//StyleMap/Pair/Style[@id='icon']")
+        raise 'Could not find iconstyle in stylemap' if si.nil?
+        sl = REXML::XPath.first( d, "//StyleMap/Pair/Style[@id='list']")
+        raise 'Could not find liststyle in stylemap' if sl.nil?
+        true
+    end
+
+    def get_KML_document(o)
+        header = get_kml_header
+        REXML::Document.new( header + o.to_kml + '</Document></kml>')
+    end
+
     it_should_behave_like 'KMLObject'
     it_should_behave_like 'KML_includes_id'
     it_should_behave_like 'KML_producer'
@@ -278,24 +306,10 @@ shared_examples_for 'Feature' do
             @o.styles << s
         end
 
-        header = <<-header
-<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
-<Document>
-        header
+        header = get_kml_header
         d = REXML::Document.new( header + @o.styles_to_kml + '</Document></kml>')
         
-        si = REXML::XPath.first( d, "/kml/Document/Style[@id='icon']")
-        si.should_not be_nil
-        sl = REXML::XPath.first( d, "/kml/Document/Style[@id='list']")
-        sl.should_not be_nil
-        sm = REXML::XPath.first( d, "/kml/Document/StyleMap[@id='map']")
-        sm.should_not be_nil
-
-        si = REXML::XPath.first( d, "/kml/Document/StyleMap/Pair/Style[@id='icon']")
-        si.should_not be_nil
-        sl = REXML::XPath.first( d, "/kml/Document/StyleMap/Pair/Style[@id='list']")
-        sl.should_not be_nil
+        document_has_styles(d).should == true
     end
 
     it 'returns the right KML for simple fields' do
@@ -312,7 +326,6 @@ shared_examples_for 'Feature' do
         marker = 'Look for this string'
         [
             [ :@addressDetails, 'xal:AddressDetails' ],
-            [ :@snippet, 'Snippet' ],
             [ :@metadata, 'Metadata' ],
             [ :@extendedData, 'ExtendedData' ],
             [ :@atom_link, 'atom:link' ]
@@ -340,20 +353,60 @@ shared_examples_for 'Feature' do
         end
     end
 
-    it 'Snippet handles maxlines correctly' do
-        pending 'implement snippet'
-    end
-
     it 'correctly KML\'s the Snippet' do
-        pending 'someone needs to write this test'
+        maxlines = 2
+        text = "This is my snippet\nIt's more than two lines long.\nNo, really."
+        @o.snippet = Snippet.new(text, maxlines)
+        d = get_KML_document @o
+        
+        s = REXML::XPath.first( d, "/kml/Document/Feature[@id='#{ @o.id }']/Snippet[@maxLines='#{ maxlines }']" )
+        s.should_not be_nil
+        s.text.should == text
     end
 
-    it 'correctly KML\'s the Region' do
-        pending 'someone needs to write this test'
+    describe 'correctly produces Region KML' do
+        before(:all) do
+            @o = Feature.new('my feature')
+            @latlon = LatLonBox.new( 1, -1, 1, -1, 10 )
+            @lod = Lod.new(128, 1024, 128, 128)
+            @r = Region.new(@latlon, @lod)
+            @o.region = @r
+
+            @d = get_KML_document @o
+
+            @reg = REXML::XPath.first( @d, '/kml/Document/Feature/Region' )
+            @l = @reg.elements['LatLonAltBox']
+            @ld = @reg.elements['Lod']
+        end
+
+        it 'creates a Region element' do
+            @reg.should_not be_nil
+            @reg.attributes['id'].should == @r.id
+        end
+
+        it 'creates the right LatLonAltBox' do 
+            @l.should_not be_nil
+            @l.elements['north'].text.should == @latlon.north.to_s
+            @l.elements['south'].text.should == @latlon.south.to_s
+            @l.elements['east'].text.should == @latlon.east.to_s
+            @l.elements['west'].text.should == @latlon.west.to_s
+        end
+
+        it 'creates the right LOD' do
+            @ld.should_not be_nil
+            @ld.elements['minLodPixels'].text.should == @lod.minpixels.to_s
+            @ld.elements['maxLodPixels'].text.should == @lod.maxpixels.to_s
+            @ld.elements['minFadeExtent'].text.should == @lod.minfade.to_s
+            @ld.elements['maxFadeExtent'].text.should == @lod.maxfade.to_s
+        end
+
     end
 
     it 'correctly KML\'s the StyleSelector' do
-        pending 'someone needs to write this test'
+        @o = Feature.new 'StyleSelector test'
+        get_test_styles.each do |s| @o.styles << s end
+        d = get_KML_document @o
+        document_has_styles(d.root.elements['/kml/Document/Feature']).should == true
     end
 
     it 'correctly KML\'s the TimePrimitive' do

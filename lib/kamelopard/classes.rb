@@ -512,10 +512,22 @@ class TimeSpan < TimePrimitive
     end
 end
 
+# Support class for Feature object
+class Snippet
+    attr_accessor :text, :maxLines
+    def initialize(text = nil, maxLines = 2)
+        @text = text
+        @maxLines = maxLines
+    end
+
+    def to_kml(indent = 0)
+        k = "#{ ' ' * indent }<Snippet maxLines=\"#{maxLines}\">"
+        k << text
+        k << "#{ ' ' * indent }</Snippet>\n"
+    end
+end
+
 # Abstract class corresponding to KML's Feature object.
-#--
-# Fix Snippet so it has a maxLines attribute
-#++
 class Feature < KMLObject
     # Abstract class
     attr_accessor :visibility, :open, :atom_author, :atom_link, :name,
@@ -554,7 +566,9 @@ class Feature < KMLObject
     end
 
     def to_kml(indent = 0)
-        k = super 
+        k = ''
+        if self.is_a? Feature then k << "#{ ' ' * indent }<Feature id=\"#{ @id }\">\n" end
+        k << super 
         k << kml_array([
                 [@name, 'name', true],
                 [(@visibility.nil? || @visibility) ? 1 : 0, 'visibility', true],
@@ -564,7 +578,6 @@ class Feature < KMLObject
                 [@address, 'address', true],
                 [@addressDetails, 'xal:AddressDetails', true],
                 [@phoneNumber, 'phoneNumber', true],
-                [@snippet, 'Snippet', true],
                 [@description, 'description', true],
                 [@styleUrl, 'styleUrl', true],
                 [@styleSelector, "<styleSelector>#{@styleSelector.nil? ? '' : @styleSelector.to_kml}</styleSelector>", false ],
@@ -572,11 +585,13 @@ class Feature < KMLObject
                 [@extendedData, 'ExtendedData', true ]
             ], (indent))
         k << styles_to_kml(indent)
+        k << @snippet.to_kml(indent) unless @snippet.nil?
         k << @abstractView.to_kml(indent) unless @abstractView.nil?
         k << @timestamp.to_kml(indent) unless @timestamp.nil?
         k << @timespan.to_kml(indent) unless @timespan.nil?
         k << @region.to_kml(indent) unless @region.nil?
         k << yield if block_given?
+        if self.is_a? Feature then k << "#{ ' ' * indent }</Feature>\n" end
         k
     end
     
