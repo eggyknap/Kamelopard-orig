@@ -583,7 +583,7 @@ class Feature < KMLObject
 
     def to_kml(indent = 0)
         k = ''
-        if self.is_a? Feature then k << "#{ ' ' * indent }<Feature id=\"#{ @id }\">\n" end
+        if self.class == Feature then k << "#{ ' ' * indent }<Feature id=\"#{ @id }\">\n" end
         k << super 
         k << kml_array([
                 [@name, 'name', true],
@@ -606,7 +606,7 @@ class Feature < KMLObject
         k << @timeprimitive.to_kml(indent) unless @timeprimitive.nil?
         k << @region.to_kml(indent) unless @region.nil?
         k << yield if block_given?
-        if self.is_a? Feature then k << "#{ ' ' * indent }</Feature>\n" end
+        if self.class == Feature then k << "#{ ' ' * indent }</Feature>\n" end
         k
     end
     
