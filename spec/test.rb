@@ -3,6 +3,29 @@ $LOAD_PATH << './lib'
 require 'kamelopard'
 require 'rexml/document'
 
+def test_abstract_view()
+    attrs = {
+        :latitude => 123.0,
+        :longitude => 123.0,
+        :heading => 10.0,
+        :tilt => 20.0,
+        :roll => 30.0,
+        :range => 40.0,
+        :altitudeMode => :clampToGround
+    }
+
+    c = Camera.new KMLPoint.new(attrs[:longitude], attrs[:latitude]), attrs[:heading], attrs[:tilt], attrs[:roll],  attrs[:altitudeMode]
+    l = LookAt.new KMLPoint.new(attrs[:longitude], attrs[:latitude]), attrs[:heading], attrs[:tilt], attrs[:range], attrs[:altitudeMode]
+
+    {'Camera' => c, 'LookAt' => l}.each do |k, v|
+        d = yield v, k
+        d.should_not be_nil
+        attrs.each do |ak, av|
+            d.elements["#{ak.to_s}"].text.should == av.to_s unless (k == 'Camera' and ak == :range) or (k == 'LookAt' and ak == :roll)
+        end
+    end
+end
+
 def get_test_styles()
     si = Style.new IconStyle.new('')
     sl = Style.new nil, nil, nil, nil, nil, ListStyle.new()
@@ -379,6 +402,7 @@ shared_examples_for 'Feature' do
         d = get_KML_document @o.to_kml
         
         s = REXML::XPath.first( d, "/kml/Document/Feature[@id='#{ @o.id }']/Snippet[@maxLines='#{ maxlines }']" )
+        STDERR.puts d
         s.should_not be_nil
         s.text.should == text
     end
@@ -437,7 +461,19 @@ shared_examples_for 'Feature' do
     end
 
     it 'correctly KML\'s the AbstractView' do
-        pending 'someone needs to write this test'
+        test_abstract_view { |o, e|
+            @o.abstractView = o
+            d = get_KML_document @o.to_kml
+            d.elements["/kml/Document/Feature/#{e}"]
+        }
+    end
+end
+
+shared_examples_for 'Container' do
+    it_should_behave_like 'Feature' unless @o.class == 'Container'
+
+    it 'should support the << operator' do
+        @o.should respond_to(:<<)
     end
 end
 
@@ -703,4 +739,12 @@ describe 'Feature' do
     end
 
     it_should_behave_like 'Feature'
+end
+
+describe 'Container' do
+    before(:each) do
+        @o = Container.new()
+    end
+
+    it_should_behave_like 'Container' 
 end
