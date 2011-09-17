@@ -58,39 +58,39 @@ shared_examples_for 'KMLObject' do
     it 'should put its comment in the KML' do
         @o.comment = 'Look for this string'
         k = @o.to_kml
-        k.should =~ /<!-- Look for this string -->/
+        k.to_s.should =~ /Look for this string/
     end
 end
 
 shared_examples_for 'altitudeMode' do
     it 'uses the right altitudeMode element' do
-        @o.altitudeMode = :absolute
-        @o.to_kml.should =~ /<altitudeMode>absolute<\/altitudeMode>/
-        @o.altitudeMode = :clampToGround
-        @o.to_kml.should =~ /<altitudeMode>clampToGround<\/altitudeMode>/
-        @o.altitudeMode = :relativeToGround
-        @o.to_kml.should =~ /<altitudeMode>relativeToGround<\/altitudeMode>/
+        [:absolute, :clampToGround, :relativeToGround].each do |m|
+            @o.altitudeMode = m
+            @o.to_kml.elements["//altitudeMode"].text.should == m.to_s
+        end
 
-        @o.altitudeMode = :clampToSeaFloor
-        @o.to_kml.should =~ /<gx:altitudeMode>clampToSeaFloor<\/gx:altitudeMode>/
-        @o.altitudeMode = :relativeToSeaFloor
-        @o.to_kml.should =~ /<gx:altitudeMode>relativeToSeaFloor<\/gx:altitudeMode>/
+        [:clampToSeaFloor, :relativeToSeaFloor].each do |m|
+            @o.altitudeMode = m
+            @o.to_kml.elements["//gx:altitudeMode"].text.should == m.to_s
+        end
     end
 end
 
 shared_examples_for 'KML_includes_id' do
     it 'should include the object ID in the KML' do
-        k = @o.to_kml
-        d = REXML::Document.new k
+        d = @o.to_kml
         d.root.attributes['id'].should_not be_nil
     end
 end
 
 shared_examples_for 'KML_producer' do
-    it 'should produce KML' do
+    it 'should have a to_kml function' do
         @o.should respond_to(:to_kml)
-        # Make sure it doesn't barf when passing an indent value
-        @o.to_kml(14)
+    end
+
+    it 'should create a REXML document when to_xml is called' do
+        STDERR.puts @o.to_kml.class
+        (@o.to_kml.is_a? REXML::Document or @o.to_kml.is_a? REXML::Element).should be_true
     end
 end
 
@@ -129,19 +129,19 @@ shared_examples_for 'AbstractView' do
         @o[:sunlight] = true
         @o[:historicalimagery] = true
         k = @o.to_kml
-        k.should =~ /ViewerOptions/
-        k.should =~ /"sunlight" enabled="true"/
-        k.should =~ /"streetview" enabled="true"/
-        k.should =~ /"historicalimagery" enabled="true"/
+        k.elements["//ViewerOptions | //gx:ViewerOptions"].should_not be_nil
+        k.elements["//gx:option[@name='sunlight',@enabled='true']"].should_not be_nil
+        k.elements["//gx:option[@name='streetview',@enabled='true']"].should_not be_nil
+        k.elements["//gx:option[@name='historicalimagery',@enabled='true']"].should_not be_nil
 
         @o[:streetview] = false
         @o[:sunlight] = false
         @o[:historicalimagery] = false
         k = @o.to_kml
-        k.should =~ /ViewerOptions/
-        k.should =~ /"sunlight" enabled="false"/
-        k.should =~ /"streetview" enabled="false"/
-        k.should =~ /"historicalimagery" enabled="false"/
+        k.elements["//ViewerOptions | //gx:ViewerOptions"].should_not be_nil
+        k.elements["//gx:option[@name='sunlight',@enabled='false']"].should_not be_nil
+        k.elements["//gx:option[@name='streetview',@enabled='false']"].should_not be_nil
+        k.elements["//gx:option[@name='historicalimagery',@enabled='false']"].should_not be_nil
     end
 
     it 'whines when a strange option is provided' do
@@ -156,10 +156,14 @@ shared_examples_for 'CoordinateList' do
     it 'returns coordinates in its KML' do
         @o << [[1,2,3], [2,3,4], [3,4,5]]
         k = @o.to_kml
-        k.should =~ /<coordinates>\n.*\n\s*<\/coordinates>/
-        k.should =~ /1.0,2.0,3.0/
-        k.should =~ /2.0,3.0,4.0/
-        k.should =~ /3.0,4.0,5.0/
+        e = k.elements['//coordinates']
+        e = k.root if e.nil?
+
+        e.should_not be_nil
+        e.name.should == 'coordinates'
+        e.text.should =~ /1.0,2.0,3.0/
+        e.text.should =~ /2.0,3.0,4.0/
+        e.text.should =~ /3.0,4.0,5.0/
     end
 
     describe 'when adding elements' do
@@ -216,11 +220,11 @@ shared_examples_for 'Camera-like' do
         @o.heading = 12
         @o.tilt = 12
         k = @o.to_kml
-        k.should =~ /<longitude>/
-        k.should =~ /<latitude>/
-        k.should =~ /<altitude>/
-        k.should =~ /<heading>/
-        k.should =~ /<tilt>/
+        k.elements['//longitude'].should_not be_nil
+        k.elements['//latitude'].should_not be_nil
+        k.elements['//altitude'].should_not be_nil
+        k.elements['//heading'].should_not be_nil
+        k.elements['//tilt'].should_not be_nil
     end
 end
 
@@ -306,18 +310,18 @@ shared_examples_for 'Feature' do
     it 'handles extended address stuff correctly' do
         @o.addressDetails = 'These are some extended details'
         k = get_kml
-        k.should =~ /xmlns:xal="urn:oasis:names:tc:ciq:xsdschema:xAL:2.0"/
+        k.root.attributes['xmlns:xal'].should == 'urn:oasis:names:tc:ciq:xsdschema:xAL:2.0'
         k = @o.to_kml
-        k.should =~ /<xal:AddressDetails>These are some extended details<\/xal:AddressDetails/
+        k.elements['/xal:AddressDetails'].text.should == @o.addressDetails
     end
 
     it 'handles styles correctly' do
         get_test_styles().each do |s|
             @o.styleUrl = s
-            @o.to_kml.should =~ /<styleUrl>##{s.id}<\/styleUrl>/
+            @o.to_kml.elements['//styleUrl'].text.should == "##{s.id}"
         end
         @o.styleUrl = '#random'
-        @o.to_kml.should =~ /<styleUrl>#random<\/styleUrl>/
+        @o.to_kml.elements['//styleUrl'].text.should == '#random'
     end
 
     it 'returns style KML correctly' do
@@ -336,6 +340,7 @@ shared_examples_for 'Feature' do
         fields = %w( name address phoneNumber description styleUrl )
         fields.each do |f|
             @o = Feature.new()
+            Document.instance.folder << @o
             @o.instance_variable_set("@#{f}".to_sym, marker)
             @o.to_kml.should =~ /<#{f}>#{marker}<\/#{f}>/
         end
@@ -497,24 +502,24 @@ describe 'KMLPoint' do
 
         it 'has the right coordinates' do
             k = @o.to_kml
-            k.should =~ /<coordinates>#{ @attrs[:long] }, #{ @attrs[:lat] }, #{ @attrs[:alt] }<\/coordinates>/
+            k.elements['//coordinates'].text.should == "#{ @attrs[:long] }, #{ @attrs[:lat] }, #{ @attrs[:alt] }"
         end
 
         it 'handles extrude properly' do
             @o.extrude = true 
             k = @o.to_kml
-            k.should =~ /<extrude>1<\/extrude>/
+            k.elements['//extrude'].text.should == '1'
             @o.extrude = false 
             k = @o.to_kml
-            k.should =~ /<extrude>0<\/extrude>/
+            k.elements['//extrude'].text.should == '0'
         end
 
         it 'provides the correct short form' do
             @o.altitudeMode = :clampToSeaFloor
             @o.extrude = 1
-            k = @o.to_kml(0, true)
-            k.should_not =~ /<extrude>/
-            k.should_not =~ /altitudeMode/
+            k = @o.to_kml(true)
+            k.elements['//extrude'].should be_nil
+            k.elements['//altitudeMode'].should be_nil
         end
     end
 end
@@ -568,21 +573,21 @@ describe 'LineString' do
 
     it 'contains the right KML attributes' do
         @o.altitudeOffset = nil
-        @o.to_kml.should_not =~ /gx:altitudeOffset/
+        @o.to_kml.elements['//gx:altitudeOffset'].should be_nil
         @o.altitudeOffset = 1
-        @o.to_kml.should =~ /gx:altitudeOffset/
+        @o.to_kml.elements['//gx:altitudeOffset'].should_not be_nil
         @o.extrude = nil
-        @o.to_kml.should_not =~ /extrude/
+        @o.to_kml.elements['//extrude'].should be_nil
         @o.extrude = true 
-        @o.to_kml.should =~ /extrude/
+        @o.to_kml.elements['//extrude'].should_not be_nil
         @o.tessellate = nil
-        @o.to_kml.should_not =~ /tessellate/
+        @o.to_kml.elements['//tessellate'].should be_nil
         @o.tessellate = true 
-        @o.to_kml.should =~ /tessellate/
+        @o.to_kml.elements['//tessellate'].should_not be_nil
         @o.drawOrder = nil
-        @o.to_kml.should_not =~ /gx:drawOrder/
+        @o.to_kml.elements['//gx:drawOrder'].should be_nil
         @o.drawOrder = true 
-        @o.to_kml.should =~ /gx:drawOrder/
+        @o.to_kml.elements['//gx:drawOrder'].should_not be_nil
     end
 end
 
@@ -610,17 +615,17 @@ describe 'LinearRing' do
 
     it 'contains the right KML attributes' do
         @o.altitudeOffset = nil
-        @o.to_kml.should_not =~ /gx:altitudeOffset/
+        @o.to_kml.elements['gx:altitudeOffset'].should be_nil
         @o.altitudeOffset = 1
-        @o.to_kml.should =~ /gx:altitudeOffset/
+        @o.to_kml.elements['gx:altitudeOffset'].should_not be_nil
         @o.extrude = nil
-        @o.to_kml.should_not =~ /extrude/
+        @o.to_kml.elements['extrude'].should be_nil
         @o.extrude = true 
-        @o.to_kml.should =~ /extrude/
+        @o.to_kml.elements['extrude'].should_not be_nil
         @o.tessellate = nil
-        @o.to_kml.should_not =~ /tessellate/
+        @o.to_kml.elements['tessellate'].should be_nil
         @o.tessellate = true 
-        @o.to_kml.should =~ /tessellate/
+        @o.to_kml.elements['tessellate'].should_not be_nil
     end
 end
 
@@ -634,8 +639,7 @@ describe 'Camera' do
     it 'contains the right KML attributes' do
         @o.roll = 12
         k = @o.to_kml
-        k.should =~ /<Camera/
-        k.should =~ /<roll>/
+        k.elements['//roll]'].text.should == '12'
     end
 end
 
@@ -648,8 +652,8 @@ describe 'LookAt' do
     it 'contains the right KML attributes' do
         @o.range = 10
         k = @o.to_kml
-        k.should =~ /<LookAt/
-        k.should =~ /<range>/
+        k.root.name.should == 'LookAt'
+        k.elements['[range=10]'].should_not be_nil
     end
 end
 
@@ -668,8 +672,8 @@ describe 'TimeStamp' do
 
     it 'has the right KML elements' do
         k = @o.to_kml
-        k.should =~ /TimeStamp/
-        k.should =~ /<when>#{ @when }<\/when>/
+        k.root.name.should == 'TimeStamp'
+        k.elements["[when='#{ @when }']"].should_not be_nil
     end
 end
 
@@ -691,9 +695,9 @@ describe 'TimeSpan' do
 
     it 'has the right KML elements' do
         k = @o.to_kml
-        k.should =~ /TimeSpan/
-        k.should =~ /<begin>#{ @begin }<\/begin>/
-        k.should =~ /<end>#{ @end }<\/end>/
+        k.root.name.should == 'TimeSpan'
+        k.elements["[begin='#{ @begin }']"].should_not be_nil
+        k.elements["[end='#{ @end }']"].should_not be_nil
     end
 end
 

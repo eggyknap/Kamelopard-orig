@@ -6,6 +6,8 @@
 
 require 'singleton'
 require 'kamelopard/pointlist'
+require 'rexml/document'
+require 'rexml/element'
 
 @@sequence = 0
 
@@ -23,20 +25,18 @@ end
 # and the field value. False values mean just print the second string, with no
 # decorators and no other values
 #++
-def kml_array(m, indent = 0) # :nodoc
-    k = ''
+def kml_array(e, m) # :nodoc
     m.map do |a|
-        r = ''
         if ! a[0].nil? then
             if a[2] then
-                r << "#{ ' ' * indent}<" << a[1] << '>' << a[0].to_s << '</' << a[1] << ">\n"
+                t = REXML::Element.new a[1]
+                t.text = a[0].to_s
+                e.elements.add t
             else
-                r << a[1] << "\n"
+                e.elements.add a[1]
             end
         end
-        k << r
     end
-    k
 end
 
 #--
@@ -79,6 +79,18 @@ def convert_coord(a)    # :nodoc
     return a
 end
 
+# Helper function for altitudeMode / gx:altitudeMode elements
+def add_altitudeMode(mode, e)
+    return if mode.nil?
+    if mode == :clampToGround or mode == :relativeToGround or mode == :absolute then
+        t = REXML::Element.new 'altitudeMode'
+    else
+        t = REXML::Element.new 'gx:altitudeMode'
+    end
+    t.text = mode
+    e.elements.add t
+end
+
 # Base class for all Kamelopard objects. Manages object ID and a single
 # comment string associated with the object
 class KMLObject
@@ -90,11 +102,13 @@ class KMLObject
     end
 
     # Returns KML string for this object. Objects should override this method
-    def to_kml(indent = 0)
-        if @comment.nil? or @comment == '' then
-            ''
-        else
-            "#{ ' ' * indent }<!-- #{ @comment } -->\n"
+    def to_kml(elem = nil)
+        if not elem.nil? then
+            elem.attributes['id'] = @id
+        end
+        if not @comment.nil? and @comment != '' then
+            c = REXML::Comment.new " #{@comment} ", elem
+            return c
         end
     end
 end
@@ -119,20 +133,25 @@ class KMLPoint < Geometry
         "KMLPoint (#{@longitude}, #{@latitude}, #{@altitude}, mode = #{@altitudeMode}, #{ @extrude ? 'extruded' : 'not extruded' })"
     end
 
-    def to_kml(indent = 0, short = false)
-        # The short form includes only the coordinates tag
-        k = super(indent + 4) + "#{ ' ' * indent }<Point id=\"#{ @id }\">\n"
-        k << "#{ ' ' * indent }    <extrude>#{ @extrude ? 1 : 0 }</extrude>\n" unless short
+    def to_kml(short = false)
+        e = REXML::Element.new 'Point'
+        super(e)
+        e.attributes['id'] = @id
+        c = REXML::Element.new 'coordinates'
+        c.text = "#{ @longitude }, #{ @latitude }, #{ @altitude }"
+        e.elements.add c
+
         if not short then
-            if @altitudeMode == :clampToGround or @altitudeMode == :relativeToGround or @altitudeMode == :absolute then
-                k << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
-            else
-                k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
-            end
+            c = REXML::Element.new 'extrude'
+            c.text = @extrude ? 1 : 0
+            e.elements.add c
+
+            add_altitudeMode(@altitudeMode, e)
         end
-        k << "#{ ' ' * indent }    <coordinates>#{ @longitude }, #{ @latitude }, #{ @altitude }</coordinates>\n"
-        k << "#{ ' ' * indent }</Point>\n"
-        k
+
+        d = REXML::Document.new
+        d.add_element e
+        d
     end
 end
 
@@ -153,17 +172,17 @@ class CoordinateList
         end
     end
 
-    def to_kml(indent = 0)
-        k = "#{ ' ' * indent }<coordinates>\n#{ ' ' * indent }    "
-        if not @coordinates.nil? then
-            @coordinates.each do |a|
-                k << "#{ a[0] },#{ a[1] }"
-                k << ",#{ a[2] }" if a.size > 2
-                k << ' '
-            end
+    def to_kml(elem = nil)
+        e = REXML::Element.new 'coordinates'
+        t = ''
+        @coordinates.each do |a|
+            t << "#{ a[0] },#{ a[1] }"
+            t << ",#{ a[2] }" if a.size > 2
+            t << ' '
         end
-        k << "\n#{ ' ' * indent}</coordinates>\n"
-        k
+        e.text = t.chomp(' ')
+        elem.elements.add e unless elem.nil?
+        e
     end
 
     # Alias for add_element
@@ -252,21 +271,16 @@ class LineString < Geometry
     end
 
     def to_kml(indent = 0)
-
-        k = super(indent + 4) + "#{ ' ' * indent }<LineString id =\"#{ @id }\">\n"
-        k << kml_array([
+        k = REXML::Element.new 'LineString'
+        super(k)
+        kml_array(k, [
             [@altitudeOffset, 'gx:altitudeOffset', true],
             [@extrude, 'extrude', true],
             [@tessellate, 'tessellate', true],
             [@drawOrder, 'gx:drawOrder', true]
-        ], indent + 4)
-        k << @coordinates.to_kml(indent + 4) unless @coordinates.nil?
-        if @altitudeMode == :clampToGround or @altitudeMode == :relativeToGround or @altitudeMode == :absolute then
-            k << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
-        else
-            k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
-        end
-        k << "#{ ' ' * indent }</LineString>\n"
+        ])
+        @coordinates.to_kml(k) unless @coordinates.nil?
+        add_altitudeMode @altitudeMode, k
         k
     end
 end
@@ -305,19 +319,15 @@ class LinearRing < Geometry
     end
 
     def to_kml(indent = 0)
-        k = super(indent + 4) + "#{ ' ' * indent }<LinearRing id=\"#{ @id }\">\n"
-        k << "#{ ' ' * indent }    <gx:altitudeOffset>#{ @altitudeOffset }</gx:altitudeOffset>\n" unless @altitudeOffset.nil?
-        k << "#{ ' ' * indent }    <tessellate>#{ @tessellate }</tessellate>\n" unless @tessellate.nil?
-        k << "#{ ' ' * indent }    <extrude>#{ @extrude }</extrude>\n" unless @extrude.nil?
-        if not @altitudeMode.nil? then
-            if @altitudeMode == :clampToGround or @altitudeMode == :relativeToGround or @altitudeMode == :absolute then
-                k << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
-            else
-                k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
-            end
-        end
-        k << @coordinates.to_kml(indent + 4)
-        k << "#{ ' ' * indent }</LinearRing>\n"
+        k = REXML::Element.new 'LinearRing'
+        super(k)
+        kml_array(k, [
+            [ @altitudeOffset, 'gx:altitudeOffset', true ],
+            [ @tessellate, 'tessellate', true ],
+            [ @extrude, 'extrude', true ]
+        ])
+        add_altitudeMode(@altitudeMode, k)
+        @coordinates.to_kml(k)
         k
     end
 end
@@ -387,10 +397,10 @@ class AbstractView < KMLObject
         end
     end
 
-    def to_kml(indent = 0)
-        t = "#{ ' ' * indent }<#{ @className } id=\"#{ @id }\">\n"
-        t << super(indent)
-        t << kml_array([
+    def to_kml(elem = nil)
+        t = REXML::Element.new @className
+        super(t)
+        kml_array(t, [
             [ @point.nil? ? nil : @point.longitude, 'longitude', true ],
             [ @point.nil? ? nil : @point.latitude, 'latitude', true ],
             [ @point.nil? ? nil : @point.altitude, 'altitude', true ],
@@ -398,25 +408,24 @@ class AbstractView < KMLObject
             [ @tilt, 'tilt', true ],
             [ @range, 'range', true ],
             [ @roll, 'roll', true ]
-        ], indent + 4)
-        if @altitudeMode == :clampToGround or @altitudeMode == :relativeToGround or @altitudeMode == :absolute then
-            t << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
-        else
-            t << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
-        end
+        ])
+        add_altitudeMode(@altitudeMode, t)
         if @options.keys.length > 0 then
-            t << "#{ ' ' * indent }    <gx:ViewerOptions>\n"
+            vo = REXML::Element.new 'gx:ViewerOptions'
             @options.each do |k, v|
-                t << "#{ ' ' * ( indent + 8 ) }<gx:option name=\"#{ k }\" enabled=\"#{ v ? 'true' : 'false' }\" />\n"
+                o = REXML::Element.new 'gx:option'
+                o.attributes['name'] = k
+                o.attributes['enabled'] = v ? 'true' : 'false'
+                vo.elements << o
             end
-            t << "#{ ' ' * indent }    </gx:ViewerOptions>\n"
+            t.elements << vo
         end
         if not @timestamp.nil? then
-            t << @timestamp.to_kml(indent+4, 'gx')
+            @timestamp.to_kml(t, 'gx')
         elsif not @timespan.nil? then
-            t << @timespan.to_kml(indent+4, 'gx')
+            @timespan.to_kml(t, 'gx')
         end
-        t << "#{ ' ' * indent }</#{ @className }>\n"
+        elem.elements << t unless elem.nil?
         t
     end
 
@@ -477,16 +486,17 @@ class TimeStamp < TimePrimitive
         @when = t_when
     end
 
-    def to_kml(indent = 0, ns = nil)
+    def to_kml(elem = nil, ns = nil)
         prefix = ''
         prefix = ns + ':' unless ns.nil?
         
-        k = super(indent + 4)
-        k << <<-timestamp
-#{ ' ' * indent }<#{ prefix }TimeStamp id="#{ @id }">
-#{ ' ' * indent }    <when>#{ @when }</when>
-#{ ' ' * indent }</#{ prefix }TimeStamp>
-        timestamp
+        k = REXML::Element.new "#{prefix}TimeStamp"
+        super(k)
+        w = REXML::Element.new 'when'
+        w.text = @when
+        k.elements << w
+        elem.elements << k unless elem.nil?
+        k
     end
 end
 
@@ -500,14 +510,23 @@ class TimeSpan < TimePrimitive
         @end = t_end
     end
 
-    def to_kml(indent = 0, ns = nil)
+    def to_kml(elem = nil, ns = nil)
         prefix = ''
         prefix = ns + ':' unless ns.nil?
-
-        k = super(indent + 4) + "#{ ' ' * indent }<#{ prefix }TimeSpan id=\"#{ @id }\">\n"
-        k << "#{ ' ' * indent }    <begin>#{ @begin }</begin>\n" unless @begin.nil?
-        k << "#{ ' ' * indent }    <end>#{ @end }</end>\n" unless @end.nil?
-        k << "#{ ' ' * indent }</#{ prefix }TimeSpan>\n"
+        
+        k = REXML::Element.new "#{prefix}TimeSpan"
+        super(k)
+        if not @begin.nil? then
+            w = REXML::Element.new 'begin'
+            w.text = @begin
+            k.elements << w
+        end
+        if not @end.nil? then
+            w = REXML::Element.new 'end'
+            w.text = @end
+            k.elements << w
+            elem.elements << k unless elem.nil?
+        end
         k
     end
 end
@@ -520,10 +539,12 @@ class Snippet
         @maxLines = maxLines
     end
 
-    def to_kml(indent = 0)
-        k = "#{ ' ' * indent }<Snippet maxLines=\"#{maxLines}\">"
-        k << text
-        k << "#{ ' ' * indent }</Snippet>\n"
+    def to_kml(elem = nil)
+        e = REXML::Element.new 'Snippet'
+        e.attributes['maxlines'] = @maxlines
+        e.text = @text
+        elem.elements << e unless elem.nil
+        e
     end
 end
 
@@ -581,11 +602,10 @@ class Feature < KMLObject
         end
     end
 
-    def to_kml(indent = 0)
-        k = ''
-        if self.class == Feature then k << "#{ ' ' * indent }<Feature id=\"#{ @id }\">\n" end
-        k << super 
-        k << kml_array([
+    def to_kml(elem = nil)
+        elem = REXML::Element.new 'Feature' if elem.nil?
+        super(elem)
+        kml_array(elem, [
                 [@name, 'name', true],
                 [(@visibility.nil? || @visibility) ? 1 : 0, 'visibility', true],
                 [(! @open.nil? && @open) ? 1 : 0, 'open', true],
@@ -599,23 +619,20 @@ class Feature < KMLObject
                 [@styleSelector, "<styleSelector>#{@styleSelector.nil? ? '' : @styleSelector.to_kml}</styleSelector>", false ],
                 [@metadata, 'Metadata', true ],
                 [@extendedData, 'ExtendedData', true ]
-            ], (indent))
-        k << styles_to_kml(indent)
-        k << @snippet.to_kml(indent) unless @snippet.nil?
-        k << @abstractView.to_kml(indent) unless @abstractView.nil?
-        k << @timeprimitive.to_kml(indent) unless @timeprimitive.nil?
-        k << @region.to_kml(indent) unless @region.nil?
-        k << yield if block_given?
-        if self.class == Feature then k << "#{ ' ' * indent }</Feature>\n" end
-        k
+            ])
+        styles_to_kml(elem)
+        @snippet.to_kml(elem) unless @snippet.nil?
+        @abstractView.to_kml(elem) unless @abstractView.nil?
+        @timeprimitive.to_kml(elem) unless @timeprimitive.nil?
+        @region.to_kml(elem) unless @region.nil?
+        yield(elem) if block_given?
+        elem 
     end
     
-    def styles_to_kml(indent = 0)
-        k = ''
+    def styles_to_kml(elem)
         @styles.each do |a|
-            k << a.to_kml(indent)
+            a.to_kml(elem)
         end
-        k
     end
 end
 
@@ -623,6 +640,7 @@ end
 class Container < Feature
     def initialize
         super
+        Document.instance.folder << self
         @features = []
     end
 
@@ -644,16 +662,16 @@ class Folder < Container
         Document.instance.folders << self
     end
 
-    def to_kml(indent = 0)
-        h = "#{ ' ' * indent }<Folder id=\"#{@id}\">\n"
-        h << super(indent + 4)
+    def to_kml(elem = nil)
+        h = REXML::Element.new 'Folder'
+        super h
         @features.each do |a|
-            h << a.to_kml(indent + 4)
+            a.to_kml(h)
         end
         @folders.each do |a|
-            h << a.to_kml(indent + 4)
+            a.to_kml(h)
         end
-        h << "#{ ' ' * indent }</Folder>\n";
+        elem.elements << h unless elem.nil?
         h
     end
 
@@ -706,29 +724,33 @@ class Document < Container
     end
 
     def to_kml
-        xal = ''
+        k = REXML::Document.new
+        k << REXML::XMLDecl.default
+        k << REXML::Element.new('kml')
         if @uses_xal then
-            xal = ' xmlns:xal="urn:oasis:names:tc:ciq:xsdschema:xAL:2.0"'
+            k.elements['/kml'].attributes['xmlns:xal'] = "urn:oasis:names:tc:ciq:xsdschema:xAL:2.0"
         end
-        h = <<-doc_header
-<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom"#{ xal }>
-<Document>
-        doc_header
+        k.elements['kml'].attributes['xmlns'] = 'http://www.opengis.net/kml/2.2'
+        k.elements['/kml'].attributes['xmlns:gx'] = 'http://www.google.com/kml/ext/2.2'
+        k.elements['/kml'].attributes['xmlns:kml'] = 'http://www.opengis.net/kml/2.2'
+        k.elements['/kml'].attributes['xmlns:atom'] = 'http://www.w3.org/2005/Atom'
+        d = REXML::Element.new 'Document'
+        k.root << d
 
-        h << super(4)
+        super(d)
 
         # Print styles first
-        @styles.map do |a| h << a.to_kml(4) unless a.attached? end
+        @styles.map do |a| a.to_kml(d) unless a.attached? end
 
         # then folders
-        @folders.map do |a| h << a.to_kml(4) unless a.has_parent? end
+        @folders.map do |a|
+            STDERR.puts 'Doing a folder'
+            a.to_kml(d) unless a.has_parent?
+        end
 
         # then tours
-        @tours.map do |a| h << a.to_kml(4) end
-        h << "</Document>\n</kml>\n"
-
-        h
+        @tours.map do |a| a.to_kml(d) end
+        k
     end
 end
 
@@ -812,15 +834,17 @@ class BalloonStyle < ColorStyle
         @displaymode = displaymode
     end
 
-    def to_kml(indent = 0)
-        super + <<-balloonstyle
-#{ ' ' * indent }<BalloonStyle id="#{@id}">
-#{ ' ' * indent }    <bgColor>#{@bgcolor}</bgColor>
-#{ ' ' * indent }    <text>#{@text}</text>
-#{ ' ' * indent }    <textColor>#{@textcolor}</textColor>
-#{ ' ' * indent }    <displayMode>#{@displaymode}</displayMode>
-#{ ' ' * indent }</BalloonStyle>
-        balloonstyle
+    def to_kml(elem = nil)
+        k = REXML::Element.new 'BalloonStyle'
+        super k
+        kml_array(k, [
+            [ @bgcolor, 'bgColor', true ],
+            [ @text, 'text', true ],
+            [ @textcolor, 'textColor', true ],
+            [ @displayMode, 'displayMode', true ]
+        ])
+        elem.elements << k unless elem.nil
+        k
     end
 end
 
@@ -850,9 +874,9 @@ class Icon
         @href = href
     end
 
-    def to_kml(indent = 0)
-        k = "#{ ' ' * indent }<Icon>\n"
-        k << kml_array([
+    def to_kml(elem = nil)
+        k = REXML::Element.new 'Icon'
+        kml_array(k, [
             [@href, 'href', true],
             [@x, 'gx:x', true],
             [@y, 'gx:y', true],
@@ -864,8 +888,9 @@ class Icon
             [@viewBoundScale, 'viewBoundScale', true],
             [@viewFormat, 'viewFormat', true],
             [@httpQuery, 'httpQuery', true],
-        ], indent + 4)
-        k << "#{ ' ' * indent }</Icon>\n"
+        ])
+        elem.elements << k unless elem.nil?
+        k
     end
 end
 
@@ -881,16 +906,24 @@ class IconStyle < ColorStyle
         @hotspot = KMLxy.new(hs_x, hs_y, hs_xunits, hs_yunits) unless (hs_x.nil? and hs_y.nil? and hs_xunits.nil? and hs_yunits.nil?)
     end
 
-    def to_kml(indent = 0)
-        k = <<-iconstyle1
-#{ ' ' * indent }<IconStyle id="#{@id}">
-#{ super(indent + 4) }
-       iconstyle1
-       k << "#{ ' ' * indent }    <scale>#{@scale}</scale>\n" unless @scale.nil?
-       k << "#{ ' ' * indent }    <heading>#{@heading}</heading>\n" unless @heading.nil?
-       k << @icon.to_kml(indent + 4) unless @icon.nil?
-       k << "#{ ' ' * indent }    <hotSpot x=\"#{@hotspot.x}\" y=\"#{@hotspot.y}\" xunits=\"#{@hotspot.xunits}\" yunits=\"#{@hotspot.yunits}\" />\n" unless @hotspot.nil?
-       k << "#{ ' ' * indent }</IconStyle>\n"
+    def to_kml(elem = nil)
+        k = REXML::Element.new 'IconStyle'
+        super(k)
+        kml_array( k, [
+            [ @scale, 'scale', true ],
+            [ @heading, 'heading', true ]
+        ])
+        if not @hotspot.nil? then
+            h = REXML::Element.new 'hotSpot'
+            h.attributes['x'] = @hotspot.x
+            h.attributes['y'] = @hotspot.y
+            h.attributes['xunits'] = @hotspot.xunits
+            h.attributes['yunits'] = @hotspot.yunits
+            k.elements << h
+        end
+        @icon.to_kml(k) unless @icon.nil?
+        elem.elements << k unless elem.nil?
+        k
     end
 end
 
@@ -903,14 +936,14 @@ class LabelStyle < ColorStyle
         @scale = scale
     end
 
-    def to_kml(indent = 0)
-
-        <<-labelstyle
-#{ ' ' * indent }<LabelStyle id="#{@id}">
-#{ super(indent + 4) }
-#{ ' ' * indent }    <scale>#{@scale}</scale>
-#{ ' ' * indent }</LabelStyle>
-        labelstyle
+    def to_kml(elem = nil)
+        k = REXML::Element.new 'LabelStyle'
+        super k
+        s = REXML::Element.new 'scale'
+        s.text = @scale
+        k.elements << s
+        elem.elements << k unless elem.nil?
+        k
     end
 end
 
@@ -928,17 +961,17 @@ class LineStyle < ColorStyle
         @physicalwidth = physicalwidth
     end
 
-    def to_kml(indent = 0)
-
-        <<-linestyle
-#{ ' ' * indent }<LineStyle id="#{@id}">
-#{ super(indent + 4) }
-#{ ' ' * indent }    <width>#{@width}</width>
-#{ ' ' * indent }    <gx:outerColor>#{@outercolor}</gx:outerColor>
-#{ ' ' * indent }    <gx:outerWidth>#{@outerwidth}</gx:outerWidth>
-#{ ' ' * indent }    <gx:physicalWidth>#{@physicalwidth}</gx:physicalWidth>
-#{ ' ' * indent }</LineStyle>
-        linestyle
+    def to_kml(elem = nil)
+        k = REXML::Element.new 'LineStyle'
+        super k
+        kml_array(k, [
+            [ @width, 'width', true ],
+            [ @outercolor, 'gx:outerColor', true ],
+            [ @outerwidth, 'gx:outerWidth', true ],
+            [ @physicalwidth, 'gx:physicalWidth', true ],
+        ])
+        elem.elements << k unless elem.nil?
+        k
     end
 end
 
@@ -956,19 +989,22 @@ class ListStyle < ColorStyle
         @listitemtype = listitemtype
     end
 
-    def to_kml(indent = 0)
-        k = "#{ ' ' * indent }<ListStyle id=\"#{@id}\">\n"
-        k << kml_array([
+    def to_kml(elem = nil)
+        k = REXML::Element.new 'ListStyle'
+        super k
+        kml_array(k, [
             [@listitemtype, 'listItemType', true],
             [@bgcolor, 'bgColor', true]
-        ], indent + 4)
+        ])
         if (! @state.nil? or ! @href.nil?) then
-            k << "#{ ' ' * indent }    <ItemIcon>\n"
-            k << "#{ ' ' * indent }        <state>#{@state}</state>\n" unless @state.nil? 
-            k << "#{ ' ' * indent }        <href>#{@href}</href>\n" unless @href.nil? 
-            k << "#{ ' ' * indent }    </ItemIcon>\n"
+            i = REXML::Element.new 'ItemIcon'
+            kml_array(i, [
+                [ @state, 'state', true ],
+                [ @href, 'href', true ]
+            ])
+            k.elements << i
         end
-        k << "#{ ' ' * indent }</ListStyle>\n"
+        elem.elements << k unless elem.nil?
         k
     end
 end
@@ -985,15 +1021,14 @@ class PolyStyle < ColorStyle
         @outline = outline
     end
 
-    def to_kml(indent = 0)
-
-        k = <<-polystyle
-#{ ' ' * indent }<PolyStyle id="#{@id}">
-#{ super(indent + 4) }
-#{ ' ' * indent }    <fill>#{@fill}</fill>
-        polystyle
-        k << "#{ ' ' * indent }    <outline>#{@outline}</outline>\n" unless @outline.nil?
-        k << "#{ ' ' * indent }</PolyStyle>\n"
+    def to_kml(elem = nil)
+        k = REXML::Element.new 'PolyStyle'
+        super k
+        kml_array( k, [
+            [ @fill, 'fill', true ],
+            [ @outline, 'outline', true ]
+        ])
+        elem.elements << k unless elem.nil?
         k
     end
 end
@@ -1031,16 +1066,16 @@ class Style < StyleSelector
         @list = list
     end
 
-    def to_kml(indent = 0)
-        k = ''
-        k << super + "#{ ' ' * indent }<Style id=\"#{@id}\">\n"
-        k << @icon.to_kml(indent + 4) unless @icon.nil?
-        k << @label.to_kml(indent + 4) unless @label.nil?
-        k << @line.to_kml(indent + 4) unless @line.nil?
-        k << @poly.to_kml(indent + 4) unless @poly.nil?
-        k << @balloon.to_kml(indent + 4) unless @balloon.nil?
-        k << @list.to_kml(indent + 4) unless @list.nil?
-        k << "#{ ' ' * indent }</Style>\n"
+    def to_kml(elem = nil)
+        k = REXML::Element.new 'Style'
+        super(k)
+        @icon.to_kml(k) unless @icon.nil?
+        @label.to_kml(k) unless @label.nil?
+        @line.to_kml(k) unless @line.nil?
+        @poly.to_kml(k) unless @poly.nil?
+        @balloon.to_kml(k) unless @balloon.nil?
+        @list.to_kml(k) unless @list.nil?
+        elem.elements << k unless elem.nil?
         k
     end
 end
@@ -1083,7 +1118,6 @@ class Placemark < Feature
     attr_accessor :name, :geometry
     def initialize(name = nil, geo = nil)
         super(name)
-        Document.instance.folder << self
         if geo.respond_to? '[]' then
             @geometry = geo
         else
@@ -1292,12 +1326,12 @@ class Overlay < Feature
 
     def initialize(icon, name = nil)
         super(name)
+        Document.instance.folder << self
         if icon.respond_to?('to_kml') then
             @icon = icon
         elsif not icon.nil?
             @icon = Icon.new(icon.to_s)
         end
-        Document.instance.folder << self
     end
 
     def to_kml(indent = 0)
@@ -1444,28 +1478,31 @@ class LatLonBox
         @west = convert_coord a
     end
 
-    def to_kml(indent = 0, alt = false)
+    def to_kml(elem = nil, alt = false)
         name = alt ? 'LatLonAltBox' : 'LatLonBox'
-        k = <<-latlonbox
-#{ ' ' * indent }<#{ name }>
-#{ ' ' * indent }    <north>#{ @north }</north>
-#{ ' ' * indent }    <south>#{ @south }</south>
-#{ ' ' * indent }    <east>#{ @east }</east>
-#{ ' ' * indent }    <west>#{ @west }</west>
-        latlonbox
-        k << "#{ ' ' * indent }    <minAltitude>#{ @minAltitude }</minAltitude>\n" unless @minAltitude.nil?
-        k << "#{ ' ' * indent }    <maxAltitude>#{ @maxAltitude }</maxAltitude>\n" unless @maxAltitude.nil?
-        if (not @minAltitude.nil? or not @maxAltitude.nil?) then
-            if @altitudeMode == :clampToGround or @altitudeMode == :relativeToGround or @altitudeMode == :absolute then
-                altitudeModeString = "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
-            else
-                altitudeModeString = "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
+        k = REXML::Element.new name
+        [
+            ['north', @north], 
+            ['south', @south], 
+            ['east', @east], 
+            ['west', @west],
+            ['minAltitude', @minAltitude],
+            ['maxAltitude', @maxAltitude]
+        ].each do |a|
+            if not a[1].nil? then
+                m = REXML::Element.new a[0]
+                m.text = a[1]
+                k.elements << m
             end
         end
-        k << <<-latlonbox2
-#{ ' ' * indent }    <rotation>#{ @rotation }</rotation>
-#{ ' ' * indent }</#{ name }>
-        latlonbox2
+        if (not @minAltitude.nil? or not @maxAltitude.nil?) then
+            add_altitudeMode(mode, k)
+        end
+        m = REXML::Element.new 'rotation'
+        m.text = @rotation
+        k.elements << m
+        elem.elements << k unless elem.nil?
+        k
     end
 end
 
@@ -1507,11 +1544,8 @@ class GroundOverlay < Overlay
         k << super(indent + 4)
         k << "#{ ' ' * indent }    <altitude>#{ @altitude }</altitude>\n"
         k << ' ' * indent
-        if @altitudeMode == :clampToGround or @altitudeMode == :relativeToGround or @altitudeMode == :absolute then
-            k << "#{ ' ' * indent }    <altitudeMode>#{ @altitudeMode }</altitudeMode>\n"
-        else
-            k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @altitudeMode }</gx:altitudeMode>\n"
-        end
+# XXX set e to the element
+        add_altitudeMode(mode, e)
         k << @latlonbox.to_kml(indent + 4) unless @latlonbox.nil?
         k << @latlonquad.to_kml(indent + 4) unless @latlonquad.nil?
         k << "#{ ' ' * indent }</GroundOverlay>\n"
@@ -1529,16 +1563,22 @@ class Lod
         @maxfade = maxfade
     end
 
-    def to_kml(indent = 0)
-
-        <<-lod
-#{ ' ' * indent }<Lod>
-#{ ' ' * indent }    <minLodPixels>#{ @minpixels }</minLodPixels>
-#{ ' ' * indent }    <maxLodPixels>#{ @maxpixels }</maxLodPixels>
-#{ ' ' * indent }    <minFadeExtent>#{ @minfade }</minFadeExtent>
-#{ ' ' * indent }    <maxFadeExtent>#{ @maxfade }</maxFadeExtent>
-#{ ' ' * indent }</Lod>
-        lod
+    def to_kml(elem = nil)
+        k = REXML::Element.new 'Lod'
+        m = REXML::Element.new 'minLodPixels'
+        m.text = @minpixels
+        k.elements << m
+        m = REXML::Element.new 'maxLodPixels'
+        m.text = @maxpixels
+        k.elements << m
+        m = REXML::Element.new 'minFadeExtent'
+        m.text = @minfade
+        k.elements << m
+        m = REXML::Element.new 'maxFadeExtent'
+        m.text = @maxfade
+        k.elements << m
+        elem.elements << k unless elem.nil?
+        k
     end
 end
 
@@ -1552,11 +1592,12 @@ class Region < KMLObject
         @lod = lod
     end
 
-    def to_kml(indent = 0)
-        k = "#{' ' * indent}<Region id=\"#{@id}\">\n"
-        k << @latlonaltbox.to_kml(indent + 4, true) unless @latlonaltbox.nil?
-        k << @lod.to_kml(indent + 4) unless @lod.nil?
-        k << "#{' ' * indent}</Region>\n"
+    def to_kml(elem = nil)
+        k = REXML::Element.new 'Region'
+        super(k)
+        @latlonaltbox.to_kml(k, true) unless @latlonaltbox.nil?
+        @lod.to_kml(k) unless @lod.nil?
+        elem.elements << k unless elem.nil
         k
     end
 end
@@ -1684,11 +1725,8 @@ class Model < Geometry
     def to_kml(indent = 0)
         k = "#{ ' ' * indent }<Model id=\"#{ @id }\">\n"
         k << @link.to_kml(indent + 4)
-        if @location.altitudeMode == :clampToGround or @location.altitudeMode == :relativeToGround or @location.altitudeMode == :absolute then
-            k << "#{ ' ' * indent }    <altitudeMode>#{ @location.altitudeMode }</altitudeMode>\n"
-        else
-            k << "#{ ' ' * indent }    <gx:altitudeMode>#{ @location.altitudeMode }</gx:altitudeMode>\n"
-        end
+# XXX set e to the element
+        add_altitudeMode(@location.altitudeMode, e)
         k << "#{ ' ' * indent }    <Location>\n"
         k << "#{ ' ' * indent }        <longitude>#{ @location.longitude }</longitude>\n"
         k << "#{ ' ' * indent }        <latitude>#{ @location.latitude }</latitude>\n"
