@@ -810,12 +810,17 @@ class ColorStyle < KMLObject
         @color[6,1] = a
     end
 
-    def to_kml(indent = 0)
-
-        super + <<-colorstyle
-#{ ' ' * indent }<color>#{@color}</color>
-#{ ' ' * indent }<colorMode>#{@colormode}</colorMode>
-        colorstyle
+    def to_kml(elem = nil)
+        k = REXML::Element.new 'ColorStyle'
+        super k
+        e = REXML::Element.new 'color'
+        e.text = @color
+        k.elements << e
+        e = REXML::Element.new 'colorMode'
+        e.text = @colormode
+        k.elements << e
+        elem.elements << k unless elem.nil?
+        k
     end
 end
 
@@ -1095,19 +1100,24 @@ class StyleMap < StyleSelector
         @pairs.merge(a)
     end
 
-    def to_kml(indent = 0)
-        t = super + "#{ ' ' * indent }<StyleMap id=\"#{@id}\">\n"
+    def to_kml(elem = nil)
+        t = REXML::Element.new 'StyleMap'
+        super t
         @pairs.each do |k, v|
-            t << "#{ ' ' * indent }    <Pair>\n"
-            t << "#{ ' ' * indent }        <key>#{ k }</key>\n"
+            p = REXML::Element.new 'Pair'
+            key = REXML::Element.new 'key'
+            key.text = k
+            p.elements << key 
             if v.kind_of? Style then
-                t << ( ' ' * indent ) << v.to_kml(indent + 8)
+                v.to_kml(p)
             else
-                t << "#{ ' ' * indent }        <styleUrl>#{ v }</styleUrl>\n"
+                s = REXML::Element.new 'styleUrl'
+                s.text = v
+                p.elements << s
             end
-            t << "#{ ' ' * indent }    </Pair>\n"
+            t.elements << p
         end
-        t << "#{ ' ' * indent }</StyleMap>\n"
+        elem.elements << t unless elem.nil?
         t
     end
 end

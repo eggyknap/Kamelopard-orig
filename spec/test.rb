@@ -89,8 +89,7 @@ shared_examples_for 'KML_producer' do
     end
 
     it 'should create a REXML document when to_xml is called' do
-        STDERR.puts @o.to_kml.class
-        (@o.to_kml.is_a? REXML::Document or @o.to_kml.is_a? REXML::Element).should be_true
+        @o.to_kml.class.should_not == String
     end
 end
 
@@ -240,6 +239,8 @@ end
 
 shared_examples_for 'Feature' do
     def document_has_styles(d)
+        STDERR.puts d
+        STDERR.puts d.class
         si = REXML::XPath.first( d, "//Style[@id='icon']")
         raise 'Could not find iconstyle' if si.nil?
         sl = REXML::XPath.first( d, "//Style[@id='list']")
@@ -330,9 +331,10 @@ shared_examples_for 'Feature' do
         end
 
         header = get_kml_header
-        d = get_KML_document @o.styles_to_kml
+        e = REXML::Element.new 'test'
+        @o.styles_to_kml e
         
-        document_has_styles(d).should == true
+        document_has_styles(e).should == true
     end
 
     it 'returns the right KML for simple fields' do
