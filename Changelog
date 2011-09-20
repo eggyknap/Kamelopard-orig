@@ -1,3 +1,9 @@
+= 0.0.3
+
+* Significantly expanded test suite after converting it to use rspec
+* Added support for several new objects
+* Removed some error checks that didn't work properly
+
 = 0.0.2
 
 * Add soundcue objects
