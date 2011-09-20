@@ -1566,11 +1566,14 @@ class Orientation
     attr_accessor :heading, :tilt, :roll
     def initialize(heading, tilt, roll)
         @heading = heading
-        raise "Heading should be between 0 and 360 inclusive; you gave #{ heading }" unless @heading <= 360 and @heading >= 0
+        # Although the KML reference by Google is clear on these ranges, Google Earth
+        # supports values outside the ranges, and sometimes it's useful to use
+        # them. So I'm turning off this error checking
+#        raise "Heading should be between 0 and 360 inclusive; you gave #{ heading }" unless @heading <= 360 and @heading >= 0
         @tilt = tilt
-        raise "Tilt should be between 0 and 180 inclusive; you gave #{ tilt }" unless @tilt <= 180 and @tilt >= 0
+#        raise "Tilt should be between 0 and 180 inclusive; you gave #{ tilt }" unless @tilt <= 180 and @tilt >= 0
         @roll = roll
-        raise "Roll should be between 0 and 180 inclusive; you gave #{ roll }" unless @roll <= 180 and @roll >= 0
+#        raise "Roll should be between 0 and 180 inclusive; you gave #{ roll }" unless @roll <= 180 and @roll >= 0
     end
 
     def to_kml(indent = 0)
