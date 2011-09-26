@@ -1563,8 +1563,7 @@ class GroundOverlay < Overlay
         k << super(indent + 4)
         k << "#{ ' ' * indent }    <altitude>#{ @altitude }</altitude>\n"
         k << ' ' * indent
-# XXX set e to the element
-        add_altitudeMode(mode, e)
+        add_altitudeMode(mode, k)
         k << @latlonbox.to_kml(indent + 4) unless @latlonbox.nil?
         k << @latlonquad.to_kml(indent + 4) unless @latlonquad.nil?
         k << "#{ ' ' * indent }</GroundOverlay>\n"
@@ -1744,8 +1743,7 @@ class Model < Geometry
     def to_kml(indent = 0)
         k = "#{ ' ' * indent }<Model id=\"#{ @id }\">\n"
         k << @link.to_kml(indent + 4)
-# XXX set e to the element
-        add_altitudeMode(@location.altitudeMode, e)
+        add_altitudeMode(@location.altitudeMode, k)
         k << "#{ ' ' * indent }    <Location>\n"
         k << "#{ ' ' * indent }        <longitude>#{ @location.longitude }</longitude>\n"
         k << "#{ ' ' * indent }        <latitude>#{ @location.latitude }</latitude>\n"
