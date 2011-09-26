@@ -3,6 +3,24 @@ $LOAD_PATH << './lib'
 require 'kamelopard'
 require 'rexml/document'
 
+def validate_abstractview(k, type, point, heading, tilt, roll, range, mode)
+    [
+        [ k.root.name != type, "Wrong type #{ k.root.name }" ],
+        [ k.elements['//longitude'].text.to_f != point.longitude, 'Wrong longitude' ],
+        [ k.elements['//longitude'].text.to_f != point.longitude, 'Wrong longitude' ],
+        [ k.elements['//latitude'].text.to_f != point.latitude, 'Wrong latitude' ],
+        [ k.elements['//altitude'].text.to_f != point.altitude, 'Wrong altitude' ],
+        [ k.elements['//heading'].text.to_f != heading, 'Wrong heading' ],
+        [ k.elements['//tilt'].text.to_f != tilt, 'Wrong tilt' ],
+        [ type == 'LookAt' && k.elements['//range'].text.to_f != range, 'Wrong range' ],
+        [ type == 'Camera' && k.elements['//roll'].text.to_f != roll, 'Wrong roll' ],
+        [ mode !~ /SeaFloor/ && k.elements['//altitudeMode'] != mode.to_s, 'Wrong altitude mode' ],
+        [ mode =~ /SeaFloor/ && k.elements['//gx:altitudeMode'] != mode.to_s, 'Wrong gx:altitudeMode' ]
+    ].each do |a|
+        return [false, a[1]] if a[0]
+    end
+end
+
 def get_test_styles()
     si = Style.new IconStyle.new('')
     sl = Style.new nil, nil, nil, nil, nil, ListStyle.new()
@@ -239,6 +257,7 @@ end
 
 shared_examples_for 'Feature' do
     def document_has_styles(d)
+        STDERR.puts d
         si = REXML::XPath.first( d, "//Style[@id='icon']")
         raise 'Could not find iconstyle' if si.nil?
         sl = REXML::XPath.first( d, "//Style[@id='list']")
@@ -306,7 +325,7 @@ shared_examples_for 'Feature' do
         k = get_kml
         k.root.attributes['xmlns:xal'].should == 'urn:oasis:names:tc:ciq:xsdschema:xAL:2.0'
         k = @o.to_kml
-        k.elements['/xal:AddressDetails'].text.should == @o.addressDetails
+        k.elements['//xal:AddressDetails'].text.should == @o.addressDetails
     end
 
     it 'handles styles correctly' do
@@ -436,7 +455,25 @@ shared_examples_for 'Feature' do
     end
 
     it 'correctly KML\'s the AbstractView' do
-        pending 'someone needs to write this test'
+        long, lat, alt = 13, 12, 11
+        heading, tilt, roll, range, mode = 1, 2, 3, 4, :clampToSeaFloor
+        p = KMLPoint.new(long, lat, alt)
+        camera = Camera.new p, heading, tilt, roll
+        lookat = LookAt.new p, heading, tilt, range
+        @o.abstractView = camera
+        a = @o.to_kml.elements['//Camera']
+        a.should_not be_nil
+        validate_abstractview(a, 'Camera', p, heading, tilt, roll, range, mode).should be_true 
+        @o.abstractView = lookat
+        a = @o.to_kml.elements['//LookAt']
+        a.should_not be_nil
+        validate_abstractview(a, 'LookAt', p, heading, tilt, roll, range, mode).should be_true 
+    end
+end
+
+shared_examples_for 'Container' do
+    it 'should handle <<' do
+        @o.should respond_to('<<')
     end
 end
 
@@ -700,5 +737,30 @@ describe 'Feature' do
         @o = Feature.new('Some feature')
     end
 
+    it_should_behave_like 'Feature'
+end
+
+describe 'Container' do
+    before(:each) do
+        @o = Container.new
+    end
+
+    it_should_behave_like 'Container'
+end
+
+describe 'Folder' do
+    before(:each) do
+        @o = Folder.new('test folder')
+    end
+    it_should_behave_like 'Container'
+    it_should_behave_like 'Feature'
+end
+
+describe 'Document' do
+    before(:each) do
+        @o = Document.instance
+    end
+
+    it_should_behave_like 'Container'
     it_should_behave_like 'Feature'
 end

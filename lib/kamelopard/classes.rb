@@ -272,17 +272,18 @@ class LineString < Geometry
         @coordinates << a
     end
 
-    def to_kml(indent = 0)
+    def to_kml(elem = nil)
         k = REXML::Element.new 'LineString'
         super(k)
         kml_array(k, [
-            [@altitudeOffset, 'gx:altitudeOffset', true],
-            [@extrude, 'extrude', true],
-            [@tessellate, 'tessellate', true],
-            [@drawOrder, 'gx:drawOrder', true]
+            [@altitudeOffset, 'gx:altitudeOffset'],
+            [@extrude, 'extrude'],
+            [@tessellate, 'tessellate'],
+            [@drawOrder, 'gx:drawOrder']
         ])
         @coordinates.to_kml(k) unless @coordinates.nil?
         add_altitudeMode @altitudeMode, k
+        elem.elements << k unless elem.nil?
         k
     end
 end
@@ -320,16 +321,17 @@ class LinearRing < Geometry
         @coordinates << a
     end
 
-    def to_kml(indent = 0)
+    def to_kml(elem = nil)
         k = REXML::Element.new 'LinearRing'
         super(k)
         kml_array(k, [
-            [ @altitudeOffset, 'gx:altitudeOffset', true ],
-            [ @tessellate, 'tessellate', true ],
-            [ @extrude, 'extrude', true ]
+            [ @altitudeOffset, 'gx:altitudeOffset' ],
+            [ @tessellate, 'tessellate' ],
+            [ @extrude, 'extrude' ]
         ])
         add_altitudeMode(@altitudeMode, k)
         @coordinates.to_kml(k)
+        elem.elements << k unless elem.nil?
         k
     end
 end
@@ -403,13 +405,13 @@ class AbstractView < KMLObject
         t = REXML::Element.new @className
         super(t)
         kml_array(t, [
-            [ @point.nil? ? nil : @point.longitude, 'longitude', true ],
-            [ @point.nil? ? nil : @point.latitude, 'latitude', true ],
-            [ @point.nil? ? nil : @point.altitude, 'altitude', true ],
-            [ @heading, 'heading', true ],
-            [ @tilt, 'tilt', true ],
-            [ @range, 'range', true ],
-            [ @roll, 'roll', true ]
+            [ @point.nil? ? nil : @point.longitude, 'longitude' ],
+            [ @point.nil? ? nil : @point.latitude, 'latitude' ],
+            [ @point.nil? ? nil : @point.altitude, 'altitude' ],
+            [ @heading, 'heading' ],
+            [ @tilt, 'tilt' ],
+            [ @range, 'range' ],
+            [ @roll, 'roll' ]
         ])
         add_altitudeMode(@altitudeMode, t)
         if @options.keys.length > 0 then
@@ -552,7 +554,7 @@ end
 
 # Abstract class corresponding to KML's Feature object.
 class Feature < KMLObject
-    # Abstract class
+    # Abatract class
     attr_accessor :visibility, :open, :atom_author, :atom_link, :name,
         :phoneNumber, :snippet, :description, :abstractView,
         :timeprimitive, :styleUrl, :styleSelector, :region, :metadata,
@@ -616,19 +618,19 @@ class Feature < KMLObject
         elem = REXML::Element.new 'Feature' if elem.nil?
         super(elem)
         kml_array(elem, [
-                [@name, 'name', true],
-                [(@visibility.nil? || @visibility) ? 1 : 0, 'visibility', true],
-                [(! @open.nil? && @open) ? 1 : 0, 'open', true],
-                [@atom_author, lambda { |o| Feature.add_author(o, @atom_author) }, false],
-                [@atom_link, 'atom:link', true],
-                [@address, 'address', true],
-                [@addressDetails, 'xal:AddressDetails', true],
-                [@phoneNumber, 'phoneNumber', true],
-                [@description, 'description', true],
-                [@styleUrl, 'styleUrl', true],
-                [@styleSelector, lambda { |o| @styleSelector.to_kml(o) }, false ],
-                [@metadata, 'Metadata', true ],
-                [@extendedData, 'ExtendedData', true ]
+                [@name, 'name'],
+                [(@visibility.nil? || @visibility) ? 1 : 0, 'visibility'],
+                [(! @open.nil? && @open) ? 1 : 0, 'open'],
+                [@atom_author, lambda { |o| Feature.add_author(o, @atom_author) }],
+                [@atom_link, 'atom:link'],
+                [@address, 'address'],
+                [@addressDetails, 'xal:AddressDetails'],
+                [@phoneNumber, 'phoneNumber'],
+                [@description, 'description'],
+                [@styleUrl, 'styleUrl'],
+                [@styleSelector, lambda { |o| @styleSelector.to_kml(o) }],
+                [@metadata, 'Metadata' ],
+                [@extendedData, 'ExtendedData' ]
             ])
         styles_to_kml(elem)
         @snippet.to_kml(elem) unless @snippet.nil?
@@ -650,7 +652,6 @@ end
 class Container < Feature
     def initialize
         super
-        Document.instance.folders << self
         @features = []
     end
 
@@ -729,8 +730,7 @@ class Document < Container
         @folders.last
     end
 
-    def styles_to_kml(indent)
-        ''
+    def styles_to_kml(elem = nil)
     end
 
     def to_kml
@@ -852,10 +852,10 @@ class BalloonStyle < ColorStyle
         k = REXML::Element.new 'BalloonStyle'
         super k
         kml_array(k, [
-            [ @bgcolor, 'bgColor', true ],
-            [ @text, 'text', true ],
-            [ @textcolor, 'textColor', true ],
-            [ @displayMode, 'displayMode', true ]
+            [ @bgcolor, 'bgColor' ],
+            [ @text, 'text' ],
+            [ @textcolor, 'textColor' ],
+            [ @displayMode, 'displayMode' ]
         ])
         elem.elements << k unless elem.nil
         k
@@ -872,11 +872,14 @@ class KMLxy
         @yunits = yunits
     end
 
-    def to_kml(name, indent = 0)
-
-        <<-kmlxy
-#{ ' ' * indent}<#{ name } x="#{ @x }" y="#{ @y }" xunits="#{ @xunits }" yunits="#{ @yunits }" />
-        kmlxy
+    def to_kml(name, elem = nil)
+        k = REXML::Element.new name
+        k.attributes['x'] = @x
+        k.attributes['y'] = @y
+        k.attributes['xunits'] = @xunits
+        k.attributes['yunits'] = @yunits
+        elem.elements << k unless elem.nil
+        k
     end
 end
 
@@ -891,17 +894,17 @@ class Icon
     def to_kml(elem = nil)
         k = REXML::Element.new 'Icon'
         kml_array(k, [
-            [@href, 'href', true],
-            [@x, 'gx:x', true],
-            [@y, 'gx:y', true],
-            [@w, 'gx:w', true],
-            [@h, 'gx:h', true],
-            [@refreshMode, 'refreshMode', true],
-            [@refreshInterval, 'refreshInterval', true],
-            [@viewRefreshMode, 'viewRefreshMode', true],
-            [@viewBoundScale, 'viewBoundScale', true],
-            [@viewFormat, 'viewFormat', true],
-            [@httpQuery, 'httpQuery', true],
+            [@href, 'href'],
+            [@x, 'gx:x'],
+            [@y, 'gx:y'],
+            [@w, 'gx:w'],
+            [@h, 'gx:h'],
+            [@refreshMode, 'refreshMode'],
+            [@refreshInterval, 'refreshInterval'],
+            [@viewRefreshMode, 'viewRefreshMode'],
+            [@viewBoundScale, 'viewBoundScale'],
+            [@viewFormat, 'viewFormat'],
+            [@httpQuery, 'httpQuery'],
         ])
         elem.elements << k unless elem.nil?
         k
@@ -924,8 +927,8 @@ class IconStyle < ColorStyle
         k = REXML::Element.new 'IconStyle'
         super(k)
         kml_array( k, [
-            [ @scale, 'scale', true ],
-            [ @heading, 'heading', true ]
+            [ @scale, 'scale' ],
+            [ @heading, 'heading' ]
         ])
         if not @hotspot.nil? then
             h = REXML::Element.new 'hotSpot'
@@ -979,10 +982,10 @@ class LineStyle < ColorStyle
         k = REXML::Element.new 'LineStyle'
         super k
         kml_array(k, [
-            [ @width, 'width', true ],
-            [ @outercolor, 'gx:outerColor', true ],
-            [ @outerwidth, 'gx:outerWidth', true ],
-            [ @physicalwidth, 'gx:physicalWidth', true ],
+            [ @width, 'width' ],
+            [ @outercolor, 'gx:outerColor' ],
+            [ @outerwidth, 'gx:outerWidth' ],
+            [ @physicalwidth, 'gx:physicalWidth' ],
         ])
         elem.elements << k unless elem.nil?
         k
@@ -1007,14 +1010,14 @@ class ListStyle < ColorStyle
         k = REXML::Element.new 'ListStyle'
         super k
         kml_array(k, [
-            [@listitemtype, 'listItemType', true],
-            [@bgcolor, 'bgColor', true]
+            [@listitemtype, 'listItemType'],
+            [@bgcolor, 'bgColor']
         ])
         if (! @state.nil? or ! @href.nil?) then
             i = REXML::Element.new 'ItemIcon'
             kml_array(i, [
-                [ @state, 'state', true ],
-                [ @href, 'href', true ]
+                [ @state, 'state' ],
+                [ @href, 'href' ]
             ])
             k.elements << i
         end
@@ -1039,8 +1042,8 @@ class PolyStyle < ColorStyle
         k = REXML::Element.new 'PolyStyle'
         super k
         kml_array( k, [
-            [ @fill, 'fill', true ],
-            [ @outline, 'outline', true ]
+            [ @fill, 'fill' ],
+            [ @outline, 'outline' ]
         ])
         elem.elements << k unless elem.nil?
         k
@@ -1213,8 +1216,8 @@ class FlyTo < TourPrimitive
     def to_kml(indent = 0)
         k = super + "#{ ' ' * indent }<gx:FlyTo>\n"
         k << kml_array([
-            [ @duration, 'gx:duration', true ],
-            [ @mode, 'gx:flyToMode', true ]
+            [ @duration, 'gx:duration' ],
+            [ @mode, 'gx:flyToMode' ]
         ], indent + 4)
         k << @view.to_kml(indent + 4) unless @view.nil?
         k << "#{ ' ' * indent }</gx:FlyTo>\n"
@@ -1326,8 +1329,8 @@ class Tour < KMLObject
     def to_kml(indent = 0)
         k = super + "#{ ' ' * indent }<gx:Tour id=\"#{ @id }\">\n"
         k << kml_array([
-            [ @name, 'name', true ],
-            [ @description, 'description', true ],
+            [ @name, 'name' ],
+            [ @description, 'description' ],
         ], indent + 4)
         k << "#{ ' ' * indent }    <gx:Playlist>\n";
 
@@ -1355,8 +1358,8 @@ class Overlay < Feature
 
     def to_kml(indent = 0)
         k = super(indent) + kml_array([
-            [ @color, 'color', true ],
-            [ @drawOrder, 'drawOrder', true ],
+            [ @color, 'color' ],
+            [ @drawOrder, 'drawOrder' ],
         ], indent + 4)
         k << @icon.to_kml(indent) unless @icon.nil?
         k
