@@ -33,7 +33,8 @@ def kml_array(e, m) # :nodoc
                 t.text = a[0].to_s
                 e.elements.add t
             else
-                e.elements.add a[1]
+                a[1].call(e)
+#                e.elements.add a[1]
             end
         end
     end
@@ -541,9 +542,9 @@ class Snippet
 
     def to_kml(elem = nil)
         e = REXML::Element.new 'Snippet'
-        e.attributes['maxlines'] = @maxlines
+        e.attributes['maxLines'] = @maxLines
         e.text = @text
-        elem.elements << e unless elem.nil
+        elem.elements << e unless elem.nil?
         e
     end
 end
@@ -602,6 +603,14 @@ class Feature < KMLObject
         end
     end
 
+    def self.add_author(o, a)
+        e = REXML::Element.new 'atom:name'
+        e.text = a
+        f = REXML::Element.new 'atom:author'
+        f << e
+        o << f
+    end
+
     def to_kml(elem = nil)
         elem = REXML::Element.new 'Feature' if elem.nil?
         super(elem)
@@ -609,14 +618,14 @@ class Feature < KMLObject
                 [@name, 'name', true],
                 [(@visibility.nil? || @visibility) ? 1 : 0, 'visibility', true],
                 [(! @open.nil? && @open) ? 1 : 0, 'open', true],
-                [@atom_author, "<atom:author><atom:name>#{ @atom_author }</atom:name></atom:author>", false],
+                [@atom_author, lambda { |o| Feature.add_author(o, @atom_author) }, false],
                 [@atom_link, 'atom:link', true],
                 [@address, 'address', true],
                 [@addressDetails, 'xal:AddressDetails', true],
                 [@phoneNumber, 'phoneNumber', true],
                 [@description, 'description', true],
                 [@styleUrl, 'styleUrl', true],
-                [@styleSelector, "<styleSelector>#{@styleSelector.nil? ? '' : @styleSelector.to_kml}</styleSelector>", false ],
+                [@styleSelector, lambda { |o| @styleSelector.to_kml(o) }, false ],
                 [@metadata, 'Metadata', true ],
                 [@extendedData, 'ExtendedData', true ]
             ])
@@ -640,7 +649,7 @@ end
 class Container < Feature
     def initialize
         super
-        Document.instance.folder << self
+        Document.instance.folders << self
         @features = []
     end
 
@@ -744,7 +753,6 @@ class Document < Container
 
         # then folders
         @folders.map do |a|
-            STDERR.puts 'Doing a folder'
             a.to_kml(d) unless a.has_parent?
         end
 
@@ -1607,7 +1615,7 @@ class Region < KMLObject
         super(k)
         @latlonaltbox.to_kml(k, true) unless @latlonaltbox.nil?
         @lod.to_kml(k) unless @lod.nil?
-        elem.elements << k unless elem.nil
+        elem.elements << k unless elem.nil?
         k
     end
 end

@@ -239,8 +239,6 @@ end
 
 shared_examples_for 'Feature' do
     def document_has_styles(d)
-        STDERR.puts d
-        STDERR.puts d.class
         si = REXML::XPath.first( d, "//Style[@id='icon']")
         raise 'Could not find iconstyle' if si.nil?
         sl = REXML::XPath.first( d, "//Style[@id='list']")
@@ -253,11 +251,6 @@ shared_examples_for 'Feature' do
         sl = REXML::XPath.first( d, "//StyleMap/Pair/Style[@id='list']")
         raise 'Could not find liststyle in stylemap' if sl.nil?
         true
-    end
-
-    def get_KML_document(k)
-        header = get_kml_header
-        REXML::Document.new( header + k + '</Document></kml>')
     end
 
     it_should_behave_like 'KMLObject'
@@ -341,10 +334,12 @@ shared_examples_for 'Feature' do
         marker = 'Look for this string'
         fields = %w( name address phoneNumber description styleUrl )
         fields.each do |f|
-            @o = Feature.new()
-            Document.instance.folder << @o
-            @o.instance_variable_set("@#{f}".to_sym, marker)
-            @o.to_kml.should =~ /<#{f}>#{marker}<\/#{f}>/
+            p = Feature.new()
+            Document.instance.folder << p
+            p.instance_variable_set("@#{f}".to_sym, marker)
+            e = p.to_kml.elements["//#{f}"]
+            e.should_not be_nil
+            e.text.should == marker
         end
     end
 
@@ -356,25 +351,27 @@ shared_examples_for 'Feature' do
             [ :@extendedData, 'ExtendedData' ],
             [ :@atom_link, 'atom:link' ]
         ].each do |a|
-            @o = Feature.new()
-            @o.instance_variable_set(a[0], marker)
-            @o.to_kml.should =~ /<#{a[1]}>#{marker}<\/#{a[1]}>/
+            p = Feature.new()
+            p.instance_variable_set(a[0], marker)
+            e = p.to_kml.elements["//#{a[1]}"]
+            e.should_not be_nil
+            e.text.should == marker
         end
     end
 
     it 'correctly KML-ifies the atom:author field' do
-        @o = Feature.new()
+        o = Feature.new()
         marker = 'Look for this text'
-        @o.atom_author = marker
-        @o.to_kml.should =~ /<atom:author><atom:name>#{ marker }<\/atom:name><\/atom:author>/
+        o.atom_author = marker
+        o.to_kml.elements['//atom:author/atom:name'].text.should == marker
     end
 
     it 'returns the right KML for boolean fields' do
         %w( visibility open ).each do |k|
             [false, true].each do |v|
-                @o = Feature.new()
-                @o.instance_variable_set("@#{k}".to_sym, v)
-                @o.to_kml.should =~ /<#{k}>#{v ? 1 : 0}<\/#{k}>/
+                o = Feature.new()
+                o.instance_variable_set("@#{k}".to_sym, v)
+                o.to_kml.elements["//#{k}"].text.to_i.should == (v ? 1 : 0)
             end
         end
     end
@@ -383,9 +380,7 @@ shared_examples_for 'Feature' do
         maxlines = 2
         text = "This is my snippet\nIt's more than two lines long.\nNo, really."
         @o.snippet = Snippet.new(text, maxlines)
-        d = get_KML_document @o.to_kml
-        
-        s = REXML::XPath.first( d, "/kml/Document/Feature[@id='#{ @o.id }']/Snippet[@maxLines='#{ maxlines }']" )
+        s = @o.to_kml.elements["//Snippet[@maxLines='#{ maxlines }']"]
         s.should_not be_nil
         s.text.should == text
     end
@@ -398,9 +393,7 @@ shared_examples_for 'Feature' do
             @r = Region.new(@latlon, @lod)
             @o.region = @r
 
-            @d = get_KML_document @o.to_kml
-
-            @reg = REXML::XPath.first( @d, '/kml/Document/Feature/Region' )
+            @reg = @o.to_kml.elements['//Region']
             @l = @reg.elements['LatLonAltBox']
             @ld = @reg.elements['Lod']
         end
@@ -431,15 +424,14 @@ shared_examples_for 'Feature' do
     it 'correctly KML\'s the StyleSelector' do
         @o = Feature.new 'StyleSelector test'
         get_test_styles.each do |s| @o.styles << s end
-        d = get_KML_document @o.to_kml
-        document_has_styles(d.root.elements['/kml/Document/Feature']).should == true
+        document_has_styles(@o.to_kml).should == true
     end
 
     it 'correctly KML\'s the TimePrimitive' do
         check_time_primitive(
             lambda { |t| @o.timeprimitive = t },
-            lambda { get_KML_document @o.to_kml },
-            '/kml/Document/Feature'
+            lambda { @o.to_kml },
+            ''
         )
     end
 
