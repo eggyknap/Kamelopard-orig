@@ -17,24 +17,25 @@ def get_next_id   # :nodoc
 end
 
 #--
-# Print out a set of kml fields. Expects an array argument. Each entry in the
-# array is itself an array, containing two strings and a boolean. If the first
-# string is nil, the function won't print anything for that element. If it's
-# not null, it consults the boolean. True values tell the function to treat the
-# second string as a KML element name, and print it along with XML decorators
-# and the field value. False values mean just print the second string, with no
-# decorators and no other values
+# Intelligently adds elements to a KML object. Expects the KML object as the
+# first argument, an array as the second.  Each entry in the array is itself an
+# array, containing first an Object, and second either a string or a Proc
+# object. If the first Object is nil, nothing happens. If it's not nil, then:
+#   * if the second element is a string, add a new element to the KML. This
+#     string is the element name, and the stringified form of the first element
+#     is its text value
+#   * if the second element is a proc, call the proc, passing it the KML
+#     object, and let the Proc (presumably) add itself to the KML
 #++
 def kml_array(e, m) # :nodoc
     m.map do |a|
         if ! a[0].nil? then
-            if a[2] then
+            if a[1].kind_of? Proc then
+                a[1].call(e)
+            else
                 t = REXML::Element.new a[1]
                 t.text = a[0].to_s
                 e.elements.add t
-            else
-                a[1].call(e)
-#                e.elements.add a[1]
             end
         end
     end
