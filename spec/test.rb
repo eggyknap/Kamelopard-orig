@@ -257,17 +257,17 @@ end
 
 shared_examples_for 'Feature' do
     def document_has_styles(d)
-        STDERR.puts d
-        si = REXML::XPath.first( d, "//Style[@id='icon']")
+        si = d.elements['//Style[@id="icon"]']
+        STDERR.puts @o.class if si.nil?
         raise 'Could not find iconstyle' if si.nil?
-        sl = REXML::XPath.first( d, "//Style[@id='list']")
+        sl = d.elements['//Style[@id="list"]']
         raise 'Could not find liststyle' if sl.nil?
-        sm = REXML::XPath.first( d, "//StyleMap[@id='map']")
+        sm = d.elements['//StyleMap[@id="map"]']
         raise 'Could not find stylemap' if sm.nil?
 
-        si = REXML::XPath.first( d, "//StyleMap/Pair/Style[@id='icon']")
+        si = d.elements['//StyleMap/Pair/Style[@id="icon"]']
         raise 'Could not find iconstyle in stylemap' if si.nil?
-        sl = REXML::XPath.first( d, "//StyleMap/Pair/Style[@id='list']")
+        sl = d.elements['//StyleMap/Pair/Style[@id="list"]']
         raise 'Could not find liststyle in stylemap' if sl.nil?
         true
     end
@@ -763,4 +763,19 @@ describe 'Document' do
 
     it_should_behave_like 'Container'
     it_should_behave_like 'Feature'
+
+    it 'should return a tour' do
+        @o.should respond_to(:tour)
+        @o.tour.class.should == Tour
+    end
+
+    it 'should return a folder' do
+        @o.should respond_to(:folder)
+        @o.folder.class.should == Folder
+    end
+
+    it 'should have a get_kml_document method' do
+        @o.should respond_to(:get_kml_document)
+        @o.get_kml_document.class.should == REXML::Document
+    end
 end

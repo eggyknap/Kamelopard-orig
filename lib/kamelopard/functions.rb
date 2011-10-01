@@ -31,7 +31,7 @@ end
 
 # Returns the KML that makes up the current Document, as a string.
 def get_kml
-    Document.instance.to_kml
+    Document.instance.get_kml_document
 end
 
 def pause(p)

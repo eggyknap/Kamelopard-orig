@@ -711,6 +711,7 @@ class Document < Container
     attr_accessor :flyto_mode, :folders, :tours, :uses_xal
 
     def initialize
+        super
         @tours = []
         @folders = []
         @styles = []
@@ -730,23 +731,27 @@ class Document < Container
         @folders.last
     end
 
-    def styles_to_kml(elem = nil)
+#    def styles_to_kml(elem = nil)
+#    end
+
+    def get_kml_document
+        k = REXML::Document.new
+        k << REXML::XMLDecl.default
+        r = REXML::Element.new('kml')
+        if @uses_xal then
+            r.attributes['xmlns:xal'] = "urn:oasis:names:tc:ciq:xsdschema:xAL:2.0"
+        end
+        r.attributes['xmlns'] = 'http://www.opengis.net/kml/2.2'
+        r.attributes['xmlns:gx'] = 'http://www.google.com/kml/ext/2.2'
+        r.attributes['xmlns:kml'] = 'http://www.opengis.net/kml/2.2'
+        r.attributes['xmlns:atom'] = 'http://www.w3.org/2005/Atom'
+        r.elements << self.to_kml
+        k << r
+        k
     end
 
     def to_kml
-        k = REXML::Document.new
-        k << REXML::XMLDecl.default
-        k << REXML::Element.new('kml')
-        if @uses_xal then
-            k.elements['/kml'].attributes['xmlns:xal'] = "urn:oasis:names:tc:ciq:xsdschema:xAL:2.0"
-        end
-        k.elements['kml'].attributes['xmlns'] = 'http://www.opengis.net/kml/2.2'
-        k.elements['/kml'].attributes['xmlns:gx'] = 'http://www.google.com/kml/ext/2.2'
-        k.elements['/kml'].attributes['xmlns:kml'] = 'http://www.opengis.net/kml/2.2'
-        k.elements['/kml'].attributes['xmlns:atom'] = 'http://www.w3.org/2005/Atom'
         d = REXML::Element.new 'Document'
-        k.root << d
-
         super(d)
 
         # Print styles first
@@ -759,7 +764,8 @@ class Document < Container
 
         # then tours
         @tours.map do |a| a.to_kml(d) end
-        k
+
+        d
     end
 end
 
@@ -1326,18 +1332,16 @@ class Tour < KMLObject
         @last_abs_view = a.view if a.kind_of? FlyTo
     end
 
-    def to_kml(indent = 0)
-        k = super + "#{ ' ' * indent }<gx:Tour id=\"#{ @id }\">\n"
-        k << kml_array([
+    def to_kml(elem = nil)
+        k = REXML::Element.new 'gx:Tour'
+        super k
+        kml_array([
             [ @name, 'name' ],
             [ @description, 'description' ],
-        ], indent + 4)
-        k << "#{ ' ' * indent }    <gx:Playlist>\n";
-
-        @items.map do |a| k << a.to_kml(indent + 8) << "\n" end
-
-        k << "#{ ' ' * indent }    </gx:Playlist>\n"
-        k << "#{ ' ' * indent }</gx:Tour>\n"
+        ], k)
+        p = REXML::Element.new 'gx:Playlist'
+        @items.map do |a| a.to_kml p end
+        elem << k unless elem.nil?
         k
     end
 end
