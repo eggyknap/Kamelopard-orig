@@ -857,3 +857,19 @@ describe 'BalloonStyle' do
         s.elements['//displayMode'].text.should == 'hide'
     end
 end
+
+describe 'KMLxy' do
+    before(:each) do
+        @x, @y, @xunits, @yunits = 0.2, 13, :fraction, :pixels
+        @o = KMLxy.new @x, @y, @xunits, @yunits
+    end
+
+    it 'should return the right KML' do
+        d = @o.to_kml 'test'
+        d.root.name = 'test'
+        d.attributes['x'].to_f.should == @x
+        d.attributes['y'].to_f.should == @y
+        d.attributes['xunits'].to_sym.should == @xunits
+        d.attributes['yunits'].to_sym.should == @yunits
+    end
+end

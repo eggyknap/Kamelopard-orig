@@ -884,7 +884,7 @@ class KMLxy
         k.attributes['y'] = @y
         k.attributes['xunits'] = @xunits
         k.attributes['yunits'] = @yunits
-        elem.elements << k unless elem.nil
+        elem.elements << k unless elem.nil?
         k
     end
 end
