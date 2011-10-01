@@ -842,28 +842,28 @@ end
 # Corresponds to KML's BalloonStyle object. Color is stored as an 8-character hex
 # string, with two characters each of alpha, blue, green, and red values, in
 # that order, matching the ordering the KML spec demands.
-class BalloonStyle < ColorStyle
-    attr_accessor :bgcolor, :text, :textcolor, :displaymode
+class BalloonStyle < KMLObject
+    attr_accessor :bgColor, :text, :textColor, :displayMode
 
     # Note: color element order is aabbggrr
-    def initialize(text = '', textcolor = 'ff000000', bgcolor = 'ffffffff', displaymode = :default)
-        super(nil, :normal)
-        @bgcolor = bgcolor
+    def initialize(text = '', textColor = 'ff000000', bgColor = 'ffffffff', displayMode = :default)
+        super()
+        @bgColor = bgColor
         @text = text
-        @textcolor = textcolor
-        @displaymode = displaymode
+        @textColor = textColor
+        @displayMode = displayMode
     end
 
     def to_kml(elem = nil)
         k = REXML::Element.new 'BalloonStyle'
         super k
         kml_array(k, [
-            [ @bgcolor, 'bgColor' ],
+            [ @bgColor, 'bgColor' ],
             [ @text, 'text' ],
-            [ @textcolor, 'textColor' ],
+            [ @textColor, 'textColor' ],
             [ @displayMode, 'displayMode' ]
         ])
-        elem.elements << k unless elem.nil
+        elem << k unless elem.nil?
         k
     end
 end

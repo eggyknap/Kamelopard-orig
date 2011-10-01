@@ -829,3 +829,31 @@ describe 'ColorStyle' do
         d.elements['//colorMode'].text.should == 'random'
     end
 end
+
+describe 'BalloonStyle' do
+    before(:each) do
+        @o = BalloonStyle.new 'balloon text'
+        @o.textColor = 'deadbeef'
+        @o.bgColor = 'deadbeef'
+        @o.displayMode = :hide
+    end
+
+    it_should_behave_like 'KMLObject'
+    it_should_behave_like 'KML_includes_id'
+    it_should_behave_like 'KML_producer'
+
+    it 'should have the right attributes' do
+        @o.bgColor.should == 'deadbeef'
+        @o.textColor.should == 'deadbeef'
+        @o.displayMode.should == :hide
+    end
+
+    it 'should return the right KML' do
+        s = @o.to_kml
+        s.root.name.should == 'BalloonStyle'
+        s.elements['//text'].text.should == 'balloon text'
+        s.elements['//bgColor'].text.should == 'deadbeef'
+        s.elements['//textColor'].text.should == 'deadbeef'
+        s.elements['//displayMode'].text.should == 'hide'
+    end
+end
