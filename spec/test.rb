@@ -779,3 +779,53 @@ describe 'Document' do
         @o.get_kml_document.class.should == REXML::Document
     end
 end
+
+describe 'ColorStyle' do
+    before(:each) do
+        @o = ColorStyle.new 'ffffffff'
+    end
+
+    it_should_behave_like 'KMLObject'
+    it_should_behave_like 'KML_includes_id'
+    it_should_behave_like 'KML_producer'
+
+    it 'should accept only valid color modes' do
+        @o.colorMode = :normal
+        @o.colorMode = :random
+        begin
+            @o.colorMode = :something_wrong
+        rescue RuntimeError => f
+            q = f.to_s
+        end
+        q.should =~ /colorMode must be either/
+    end
+
+    it 'should allow setting and retrieving alpha, blue, green, and red' do
+        a = 'ab'
+        @o.alpha = a
+        @o.alpha.should == a
+        @o.blue = a
+        @o.blue.should == a
+        @o.green = a
+        @o.green.should == a
+        @o.red = a
+        @o.red.should == a
+    end
+
+    it 'should get settings in the right order' do
+        @o.alpha = 'de'
+        @o.blue = 'ad'
+        @o.green = 'be'
+        @o.red = 'ef'
+        @o.color.should == 'deadbeef'
+    end
+
+    it 'should return the right KML' do
+        @o.color = 'deadbeef'
+        @o.colorMode = :random
+        d = @o.to_kml
+        d.root.name.should == 'ColorStyle'
+        d.elements['//color'].text.should == 'deadbeef'
+        d.elements['//colorMode'].text.should == 'random'
+    end
+end

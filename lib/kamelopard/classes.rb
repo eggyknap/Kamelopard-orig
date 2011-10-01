@@ -774,55 +774,55 @@ end
 # that order, matching the ordering the KML spec demands.
 class ColorStyle < KMLObject
     attr_accessor :color
-    attr_reader :colormode
+    attr_reader :colorMode
     
-    def initialize(color, colormode = :normal)
+    def initialize(color, colorMode = :normal)
         super()
         # Note: color element order is aabbggrr
         @color = color
-        validate_colormode colormode
-        @colormode = colormode # Can be :normal or :random
+        validate_colorMode colorMode
+        @colorMode = colorMode # Can be :normal or :random
     end
 
-    def validate_colormode(a)
+    def validate_colorMode(a)
         raise "colorMode must be either \"normal\" or \"random\"" unless a == :normal or a == :random
     end
 
-    def colormode=(a)
-        validate_colormode a
-        @colormode = a
+    def colorMode=(a)
+        validate_colorMode a
+        @colorMode = a
     end
 
     def alpha
-        @color[0,1]
+        @color[0,2]
     end
 
     def alpha=(a)
-        @color[0,1] = a
+        @color[0,2] = a
     end
 
     def blue
-        @color[2,1]
+        @color[2,2]
     end
 
     def blue=(a)
-        @color[2,1] = a
+        @color[2,2] = a
     end
 
     def green
-        @color[4,1]
+        @color[4,2]
     end
 
     def green=(a)
-        @color[4,1] = a
+        @color[4,2] = a
     end
 
     def red
-        @color[6,1]
+        @color[6,2]
     end
 
     def red=(a)
-        @color[6,1] = a
+        @color[6,2] = a
     end
 
     def to_kml(elem = nil)
@@ -832,7 +832,7 @@ class ColorStyle < KMLObject
         e.text = @color
         k.elements << e
         e = REXML::Element.new 'colorMode'
-        e.text = @colormode
+        e.text = @colorMode
         k.elements << e
         elem.elements << k unless elem.nil?
         k
