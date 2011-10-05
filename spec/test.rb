@@ -873,3 +873,53 @@ describe 'KMLxy' do
         d.attributes['yunits'].to_sym.should == @yunits
     end
 end
+
+describe 'Icon' do
+    before(:each) do
+        @href = 'icon href'
+        @o = Icon.new(@href)
+        @fields = {
+            'href' => @href,
+            'x' => 1.0,
+            'y' => 2.0,
+            'w' => 3.0,
+            'h' => 4.0,
+            'refreshMode' => :onInterval,
+            'refreshInterval' => 4,
+            'viewRefreshMode' => :onStop,
+            'viewRefreshTime' => 4,
+            'viewBoundScale' => 1,
+            'viewFormat' => 'format',
+            'httpQuery' => 'query'
+        }
+    end
+
+    it_should_behave_like 'KML_includes_id'
+    it_should_behave_like 'KML_producer'
+
+    it 'has the right attributes' do
+        @fields.keys.each do |f|
+            @o.should respond_to(f.to_sym)
+            @o.should respond_to("#{f}=".to_sym)
+        end
+    end
+
+    it 'puts the right fields in KML' do
+        @fields.each do |k, v|
+            @o.method("#{k.to_s}=".to_sym).call(v)
+            d = @o.to_kml
+            elem = k
+            if k == 'x' || k == 'y' || k == 'w' || k == 'h' then
+                elem = 'gx:' + k
+            end
+            e = d.elements["//#{elem}"]
+            if e.nil? then
+                STDERR.puts d
+                STDERR.puts elem
+            end
+            e.should_not be_nil
+            e.text.should == v.to_s
+        end
+    end
+end
+

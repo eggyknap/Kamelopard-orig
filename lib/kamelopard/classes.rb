@@ -891,14 +891,16 @@ end
 
 # Corresponds to the KML Icon object
 class Icon
-    attr_accessor :href, :x, :y, :w, :h, :refreshMode, :refreshInterval, :viewRefreshMode, :viewRefreshTime, :viewBoundScale, :viewFormat, :httpQuery
+    attr_accessor :id, :href, :x, :y, :w, :h, :refreshMode, :refreshInterval, :viewRefreshMode, :viewRefreshTime, :viewBoundScale, :viewFormat, :httpQuery
 
     def initialize(href = nil)
         @href = href
+        @id = "Icon_#{ get_next_id }"
     end
 
     def to_kml(elem = nil)
         k = REXML::Element.new 'Icon'
+        k.attributes['id'] = @id
         kml_array(k, [
             [@href, 'href'],
             [@x, 'gx:x'],
@@ -908,6 +910,7 @@ class Icon
             [@refreshMode, 'refreshMode'],
             [@refreshInterval, 'refreshInterval'],
             [@viewRefreshMode, 'viewRefreshMode'],
+            [@viewRefreshTime, 'viewRefreshTime'],
             [@viewBoundScale, 'viewBoundScale'],
             [@viewFormat, 'viewFormat'],
             [@httpQuery, 'httpQuery'],
