@@ -1123,7 +1123,7 @@ class StyleMap < StyleSelector
 
     # Adds a new Style to the StyleMap.
     def merge(a)
-        @pairs.merge(a)
+        @pairs.merge!(a)
     end
 
     def to_kml(elem = nil)

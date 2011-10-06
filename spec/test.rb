@@ -1070,6 +1070,12 @@ describe 'Style' do
 end
 
 describe 'StyleMap' do
+    def has_correct_stylemap_kml?(o)
+        d = REXML::Document.new o.to_kml.to_s
+        return d.elements['/StyleMap/Pair[key="normal"]/Style'] &&
+            d.elements['/StyleMap/Pair[key="highlight"]/styleUrl']
+    end
+
     before(:each) do
         i, la, lin, p, b, lis = get_test_substyles
         s = Style.new i, nil, nil, nil, b, lis
@@ -1079,8 +1085,21 @@ describe 'StyleMap' do
     it_should_behave_like 'StyleSelector'
 
     it 'should handle styles vs. styleurls correctly' do
-        d = REXML::Document.new @o.to_kml.to_s
-        d.elements['/StyleMap/Pair[key="normal"]/Style'].should_not be_nil
-        d.elements['/StyleMap/Pair[key="highlight"]/styleUrl'].should_not be_nil
+        has_correct_stylemap_kml?(@o).should be_true
+    end
+
+    it 'should merge right' do
+        o = StyleMap.new({ 'normal' => Style.new(nil, nil, nil, nil, nil, nil) })
+        o.merge( { 'highlight' => 'test2' } )
+        has_correct_stylemap_kml?(o).should be_true
     end
 end
+
+# describe 'Placemark' do
+#     before(:each) do
+#         @p = KMLPoint.new(123, 123)
+#         @o = Placemark.new 'placemark', @p
+#     end
+# 
+#     it_should_behave_like 'Feature'
+# end
