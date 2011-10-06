@@ -3,6 +3,20 @@ $LOAD_PATH << './lib'
 require 'kamelopard'
 require 'rexml/document'
 
+def check_kml_values(o, values)
+    values.each do |k, v|
+        o.method("#{k}=").call(v)
+        o.to_kml.elements["//#{k}"].text.should == v.to_s
+    end
+end
+
+def fields_exist(o, fields)
+    fields.each do |f|
+        o.should respond_to(f.to_sym)
+        o.should respond_to("#{f}=".to_sym)
+    end
+end
+
 def validate_abstractview(k, type, point, heading, tilt, roll, range, mode)
     [
         [ k.root.name != type, "Wrong type #{ k.root.name }" ],
@@ -129,15 +143,6 @@ shared_examples_for 'AbstractView' do
         @o.kind_of?(AbstractView).should == true
     end
 
-    it 'has the right attributes' do
-        @o.should respond_to(:timestamp)
-        @o.should respond_to(:timespan)
-        @o.should respond_to(:options)
-        @o.should respond_to(:timestamp=)
-        @o.should respond_to(:timespan=)
-        @o.should respond_to(:options=)
-    end
-
     it 'accepts viewer options and includes them in the KML' do
         k = @o.to_kml
         k.should_not =~ /ViewerOptions/
@@ -217,20 +222,8 @@ shared_examples_for 'Camera-like' do
     it_should_behave_like 'AbstractView'
 
     it 'has the right attributes' do
-        @o.should respond_to(:longitude)
-        @o.should respond_to(:latitude)
-        @o.should respond_to(:altitude)
-        @o.should respond_to(:heading)
-        @o.should respond_to(:tilt)
-        @o.should respond_to(:roll)
-        @o.should respond_to(:altitudeMode)
-        @o.should respond_to(:longitude=)
-        @o.should respond_to(:latitude=)
-        @o.should respond_to(:altitude=)
-        @o.should respond_to(:heading=)
-        @o.should respond_to(:tilt=)
-        @o.should respond_to(:roll=)
-        @o.should respond_to(:altitudeMode=)
+        fields = %w[ timestamp timespan options longitude latitude altitude heading tilt roll altitudeMode ]
+        fields_exist @o, fields
     end
 
     it 'contains the right KML attributes' do
@@ -281,41 +274,13 @@ shared_examples_for 'Feature' do
     end
 
     it 'has the right attributes' do
-        @o.should respond_to(:visibility=)
-        @o.should respond_to(:open=)
-        @o.should respond_to(:atom_author=)
-        @o.should respond_to(:atom_link=)
-        @o.should respond_to(:name=)
-        @o.should respond_to(:phoneNumber=)
-        @o.should respond_to(:snippet=)
-        @o.should respond_to(:description=)
-        @o.should respond_to(:abstractView=)
-        @o.should respond_to(:timestamp=)
-        @o.should respond_to(:timespan=)
-        @o.should respond_to(:styleUrl=)
-        @o.should respond_to(:styleSelector=)
-        @o.should respond_to(:region=)
-        @o.should respond_to(:metadata=)
-        @o.should respond_to(:extendedData=)
-        @o.should respond_to(:styles=)
-
-        @o.should respond_to(:visibility)
-        @o.should respond_to(:open)
-        @o.should respond_to(:atom_author)
-        @o.should respond_to(:atom_link)
-        @o.should respond_to(:name)
-        @o.should respond_to(:phoneNumber)
-        @o.should respond_to(:snippet)
-        @o.should respond_to(:description)
-        @o.should respond_to(:abstractView)
-        @o.should respond_to(:timestamp)
-        @o.should respond_to(:timespan)
-        @o.should respond_to(:styleUrl)
-        @o.should respond_to(:styleSelector)
-        @o.should respond_to(:region)
-        @o.should respond_to(:metadata)
-        @o.should respond_to(:extendedData)
-        @o.should respond_to(:styles)
+        fields = %w[
+            visibility open atom_author atom_link name
+            phoneNumber snippet description abstractView timestamp
+            timespan styleUrl styleSelector region metadata
+            extendedData styles
+        ]
+        fields_exist @o, fields
 
         @o.should respond_to(:addressDetails)
     end
@@ -477,6 +442,53 @@ shared_examples_for 'Container' do
     end
 end
 
+shared_examples_for 'ColorStyle' do
+    it_should_behave_like 'KMLObject'
+    it_should_behave_like 'KML_includes_id'
+    it_should_behave_like 'KML_producer'
+
+    it 'should accept only valid color modes' do
+        @o.colorMode = :normal
+        @o.colorMode = :random
+        begin
+            @o.colorMode = :something_wrong
+        rescue RuntimeError => f
+            q = f.to_s
+        end
+        q.should =~ /colorMode must be either/
+    end
+
+    it 'should allow setting and retrieving alpha, blue, green, and red' do
+        a = 'ab'
+        @o.alpha = a
+        @o.alpha.should == a
+        @o.blue = a
+        @o.blue.should == a
+        @o.green = a
+        @o.green.should == a
+        @o.red = a
+        @o.red.should == a
+    end
+
+    it 'should get settings in the right order' do
+        @o.alpha = 'de'
+        @o.blue = 'ad'
+        @o.green = 'be'
+        @o.red = 'ef'
+        @o.color.should == 'deadbeef'
+    end
+
+    it 'should do its KML right' do
+        color = 'abcdefab'
+        colorMode = :random
+        @o.color = color
+        @o.colorMode = colorMode
+        d = @o.to_kml
+        d.elements['//color'].text.should == color
+        d.elements['//colorMode'].text.should == colorMode.to_s
+    end
+end
+
 describe 'KMLObject' do
     before(:each) do
         @o = KMLObject.new()
@@ -489,6 +501,7 @@ end
 describe 'KMLPoint' do
     before(:each) do
         @attrs = { :lat => 12.4, :long => 34.2, :alt => 500 }
+        @fields = %w[ latitude longitude altitude ]
         @o = KMLPoint.new @attrs[:long], @attrs[:lat], @attrs[:alt]
     end
 
@@ -515,16 +528,8 @@ describe 'KMLPoint' do
     end
 
     it 'has the right attributes' do
-        @o.should respond_to(:latitude)
-        @o.should respond_to(:latitude=)
-        @o.should respond_to(:longitude)
-        @o.should respond_to(:longitude=)
-        @o.should respond_to(:altitude)
-        @o.should respond_to(:altitude=)
-        @o.should respond_to(:altitudeMode)
-        @o.should respond_to(:altitudeMode=)
-        @o.should respond_to(:extrude)
-        @o.should respond_to(:extrude=)
+        fields = %w[ latitude longitude altitude altitudeMode extrude ]
+        fields_exist @o, fields
     end
 
     describe 'KML output' do
@@ -583,23 +588,11 @@ describe 'LineString' do
     it_should_behave_like 'CoordinateList'
 
     it 'has the right attributes' do
-        @o.should respond_to(:altitudeOffset)
-        @o.should respond_to(:extrude)
-        @o.should respond_to(:tessellate)
-        @o.should respond_to(:altitudeMode)
-        @o.should respond_to(:drawOrder)
-        @o.should respond_to(:longitude)
-        @o.should respond_to(:latitude)
-        @o.should respond_to(:altitude)
-        @o.should respond_to(:altitudeOffset=)
-        @o.should respond_to(:extrude=)
-        @o.should respond_to(:tessellate=)
-        @o.should respond_to(:altitudeMode=)
-        @o.should respond_to(:drawOrder=)
-        @o.should respond_to(:longitude=)
-        @o.should respond_to(:latitude=)
-        @o.should respond_to(:altitude=)
-        @o.should respond_to(:coordinates)
+        fields = %w[
+            altitudeOffset extrude tessellate altitudeMode
+            drawOrder longitude latitude altitude
+        ]
+        fields_exist @o, fields
     end
 
     it 'contains the right KML attributes' do
@@ -634,14 +627,8 @@ describe 'LinearRing' do
     it_should_behave_like 'CoordinateList'
 
     it 'has the right attributes' do
-        @o.should respond_to(:altitudeOffset)
-        @o.should respond_to(:extrude)
-        @o.should respond_to(:tessellate)
-        @o.should respond_to(:altitudeMode)
-        @o.should respond_to(:extrude=)
-        @o.should respond_to(:tessellate=)
-        @o.should respond_to(:altitudeMode=)
-        @o.should respond_to(:coordinates)
+        fields = %w[ altitudeOffset extrude tessellate altitudeMode ]
+        fields_exist @o, fields
     end
 
     it 'contains the right KML attributes' do
@@ -663,6 +650,7 @@ end
 describe 'Camera' do
     before(:each) do
         @o = Camera.new KMLPoint.new(123, -123, 123), 10, 10, 10, :clampToGround
+        @fields = [ 'roll' ]
     end
 
     it_should_behave_like 'Camera-like'
@@ -677,6 +665,7 @@ end
 describe 'LookAt' do
     before(:each) do
         @o = LookAt.new KMLPoint.new(123, -123, 123), 10, 10, 10, :clampToGround
+        @fields = [ 'range' ]
     end
 
     it_should_behave_like 'Camera-like'
@@ -718,10 +707,8 @@ describe 'TimeSpan' do
     it_should_behave_like 'TimePrimitive'
 
     it 'has the right attributes' do
-        @o.should respond_to(:begin)
-        @o.should respond_to(:begin=)
-        @o.should respond_to(:end)
-        @o.should respond_to(:end=)
+        fields = %w[ begin end ]
+        fields_exist @o, fields
     end
 
     it 'has the right KML elements' do
@@ -735,6 +722,7 @@ end
 describe 'Feature' do
     before(:each) do
         @o = Feature.new('Some feature')
+        @fields = []
     end
 
     it_should_behave_like 'Feature'
@@ -751,6 +739,7 @@ end
 describe 'Folder' do
     before(:each) do
         @o = Folder.new('test folder')
+        @fields = []
     end
     it_should_behave_like 'Container'
     it_should_behave_like 'Feature'
@@ -759,6 +748,7 @@ end
 describe 'Document' do
     before(:each) do
         @o = Document.instance
+        @fields = []
     end
 
     it_should_behave_like 'Container'
@@ -785,40 +775,7 @@ describe 'ColorStyle' do
         @o = ColorStyle.new 'ffffffff'
     end
 
-    it_should_behave_like 'KMLObject'
-    it_should_behave_like 'KML_includes_id'
-    it_should_behave_like 'KML_producer'
-
-    it 'should accept only valid color modes' do
-        @o.colorMode = :normal
-        @o.colorMode = :random
-        begin
-            @o.colorMode = :something_wrong
-        rescue RuntimeError => f
-            q = f.to_s
-        end
-        q.should =~ /colorMode must be either/
-    end
-
-    it 'should allow setting and retrieving alpha, blue, green, and red' do
-        a = 'ab'
-        @o.alpha = a
-        @o.alpha.should == a
-        @o.blue = a
-        @o.blue.should == a
-        @o.green = a
-        @o.green.should == a
-        @o.red = a
-        @o.red.should == a
-    end
-
-    it 'should get settings in the right order' do
-        @o.alpha = 'de'
-        @o.blue = 'ad'
-        @o.green = 'be'
-        @o.red = 'ef'
-        @o.color.should == 'deadbeef'
-    end
+    it_should_behave_like 'ColorStyle'
 
     it 'should return the right KML' do
         @o.color = 'deadbeef'
@@ -878,7 +835,7 @@ describe 'Icon' do
     before(:each) do
         @href = 'icon href'
         @o = Icon.new(@href)
-        @fields = {
+        @values = {
             'href' => @href,
             'x' => 1.0,
             'y' => 2.0,
@@ -892,34 +849,165 @@ describe 'Icon' do
             'viewFormat' => 'format',
             'httpQuery' => 'query'
         }
+        @fields = @values.keys
     end
 
     it_should_behave_like 'KML_includes_id'
     it_should_behave_like 'KML_producer'
 
     it 'has the right attributes' do
-        @fields.keys.each do |f|
-            @o.should respond_to(f.to_sym)
-            @o.should respond_to("#{f}=".to_sym)
-        end
+        fields_exist @o, @fields
     end
 
     it 'puts the right fields in KML' do
-        @fields.each do |k, v|
-            @o.method("#{k.to_s}=".to_sym).call(v)
+        @fields.each do |f|
+            v = @values[f]
+            @o.method("#{f.to_s}=".to_sym).call(v)
             d = @o.to_kml
-            elem = k
-            if k == 'x' || k == 'y' || k == 'w' || k == 'h' then
-                elem = 'gx:' + k
+            elem = f
+            if f == 'x' || f == 'y' || f == 'w' || f == 'h' then
+                elem = 'gx:' + f
             end
             e = d.elements["//#{elem}"]
-            if e.nil? then
-                STDERR.puts d
-                STDERR.puts elem
-            end
             e.should_not be_nil
             e.text.should == v.to_s
         end
     end
 end
 
+describe 'IconStyle' do
+    before(:each) do
+        @href = 'IconStyle href'
+        @scale = 1.0
+        @heading = 2.0
+        @hs_x = 0.4
+        @hs_y = 0.6
+        @hs_xunits = :fraction
+        @hs_yunits = :pixels
+        @color = 'abcdefab'
+        @colorMode = :random
+        @o = IconStyle.new @href, @scale, @heading, @hs_x, @hs_y, @hs_xunits, @hs_yunits, @color, @colorMode
+    end
+
+    it_should_behave_like 'ColorStyle'
+
+    it 'should support the right elements' do
+        @o.should respond_to(:scale)
+        @o.should respond_to(:scale=)
+        @o.should respond_to(:heading)
+        @o.should respond_to(:heading=)
+    end
+
+    it 'should have the right KML' do
+        d = @o.to_kml
+        d.elements['//Icon/href'].text.should == @href
+        d.elements['//scale'].text.should == @scale.to_s
+        d.elements['//heading'].text.should == @heading.to_s
+        h = d.elements['//hotSpot']
+        h.attributes['x'].should == @hs_x.to_s
+        h.attributes['y'].should == @hs_y.to_s
+        h.attributes['xunits'].should == @hs_xunits.to_s
+        h.attributes['yunits'].should == @hs_yunits.to_s
+    end
+end
+
+describe 'LabelStyle' do
+    before(:each) do
+        @fields = %w[ scale color colorMode ]
+        @scale = 2
+        @color = 'abcdefab'
+        @colorMode = :random
+        @o = LabelStyle.new @scale, @color, @colorMode
+    end
+
+    it_should_behave_like 'ColorStyle'
+
+    it 'should have a scale field' do
+        @o.should respond_to(:scale)
+        @o.should respond_to(:scale=)
+        @o.to_kml.elements['//scale'].text.to_i.should == @scale
+    end
+end
+
+describe 'LineStyle' do
+    before(:each) do
+        @width = 1
+        @outerColor = 'aaaaaaaa'
+        @outerWidth = 2
+        @physicalWidth = 3
+        @color = 'abcdefab'
+        @colorMode = :normal
+        @o = LineStyle.new @width, @outerColor, @outerWidth, @physicalWidth, @color, @colorMode
+        @values = {
+            'width' => @width,
+            'outerColor' => @outerColor,
+            'outerWidth' => @outerWidth,
+            'physicalWidth' => @physicalWidth
+        }
+        @fields = @values.keys
+    end
+
+    it_should_behave_like 'ColorStyle'
+
+    it 'should do its KML right' do
+        @values.each do |k, v|
+            @o.method("#{k}=").call(v)
+            elem = (k == 'width' ? k : "gx:#{k}" )
+            @o.to_kml.elements["//#{elem}"].text.should == v.to_s
+        end
+    end
+end
+
+describe 'ListStyle' do
+    before(:each) do
+        @bgColor = 'ffffffff'
+        @state = :closed
+        @listItemType = :check
+        @href = 'list href'
+        @o = ListStyle.new @bgColor, @state, @href, @listItemType
+    end
+
+    it_should_behave_like 'KMLObject'
+    it_should_behave_like 'KML_includes_id'
+    it_should_behave_like 'KML_producer'
+
+    it 'has the right fields' do
+        fields = %w[ bgColor state listItemType href ]
+        fields_exist @o, fields
+    end
+
+    it 'makes the right KML' do
+        values = {
+            'href' => @href,
+            'state' => @state,
+            'listItemType' => @listItemType,
+            'bgColor' => @bgColor
+        }
+        check_kml_values @o, values
+    end
+end
+
+describe 'PolyStyle' do
+    before(:each) do
+        @fill = 1
+        @outline = 1
+        @color = 'abcdefab'
+        @colorMode = :random
+        @o = PolyStyle.new @fill, @outline, @color, @colorMode
+    end
+
+    it_should_behave_like 'ColorStyle'
+
+    it 'should have the right fields' do
+        fields = %w[ fill outline ]
+        fields_exist @o, fields
+    end
+
+    it 'should do the right KML' do
+        values = {
+            'fill' => @fill,
+            'outline' => @outline
+        }
+        check_kml_values @o, values
+    end
+end

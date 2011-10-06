@@ -826,7 +826,7 @@ class ColorStyle < KMLObject
     end
 
     def to_kml(elem = nil)
-        k = REXML::Element.new 'ColorStyle'
+        k = elem.nil? ? REXML::Element.new('ColorStyle') : elem
         super k
         e = REXML::Element.new 'color'
         e.text = @color
@@ -834,7 +834,6 @@ class ColorStyle < KMLObject
         e = REXML::Element.new 'colorMode'
         e.text = @colorMode
         k.elements << e
-        elem.elements << k unless elem.nil?
         k
     end
 end
@@ -977,14 +976,14 @@ end
 # string, with two characters each of alpha, blue, green, and red values, in
 # that order, matching the ordering the KML spec demands.
 class LineStyle < ColorStyle
-    attr_accessor :outercolor, :outerwidth, :physicalwidth, :width
+    attr_accessor :outerColor, :outerWidth, :physicalWidth, :width
 
     def initialize(width = 1, outercolor = 'ffffffff', outerwidth = 0, physicalwidth = 0, color = 'ffffffff', colormode = :normal)
         super(color, colormode)
         @width = width
-        @outercolor = outercolor
-        @outerwidth = outerwidth
-        @physicalwidth = physicalwidth
+        @outerColor = outercolor
+        @outerWidth = outerwidth
+        @physicalWidth = physicalwidth
     end
 
     def to_kml(elem = nil)
@@ -992,9 +991,9 @@ class LineStyle < ColorStyle
         super k
         kml_array(k, [
             [ @width, 'width' ],
-            [ @outercolor, 'gx:outerColor' ],
-            [ @outerwidth, 'gx:outerWidth' ],
-            [ @physicalwidth, 'gx:physicalWidth' ],
+            [ @outerColor, 'gx:outerColor' ],
+            [ @outerWidth, 'gx:outerWidth' ],
+            [ @physicalWidth, 'gx:physicalWidth' ],
         ])
         elem.elements << k unless elem.nil?
         k
@@ -1005,7 +1004,7 @@ end
 # string, with two characters each of alpha, blue, green, and red values, in
 # that order, matching the ordering the KML spec demands.
 class ListStyle < ColorStyle
-    attr_accessor :listitemtype, :bgcolor, :state, :href
+    attr_accessor :listItemType, :bgColor, :state, :href
 
     def initialize(bgcolor = nil, state = nil, href = nil, listitemtype = nil)
         super(nil, :normal)
