@@ -1075,6 +1075,12 @@ class StyleSelector < KMLObject
         @attached = true
         obj.styles << self
     end
+
+    def to_kml(elem = nil)
+        elem = REXML::Element.new 'StyleSelector' if elem.nil?
+        super elem
+        elem
+    end
 end
 
 # Corresponds to KML's Style object. Attributes are expected to be IconStyle,

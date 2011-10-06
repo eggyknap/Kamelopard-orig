@@ -35,10 +35,23 @@ def validate_abstractview(k, type, point, heading, tilt, roll, range, mode)
     end
 end
 
+def get_test_substyles()
+    i = IconStyle.new 'icon'
+    la = LabelStyle.new
+    lin = LineStyle.new
+    p = PolyStyle.new
+    b = BalloonStyle.new 'balloon'
+    lis = ListStyle.new
+    [ i, la, lin, p, b, lis ]
+end
+
 def get_test_styles()
-    si = Style.new IconStyle.new('')
-    sl = Style.new nil, nil, nil, nil, nil, ListStyle.new()
+    i, la, lin, p, b, lis = get_test_substyles()
+    
+    si = Style.new i
+    sl = Style.new i, la, lin, p, b, lis
     sm = StyleMap.new( { :icon => si, :list => sl } )
+    
     si.id = 'icon'
     sl.id = 'list'
     sm.id = 'map'
@@ -486,6 +499,19 @@ shared_examples_for 'ColorStyle' do
         d = @o.to_kml
         d.elements['//color'].text.should == color
         d.elements['//colorMode'].text.should == colorMode.to_s
+    end
+end
+
+shared_examples_for 'StyleSelector' do
+    it_should_behave_like 'KMLObject'
+    it_should_behave_like 'KML_producer'
+    it_should_behave_like 'KML_includes_id'
+
+    it 'should handle being attached to stuff' do
+        @o.should respond_to(:attach)
+        p = Placemark.new KMLPoint.new(123, 23), 'test'
+        @o.attach(p)
+        @o.attached?.should be_true
     end
 end
 
@@ -1009,5 +1035,52 @@ describe 'PolyStyle' do
             'outline' => @outline
         }
         check_kml_values @o, values
+    end
+end
+
+describe 'StyleSelector' do
+    before(:each) do
+        @o = StyleSelector.new 
+    end
+
+    it_should_behave_like 'StyleSelector'
+end
+
+describe 'Style' do
+    before(:each) do
+        i, la, lin, p, b, lis = get_test_substyles
+        @o = Style.new i, la, lin, p, b, lis
+    end
+
+    it_should_behave_like 'StyleSelector'
+
+    it 'should have the right attributes' do
+        [ :icon, :label, :line, :poly, :balloon, :list ].each do |a|
+            @o.should respond_to(a)
+            @o.should respond_to("#{ a.to_s }=".to_sym)
+        end
+    end
+
+    it 'should have the right KML bits' do
+        d = @o.to_kml
+        %w[ IconStyle LabelStyle LineStyle PolyStyle BalloonStyle ListStyle ].each do |e|
+            d.elements["//#{e}"].should_not be_nil
+        end
+    end
+end
+
+describe 'StyleMap' do
+    before(:each) do
+        i, la, lin, p, b, lis = get_test_substyles
+        s = Style.new i, nil, nil, nil, b, lis
+        @o = StyleMap.new({ 'normal' => s, 'highlight' => 'someUrl' })
+    end
+
+    it_should_behave_like 'StyleSelector'
+
+    it 'should handle styles vs. styleurls correctly' do
+        d = REXML::Document.new @o.to_kml.to_s
+        d.elements['/StyleMap/Pair[key="normal"]/Style'].should_not be_nil
+        d.elements['/StyleMap/Pair[key="highlight"]/styleUrl'].should_not be_nil
     end
 end
