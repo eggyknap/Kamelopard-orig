@@ -1161,14 +1161,12 @@ class Placemark < Feature
         end
     end
     
-    def to_kml(indent = 0)
-        a = "#{ ' ' * indent }<Placemark id=\"#{ @id }\">\n"
-        a << super(indent + 4) {
-            k = ''
-            @geometry.each do |i| k << i.to_kml(indent + 4) unless i.nil? end
-            k
-        }
-        a << "#{ ' ' * indent }</Placemark>\n"
+    def to_kml(elem = nil)
+        k = REXML::Element.new 'Placemark'
+        super k
+        @geometry.each do |i| i.to_kml(k) unless i.nil? end
+        elem << k unless elem.nil?
+        k
     end
 
     def to_s
@@ -1205,6 +1203,7 @@ end
 class TourPrimitive < KMLObject
     def initialize
         Document.instance.tour << self
+        super
     end
 end
 
@@ -1227,14 +1226,16 @@ class FlyTo < TourPrimitive
         super()
     end
 
-    def to_kml(indent = 0)
-        k = super + "#{ ' ' * indent }<gx:FlyTo>\n"
-        k << kml_array([
+    def to_kml(elem = nil)
+        k = REXML::Element.new 'gx:FlyTo'
+        super k
+        kml_array(k, [
             [ @duration, 'gx:duration' ],
             [ @mode, 'gx:flyToMode' ]
-        ], indent + 4)
-        k << @view.to_kml(indent + 4) unless @view.nil?
-        k << "#{ ' ' * indent }</gx:FlyTo>\n"
+        ])
+        @view.to_kml k unless @view.nil?
+        elem << k unless elem.nil?
+        k
     end
 end
 
@@ -1262,19 +1263,26 @@ class AnimatedUpdate < TourPrimitive
 
     # Adds another update string, presumably containing a <Change> element
     def <<(a)
-        @updates << a << "\n"
+        @updates << REXML::Element.new(a) << "\n"
     end
 
-    def to_kml(indent = 0)
-        k = super + <<-animatedupdate_kml
-#{ ' ' * indent }<gx:AnimatedUpdate>
-#{ ' ' * indent }    <gx:duration>#{@duration}</gx:duration>
-        animatedupdate_kml
-        k << "#{ ' ' * indent }    <gx:delayeStart>#{@delayedstart}</gx:delayedStart>\n" unless @delayedstart.nil?
-        k << "#{ ' ' * indent }    <Update>\n"
-        k << "#{ ' ' * indent }        <targetHref>#{@target}</targetHref>\n"
-        k << "#{ ' ' * indent }        " << @updates.join("\n#{ ' ' * (indent + 1) }")
-        k << "#{ ' ' * indent }    </Update>\n#{ ' ' * indent }</gx:AnimatedUpdate>\n"
+    def to_kml(elem = nil)
+        k = REXML::Element.new 'gx:AnimatedUpdate'
+        super(k)
+        d = REXML::Element.new 'gx:duration'
+        d.text = @duration
+        k << d
+        if not @delayedstart.nil? then
+            d = REXML::Element.new 'gx:delayedStart'
+            d.text = @delayedStart
+            k << d
+        end
+        d = REXML::Element.new 'Update'
+        q = REXML::Element.new 'targetHref'
+        q.text = @target
+        d << q
+        @updates.each do |i| k << i end
+        elem << k unless elem.nil?
         k
     end
 end

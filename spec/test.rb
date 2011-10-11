@@ -515,6 +515,10 @@ shared_examples_for 'StyleSelector' do
     end
 end
 
+shared_examples_for 'TourPrimitive' do
+    it_should_behave_like 'KMLObject'
+end
+
 describe 'KMLObject' do
     before(:each) do
         @o = KMLObject.new()
@@ -1095,11 +1099,55 @@ describe 'StyleMap' do
     end
 end
 
-# describe 'Placemark' do
-#     before(:each) do
-#         @p = KMLPoint.new(123, 123)
-#         @o = Placemark.new 'placemark', @p
-#     end
-# 
-#     it_should_behave_like 'Feature'
-# end
+describe 'Placemark' do
+    before(:each) do
+        @p = KMLPoint.new(123, 123)
+        @o = Placemark.new 'placemark', @p
+    end
+
+    it_should_behave_like 'Feature'
+
+    it 'supports the right attributes' do
+        [
+            :latitude,
+            :longitude,
+            :altitude,
+            :altitudeMode
+        ].each do |f|
+            @o.should respond_to(f)
+        end
+    end
+
+    it 'handles returning point correctly' do
+        o1 = Placemark.new 'non-point', KMLObject.new
+        o2 = Placemark.new 'non-point', KMLPoint.new(123, 123)
+        lambda { o1.point }.should raise_exception
+        lambda { o2.point }.should_not raise_exception
+    end
+end
+
+describe 'FlyTo' do
+    before(:each) do
+        @o = FlyTo.new 
+    end
+
+    it_should_behave_like 'TourPrimitive'
+
+    it 'puts the right stuff in the KML' do
+        duration = 10
+        mode = :smooth
+        @o.duration = duration
+        @o.mode = mode
+        @o.to_kml.elements['//gx:duration'].text.should == duration.to_s
+        @o.to_kml.elements['//gx:flyToMode'].text.should == mode.to_s
+    end
+
+    it 'handles AbstractView correctly' do
+        o = FlyTo.new LookAt.new(KMLPoint.new(100, 100))
+        o.view.class.should == LookAt
+        o = FlyTo.new KMLPoint.new(90,90)
+        o.view.class.should == LookAt
+        o = FlyTo.new Camera.new(KMLPoint.new(90,90))
+        o.view.class.should == Camera
+    end
+end
