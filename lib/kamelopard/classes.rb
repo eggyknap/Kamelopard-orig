@@ -4,6 +4,8 @@
 # http://code.google.com/apis/kml/documentation/kmlreference.html for a
 # description of KML
 
+# XXX make this a module so it doesn't stomp on other stuff. Then we can rename KMLPoint to just Point.
+
 require 'singleton'
 require 'kamelopard/pointlist'
 require 'rexml/document'
