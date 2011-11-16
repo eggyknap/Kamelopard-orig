@@ -220,4 +220,4 @@ def abstract_view
 end
 
 stylemap
-puts get_kml
+puts get_kml.to_s
