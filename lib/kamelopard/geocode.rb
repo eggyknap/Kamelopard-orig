@@ -1,5 +1,6 @@
 # vim:ts=4:sw=4:et:smartindent:nowrap
 
+require 'rubygems'
 require 'net/http'
 require 'uri'
 require 'cgi'
