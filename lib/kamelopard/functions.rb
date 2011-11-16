@@ -34,6 +34,10 @@ def get_kml
     Document.instance.get_kml_document
 end
 
+def get_kml_string
+    get_kml.to_s
+end
+
 def pause(p)
     Wait.new p
 end
