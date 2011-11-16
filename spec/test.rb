@@ -3,6 +3,8 @@ $LOAD_PATH << './lib'
 require 'kamelopard'
 require 'rexml/document'
 
+# XXX test everything's to_kml(elem), instead of just to_kml(nil)
+
 def check_kml_values(o, values)
     values.each do |k, v|
         o.method("#{k}=").call(v)
@@ -517,6 +519,14 @@ end
 
 shared_examples_for 'TourPrimitive' do
     it_should_behave_like 'KMLObject'
+
+    it 'should have the right namespace and root' do
+        d = @o.to_kml
+        ns = 'http://www.google.com/kml/ext/2.2'
+        d.add_namespace 'gx', ns
+        d.root.namespace.should == ns
+        d.root.name.should == @o.class.name
+    end
 end
 
 describe 'KMLObject' do
@@ -1149,5 +1159,74 @@ describe 'FlyTo' do
         o.view.class.should == LookAt
         o = FlyTo.new Camera.new(KMLPoint.new(90,90))
         o.view.class.should == Camera
+    end
+end
+
+describe 'AnimatedUpdate' do
+    before(:each) do
+        @duration = 10
+        @target = 'abcd'
+        @delayedstart = 10
+        @o = AnimatedUpdate.new([], @duration, @target, @delayedstart)
+    end
+
+    it_should_behave_like 'TourPrimitive'
+
+    it 'allows adding updates' do
+        @o.updates.size.should == 0
+        @o << '<Change><Placemark targetId="1"><visibility>1</visibility></Placemark></Change>'
+        @o << '<Change><Placemark targetId="2"><visibility>0</visibility></Placemark></Change>'
+        @o.updates.size.should == 2
+    end
+
+    it 'returns the right KML' do
+        @o.is_a?(AnimatedUpdate).should == true
+        @o << '<Change><Placemark targetId="1"><visibility>1</visibility></Placemark></Change>'
+        d = @o.to_kml
+        d.elements['//Update/targetHref'].text.should == @target
+        d.elements['//Update/Change/Placemark'].should_not be_nil
+        d.elements['//gx:delayedStart'].text.to_i.should == @delayedstart
+        d.elements['//gx:duration'].text.to_i.should == @duration
+    end
+end
+
+describe 'TourControl' do
+    before(:each) do
+        @o = TourControl.new
+    end
+
+    it_should_behave_like 'TourPrimitive'
+
+    it 'should have the right KML' do
+        @o.to_kml.elements['//gx:playMode'].text.should == 'pause'
+    end
+end
+
+describe 'Wait' do
+    before(:each) do
+        @pause = 10
+        @o = Wait.new(@pause)
+    end
+
+    it_should_behave_like 'TourPrimitive'
+
+    it 'should have the right KML' do
+        @o.to_kml.elements['//gx:duration'].text.to_i.should == @pause
+    end
+end
+
+describe 'SoundCue' do
+    before(:each) do
+        @href = 'href'
+        @delayedStart = 10.0
+        @o = SoundCue.new @href, @delayedStart
+    end
+
+    it_should_behave_like 'TourPrimitive'
+
+    it 'should have the right KML' do
+        d = @o.to_kml
+        d.elements['//href'].text.should == @href
+        d.elements['//gx:delayedStart'].text.to_f.should == @delayedStart
     end
 end
