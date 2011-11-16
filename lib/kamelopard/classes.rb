@@ -743,6 +743,7 @@ class Document < Container
         if @uses_xal then
             r.attributes['xmlns:xal'] = "urn:oasis:names:tc:ciq:xsdschema:xAL:2.0"
         end
+# XXX Should this be add_namespace instead?
         r.attributes['xmlns'] = 'http://www.opengis.net/kml/2.2'
         r.attributes['xmlns:gx'] = 'http://www.google.com/kml/ext/2.2'
         r.attributes['xmlns:kml'] = 'http://www.opengis.net/kml/2.2'
@@ -1245,9 +1246,9 @@ end
 # intelligent; you've got to manually craft the <Change> tag(s) within the
 # object.
 class AnimatedUpdate < TourPrimitive
-    # For now, the user has to specify the change / create / delete elements in
+    # XXX For now, the user has to specify the change / create / delete elements in
     # the <Update> manually, rather than creating objects.
-    attr_accessor :target, :delayedstart, :updates, :duration
+    attr_accessor :target, :delayedStart, :updates, :duration
 
     # The updates argument is an array of strings containing <Change> elements
     def initialize(updates = [], duration = 0, target = '', delayedstart = nil)
@@ -1260,12 +1261,12 @@ class AnimatedUpdate < TourPrimitive
         end
         @updates = updates
         @duration = duration
-        @delayedstart = delayedstart
+        @delayedStart = delayedstart
     end
 
     # Adds another update string, presumably containing a <Change> element
     def <<(a)
-        @updates << REXML::Element.new(a) << "\n"
+        @updates << REXML::Document.new(a).root
     end
 
     def to_kml(elem = nil)
@@ -1274,7 +1275,7 @@ class AnimatedUpdate < TourPrimitive
         d = REXML::Element.new 'gx:duration'
         d.text = @duration
         k << d
-        if not @delayedstart.nil? then
+        if not @delayedStart.nil? then
             d = REXML::Element.new 'gx:delayedStart'
             d.text = @delayedStart
             k << d
@@ -1283,7 +1284,8 @@ class AnimatedUpdate < TourPrimitive
         q = REXML::Element.new 'targetHref'
         q.text = @target
         d << q
-        @updates.each do |i| k << i end
+        @updates.each do |i| d << i end
+        k << d
         elem << k unless elem.nil?
         k
     end
@@ -1295,10 +1297,14 @@ class TourControl < TourPrimitive
         super
     end
 
-    def to_kml(indent = 0)
-        k = "#{ ' ' * indent }<gx:TourControl id=\"#{ @id }\">\n"
-        k << "#{ ' ' * indent }    <gx:playMode>pause</gx:playMode>\n"
-        k << "#{ ' ' * indent }</gx:TourControl>\n"
+    def to_kml(elem = nil)
+        k = REXML::Element.new 'gx:TourControl'
+        super(k)
+        q = REXML::Element.new 'gx:playMode'
+        q.text = 'pause'
+        k << q
+        elem << k unless elem.nil?
+        k
     end
 end
 
@@ -1310,10 +1316,14 @@ class Wait < TourPrimitive
         @duration = duration
     end
 
-    def to_kml(indent = 0)
-        super + <<-wait_kml
-#{ ' ' * indent }<gx:Wait><gx:duration>#{@duration}</gx:duration></gx:Wait>
-        wait_kml
+    def to_kml(elem = nil)
+        k = REXML::Element.new 'gx:Wait'
+        super k
+        d = REXML::Element.new 'gx:duration'
+        d.text = @duration
+        k << d
+        elem << k unless elem.nil?
+        k
     end
 end
 
@@ -1326,11 +1336,19 @@ class SoundCue < TourPrimitive
         @delayedStart = delayedStart
     end
 
-    def to_kml(indent = 0)
-        k = "#{ ' ' * indent }<gx:SoundCue id=\"#{ @id }\">\n"
-        k << "#{ ' ' * indent }    <href>#{ @href }</href>\n"
-        k << "#{ ' ' * indent }    <gx:delayedStart>#{ @delayedStart }</gx:delayedStart>\n" unless @delayedStart.nil?
-        k << "#{ ' ' * indent}</gx:SoundCue>\n"
+    def to_kml(elem = nil)
+        k = REXML::Element.new 'gx:SoundCue'
+        super k
+        d = REXML::Element.new 'href'
+        d.text = @href
+        k << d
+        if not @delayedStart.nil? then
+            d = REXML::Element.new 'gx:delayedStart'
+            d.text = @delayedStart
+            k << d
+        end
+        elem << k unless elem.nil?
+        k
     end
 end
 
