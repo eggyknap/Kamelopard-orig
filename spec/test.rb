@@ -28,8 +28,8 @@ def validate_abstractview(k, type, point, heading, tilt, roll, range, mode)
         [ k.elements['//altitude'].text.to_f != point.altitude, 'Wrong altitude' ],
         [ k.elements['//heading'].text.to_f != heading, 'Wrong heading' ],
         [ k.elements['//tilt'].text.to_f != tilt, 'Wrong tilt' ],
-        [ type == 'LookAt' && k.elements['//range'].text.to_f != range, 'Wrong range' ],
-        [ type == 'Camera' && k.elements['//roll'].text.to_f != roll, 'Wrong roll' ],
+        [ type == 'Kamelopard::LookAt' && k.elements['//range'].text.to_f != range, 'Wrong range' ],
+        [ type == 'Kamelopard::Camera' && k.elements['//roll'].text.to_f != roll, 'Wrong roll' ],
         [ mode !~ /SeaFloor/ && k.elements['//altitudeMode'] != mode.to_s, 'Wrong altitude mode' ],
         [ mode =~ /SeaFloor/ && k.elements['//gx:altitudeMode'] != mode.to_s, 'Wrong gx:altitudeMode' ]
     ].each do |a|
@@ -38,21 +38,21 @@ def validate_abstractview(k, type, point, heading, tilt, roll, range, mode)
 end
 
 def get_test_substyles()
-    i = IconStyle.new 'icon'
-    la = LabelStyle.new
-    lin = LineStyle.new
-    p = PolyStyle.new
-    b = BalloonStyle.new 'balloon'
-    lis = ListStyle.new
+    i = Kamelopard::IconStyle.new 'icon'
+    la = Kamelopard::LabelStyle.new
+    lin = Kamelopard::LineStyle.new
+    p = Kamelopard::PolyStyle.new
+    b = Kamelopard::BalloonStyle.new 'balloon'
+    lis = Kamelopard::ListStyle.new
     [ i, la, lin, p, b, lis ]
 end
 
 def get_test_styles()
     i, la, lin, p, b, lis = get_test_substyles()
     
-    si = Style.new i
-    sl = Style.new i, la, lin, p, b, lis
-    sm = StyleMap.new( { :icon => si, :list => sl } )
+    si = Kamelopard::Style.new i
+    sl = Kamelopard::Style.new i, la, lin, p, b, lis
+    sm = Kamelopard::StyleMap.new( { :icon => si, :list => sl } )
     
     si.id = 'icon'
     sl.id = 'list'
@@ -65,8 +65,8 @@ def check_time_primitive(set_var_lambda, get_kml_lambda, xpath)
     b = '2011-01-01'
     e = '2011-02-01'
     w = '2011-01-01'
-    tn = TimeSpan.new(b, e)
-    tm = TimeStamp.new(w)
+    tn = Kamelopard::TimeSpan.new(b, e)
+    tm = Kamelopard::TimeStamp.new(w)
 
     set_var_lambda.call(tn)
     d = get_kml_lambda.call
@@ -88,9 +88,9 @@ def get_kml_header
     header
 end
 
-shared_examples_for 'KMLObject' do
-    it 'descends from KMLObject' do
-        @o.kind_of?(KMLObject).should == true
+shared_examples_for 'Kamelopard::Object' do
+    it 'descends from Kamelopard::Object' do
+        @o.kind_of?(Kamelopard::Object).should == true
     end
 
     it 'has an id' do
@@ -140,22 +140,22 @@ shared_examples_for 'KML_producer' do
     end
 end
 
-shared_examples_for 'Geometry' do
-    it_should_behave_like 'KMLObject'
+shared_examples_for 'Kamelopard::Geometry' do
+    it_should_behave_like 'Kamelopard::Object'
 
-    it 'descends from Geometry' do
-        @o.kind_of?(Geometry).should == true
+    it 'descends from Kamelopard::Geometry' do
+        @o.kind_of?(Kamelopard::Geometry).should == true
     end
 end
 
-shared_examples_for 'AbstractView' do
-    it_should_behave_like 'KMLObject'
+shared_examples_for 'Kamelopard::AbstractView' do
+    it_should_behave_like 'Kamelopard::Object'
     it_should_behave_like 'altitudeMode'
     it_should_behave_like 'KML_includes_id'
     it_should_behave_like 'KML_producer'
 
-    it 'descends from AbstractView' do
-        @o.kind_of?(AbstractView).should == true
+    it 'descends from Kamelopard::AbstractView' do
+        @o.kind_of?(Kamelopard::AbstractView).should == true
     end
 
     it 'accepts viewer options and includes them in the KML' do
@@ -189,7 +189,7 @@ shared_examples_for 'AbstractView' do
     end
 end
  
-shared_examples_for 'CoordinateList' do
+shared_examples_for 'Kamelopard::CoordinateList' do
     it 'returns coordinates in its KML' do
         @o << [[1,2,3], [2,3,4], [3,4,5]]
         k = @o.to_kml
@@ -208,20 +208,20 @@ shared_examples_for 'CoordinateList' do
             @o << [[1,2,3], [2,3,4], [3,4,5]]
         end
 
-        it 'accepts KMLPoints' do
-            @o << KMLPoint.new(3,2,1)
+        it 'accepts Kamelopard::Points' do
+            @o << Kamelopard::Point.new(3,2,1)
         end
 
         it 'accepts arrays of points' do
             q = []
             [[1,2,3], [2,3,4], [3,4,5]].each do |a|
-                q << KMLPoint.new(a[0], a[1], a[2])
+                q << Kamelopard::Point.new(a[0], a[1], a[2])
             end
             @o << q
         end
 
-        it 'accepts another CoordinateList' do
-            p = CoordinateList.new( [[1,2,3], [2,3,4], [3,4,5]] )
+        it 'accepts another Kamelopard::CoordinateList' do
+            p = Kamelopard::CoordinateList.new( [[1,2,3], [2,3,4], [3,4,5]] )
             @o << p
         end
 
@@ -233,8 +233,8 @@ shared_examples_for 'CoordinateList' do
 
 end
 
-shared_examples_for 'Camera-like' do
-    it_should_behave_like 'AbstractView'
+shared_examples_for 'Kamelopard::Camera-like' do
+    it_should_behave_like 'Kamelopard::AbstractView'
 
     it 'has the right attributes' do
         fields = %w[ timestamp timespan options longitude latitude altitude heading tilt roll altitudeMode ]
@@ -253,17 +253,17 @@ shared_examples_for 'Camera-like' do
     end
 end
 
-shared_examples_for "TimePrimitive" do
-    it_should_behave_like 'KMLObject'
+shared_examples_for "Kamelopard::TimePrimitive" do
+    it_should_behave_like 'Kamelopard::Object'
     it_should_behave_like 'KML_producer'
     it_should_behave_like 'KML_includes_id'
 
-    it 'descends from TimePrimitive' do
-        @o.kind_of?(TimePrimitive).should == true
+    it 'descends from Kamelopard::TimePrimitive' do
+        @o.kind_of?(Kamelopard::TimePrimitive).should == true
     end
 end
 
-shared_examples_for 'Feature' do
+shared_examples_for 'Kamelopard::Feature' do
     def document_has_styles(d)
         si = d.elements['//Style[@id="icon"]']
         STDERR.puts @o.class if si.nil?
@@ -280,12 +280,12 @@ shared_examples_for 'Feature' do
         true
     end
 
-    it_should_behave_like 'KMLObject'
+    it_should_behave_like 'Kamelopard::Object'
     it_should_behave_like 'KML_includes_id'
     it_should_behave_like 'KML_producer'
 
-    it 'descends from Feature' do
-        @o.kind_of?(Feature).should == true
+    it 'descends from Kamelopard::Feature' do
+        @o.kind_of?(Kamelopard::Feature).should == true
     end
 
     it 'has the right attributes' do
@@ -302,7 +302,7 @@ shared_examples_for 'Feature' do
 
     it 'handles extended address stuff correctly' do
         @o.addressDetails = 'These are some extended details'
-        k = get_kml
+        k = Kamelopard::Document.instance.get_kml_document
         k.root.attributes['xmlns:xal'].should == 'urn:oasis:names:tc:ciq:xsdschema:xAL:2.0'
         k = @o.to_kml
         k.elements['//xal:AddressDetails'].text.should == @o.addressDetails
@@ -333,8 +333,8 @@ shared_examples_for 'Feature' do
         marker = 'Look for this string'
         fields = %w( name address phoneNumber description styleUrl )
         fields.each do |f|
-            p = Feature.new()
-            Document.instance.folder << p
+            p = Kamelopard::Feature.new()
+            Kamelopard::Document.instance.folder << p
             p.instance_variable_set("@#{f}".to_sym, marker)
             e = p.to_kml.elements["//#{f}"]
             e.should_not be_nil
@@ -350,7 +350,7 @@ shared_examples_for 'Feature' do
             [ :@extendedData, 'ExtendedData' ],
             [ :@atom_link, 'atom:link' ]
         ].each do |a|
-            p = Feature.new()
+            p = Kamelopard::Feature.new()
             p.instance_variable_set(a[0], marker)
             e = p.to_kml.elements["//#{a[1]}"]
             e.should_not be_nil
@@ -359,7 +359,7 @@ shared_examples_for 'Feature' do
     end
 
     it 'correctly KML-ifies the atom:author field' do
-        o = Feature.new()
+        o = Kamelopard::Feature.new()
         marker = 'Look for this text'
         o.atom_author = marker
         o.to_kml.elements['//atom:author/atom:name'].text.should == marker
@@ -368,28 +368,28 @@ shared_examples_for 'Feature' do
     it 'returns the right KML for boolean fields' do
         %w( visibility open ).each do |k|
             [false, true].each do |v|
-                o = Feature.new()
+                o = Kamelopard::Feature.new()
                 o.instance_variable_set("@#{k}".to_sym, v)
                 o.to_kml.elements["//#{k}"].text.to_i.should == (v ? 1 : 0)
             end
         end
     end
 
-    it 'correctly KML\'s the Snippet' do
+    it 'correctly KML\'s the Kamelopard::Snippet' do
         maxlines = 2
         text = "This is my snippet\nIt's more than two lines long.\nNo, really."
-        @o.snippet = Snippet.new(text, maxlines)
+        @o.snippet = Kamelopard::Snippet.new(text, maxlines)
         s = @o.to_kml.elements["//Snippet[@maxLines='#{ maxlines }']"]
         s.should_not be_nil
         s.text.should == text
     end
 
-    describe 'correctly produces Region KML' do
+    describe 'correctly produces Kamelopard::Region KML' do
         before(:all) do
-            @o = Feature.new('my feature')
-            @latlon = LatLonBox.new( 1, -1, 1, -1, 10 )
-            @lod = Lod.new(128, 1024, 128, 128)
-            @r = Region.new(@latlon, @lod)
+            @o = Kamelopard::Feature.new('my feature')
+            @latlon = Kamelopard::LatLonBox.new( 1, -1, 1, -1, 10 )
+            @lod = Kamelopard::Lod.new(128, 1024, 128, 128)
+            @r = Kamelopard::Region.new(@latlon, @lod)
             @o.region = @r
 
             @reg = @o.to_kml.elements['//Region']
@@ -397,7 +397,7 @@ shared_examples_for 'Feature' do
             @ld = @reg.elements['Lod']
         end
 
-        it 'creates a Region element' do
+        it 'creates a Kamelopard::Region element' do
             @reg.should_not be_nil
             @reg.attributes['id'].should == @r.id
         end
@@ -420,13 +420,13 @@ shared_examples_for 'Feature' do
 
     end
 
-    it 'correctly KML\'s the StyleSelector' do
-        @o = Feature.new 'StyleSelector test'
+    it 'correctly KML\'s the Kamelopard::StyleSelector' do
+        @o = Kamelopard::Feature.new 'StyleSelector test'
         get_test_styles.each do |s| @o.styles << s end
         document_has_styles(@o.to_kml).should == true
     end
 
-    it 'correctly KML\'s the TimePrimitive' do
+    it 'correctly KML\'s the Kamelopard::TimePrimitive' do
         check_time_primitive(
             lambda { |t| @o.timeprimitive = t },
             lambda { @o.to_kml },
@@ -434,12 +434,12 @@ shared_examples_for 'Feature' do
         )
     end
 
-    it 'correctly KML\'s the AbstractView' do
+    it 'correctly KML\'s the Kamelopard::AbstractView' do
         long, lat, alt = 13, 12, 11
         heading, tilt, roll, range, mode = 1, 2, 3, 4, :clampToSeaFloor
-        p = KMLPoint.new(long, lat, alt)
-        camera = Camera.new p, heading, tilt, roll
-        lookat = LookAt.new p, heading, tilt, range
+        p = Kamelopard::Point.new(long, lat, alt)
+        camera = Kamelopard::Camera.new p, heading, tilt, roll
+        lookat = Kamelopard::LookAt.new p, heading, tilt, range
         @o.abstractView = camera
         a = @o.to_kml.elements['//Camera']
         a.should_not be_nil
@@ -451,14 +451,14 @@ shared_examples_for 'Feature' do
     end
 end
 
-shared_examples_for 'Container' do
+shared_examples_for 'Kamelopard::Container' do
     it 'should handle <<' do
         @o.should respond_to('<<')
     end
 end
 
-shared_examples_for 'ColorStyle' do
-    it_should_behave_like 'KMLObject'
+shared_examples_for 'Kamelopard::ColorStyle' do
+    it_should_behave_like 'Kamelopard::Object'
     it_should_behave_like 'KML_includes_id'
     it_should_behave_like 'KML_producer'
 
@@ -505,62 +505,64 @@ shared_examples_for 'ColorStyle' do
 end
 
 shared_examples_for 'StyleSelector' do
-    it_should_behave_like 'KMLObject'
+    it_should_behave_like 'Kamelopard::Object'
     it_should_behave_like 'KML_producer'
     it_should_behave_like 'KML_includes_id'
 
     it 'should handle being attached to stuff' do
         @o.should respond_to(:attach)
-        p = Placemark.new KMLPoint.new(123, 23), 'test'
+        p = Kamelopard::Placemark.new Kamelopard::Point.new(123, 23), 'test'
         @o.attach(p)
         @o.attached?.should be_true
     end
 end
 
-shared_examples_for 'TourPrimitive' do
-    it_should_behave_like 'KMLObject'
+shared_examples_for 'Kamelopard::TourPrimitive' do
+    it_should_behave_like 'Kamelopard::Object'
+    it_should_behave_like 'KML_includes_id'
+    it_should_behave_like 'KML_producer'
 
     it 'should have the right namespace and root' do
         d = @o.to_kml
         ns = 'http://www.google.com/kml/ext/2.2'
         d.add_namespace 'gx', ns
         d.root.namespace.should == ns
-        d.root.name.should == @o.class.name
+        d.root.name.should == @o.class.name.gsub('Kamelopard::', '')
     end
 end
 
-describe 'KMLObject' do
+describe 'Kamelopard::Object' do
     before(:each) do
-        @o = KMLObject.new()
+        @o = Kamelopard::Object.new()
     end
 
-    it_should_behave_like 'KMLObject'
+    it_should_behave_like 'Kamelopard::Object'
     it_should_behave_like 'KML_producer'
 end
 
-describe 'KMLPoint' do
+describe 'Kamelopard::Point' do
     before(:each) do
         @attrs = { :lat => 12.4, :long => 34.2, :alt => 500 }
         @fields = %w[ latitude longitude altitude ]
-        @o = KMLPoint.new @attrs[:long], @attrs[:lat], @attrs[:alt]
+        @o = Kamelopard::Point.new @attrs[:long], @attrs[:lat], @attrs[:alt]
     end
 
     it_should_behave_like 'KML_includes_id'
-    it_should_behave_like 'Geometry'
+    it_should_behave_like 'Kamelopard::Geometry'
 
     it 'accepts different coordinate formats' do
         coords = [ [ '123D30m12.2s S', '34D56m24.4s E' ],
                    [ '32d10\'23.10" N', -145.3487 ],
                    [ 123.5985745,      -45.32487 ] ]
         coords.each do |a|
-            lambda { KMLPoint.new a[1], a[0] }.should_not raise_error
+            lambda { Kamelopard::Point.new a[1], a[0] }.should_not raise_error
         end
     end
 
     it 'does not accept coordinates that are out of range' do
         q = ''
         begin
-            KMLPoint.new 342.32487, 45908.123487
+            Kamelopard::Point.new 342.32487, 45908.123487
         rescue RuntimeError => f
             q = f.to_s
         end
@@ -600,9 +602,9 @@ describe 'KMLPoint' do
     end
 end
 
-describe 'CoordinateList' do
+describe 'Kamelopard::CoordinateList' do
     before(:each) do
-        @o = CoordinateList.new
+        @o = Kamelopard::CoordinateList.new
     end
 
     it_should_behave_like 'KML_producer'
@@ -613,19 +615,19 @@ describe 'CoordinateList' do
         @o.should respond_to(:add_element)
     end
 
-    it_should_behave_like 'CoordinateList'
+    it_should_behave_like 'Kamelopard::CoordinateList'
 end
 
-describe 'LineString' do
+describe 'Kamelopard::LineString' do
     before(:each) do
-        @o = LineString.new([ [1,2,3], [2,3,4], [3,4,5] ])
+        @o = Kamelopard::LineString.new([ [1,2,3], [2,3,4], [3,4,5] ])
     end
 
     it_should_behave_like 'altitudeMode'
     it_should_behave_like 'KML_includes_id'
     it_should_behave_like 'KML_producer'
-    it_should_behave_like 'Geometry'
-    it_should_behave_like 'CoordinateList'
+    it_should_behave_like 'Kamelopard::Geometry'
+    it_should_behave_like 'Kamelopard::CoordinateList'
 
     it 'has the right attributes' do
         fields = %w[
@@ -655,16 +657,16 @@ describe 'LineString' do
     end
 end
 
-describe 'LinearRing' do
+describe 'Kamelopard::LinearRing' do
     before(:each) do
-        @o = LinearRing.new([ [1,2,3], [2,3,4], [3,4,5] ])
+        @o = Kamelopard::LinearRing.new([ [1,2,3], [2,3,4], [3,4,5] ])
     end
 
     it_should_behave_like 'altitudeMode'
     it_should_behave_like 'KML_includes_id'
     it_should_behave_like 'KML_producer'
-    it_should_behave_like 'Geometry'
-    it_should_behave_like 'CoordinateList'
+    it_should_behave_like 'Kamelopard::Geometry'
+    it_should_behave_like 'Kamelopard::CoordinateList'
 
     it 'has the right attributes' do
         fields = %w[ altitudeOffset extrude tessellate altitudeMode ]
@@ -687,13 +689,13 @@ describe 'LinearRing' do
     end
 end
 
-describe 'Camera' do
+describe 'Kamelopard::Camera' do
     before(:each) do
-        @o = Camera.new KMLPoint.new(123, -123, 123), 10, 10, 10, :clampToGround
+        @o = Kamelopard::Camera.new Kamelopard::Point.new(123, -123, 123), 10, 10, 10, :clampToGround
         @fields = [ 'roll' ]
     end
 
-    it_should_behave_like 'Camera-like'
+    it_should_behave_like 'Kamelopard::Camera-like'
 
     it 'contains the right KML attributes' do
         @o.roll = 12
@@ -702,13 +704,13 @@ describe 'Camera' do
     end
 end
 
-describe 'LookAt' do
+describe 'Kamelopard::LookAt' do
     before(:each) do
-        @o = LookAt.new KMLPoint.new(123, -123, 123), 10, 10, 10, :clampToGround
+        @o = Kamelopard::LookAt.new Kamelopard::Point.new(123, -123, 123), 10, 10, 10, :clampToGround
         @fields = [ 'range' ]
     end
 
-    it_should_behave_like 'Camera-like'
+    it_should_behave_like 'Kamelopard::Camera-like'
     it 'contains the right KML attributes' do
         @o.range = 10
         k = @o.to_kml
@@ -717,13 +719,13 @@ describe 'LookAt' do
     end
 end
 
-describe 'TimeStamp' do
+describe 'Kamelopard::TimeStamp' do
     before(:each) do
         @when = '01 Dec 1934 12:12:12 PM'
-        @o = TimeStamp.new @when
+        @o = Kamelopard::TimeStamp.new @when
     end
 
-    it_should_behave_like 'TimePrimitive'
+    it_should_behave_like 'Kamelopard::TimePrimitive'
 
     it 'has the right attributes' do
         @o.should respond_to(:when)
@@ -737,14 +739,14 @@ describe 'TimeStamp' do
     end
 end
 
-describe 'TimeSpan' do
+describe 'Kamelopard::TimeSpan' do
     before(:each) do
         @begin = '01 Dec 1934 12:12:12 PM'
         @end = '02 Dec 1934 12:12:12 PM'
-        @o = TimeSpan.new @begin, @end
+        @o = Kamelopard::TimeSpan.new @begin, @end
     end
 
-    it_should_behave_like 'TimePrimitive'
+    it_should_behave_like 'Kamelopard::TimePrimitive'
 
     it 'has the right attributes' do
         fields = %w[ begin end ]
@@ -759,49 +761,49 @@ describe 'TimeSpan' do
     end
 end
 
-describe 'Feature' do
+describe 'Kamelopard::Feature' do
     before(:each) do
-        @o = Feature.new('Some feature')
+        @o = Kamelopard::Feature.new('Some feature')
         @fields = []
     end
 
-    it_should_behave_like 'Feature'
+    it_should_behave_like 'Kamelopard::Feature'
 end
 
-describe 'Container' do
+describe 'Kamelopard::Container' do
     before(:each) do
-        @o = Container.new
+        @o = Kamelopard::Container.new
     end
 
-    it_should_behave_like 'Container'
+    it_should_behave_like 'Kamelopard::Container'
 end
 
-describe 'Folder' do
+describe 'Kamelopard::Folder' do
     before(:each) do
-        @o = Folder.new('test folder')
+        @o = Kamelopard::Folder.new('test folder')
         @fields = []
     end
-    it_should_behave_like 'Container'
-    it_should_behave_like 'Feature'
+    it_should_behave_like 'Kamelopard::Container'
+    it_should_behave_like 'Kamelopard::Feature'
 end
 
-describe 'Document' do
+describe 'Kamelopard::Document' do
     before(:each) do
-        @o = Document.instance
+        @o = Kamelopard::Document.instance
         @fields = []
     end
 
-    it_should_behave_like 'Container'
-    it_should_behave_like 'Feature'
+    it_should_behave_like 'Kamelopard::Container'
+    it_should_behave_like 'Kamelopard::Feature'
 
     it 'should return a tour' do
         @o.should respond_to(:tour)
-        @o.tour.class.should == Tour
+        @o.tour.class.should == Kamelopard::Tour
     end
 
     it 'should return a folder' do
         @o.should respond_to(:folder)
-        @o.folder.class.should == Folder
+        @o.folder.class.should == Kamelopard::Folder
     end
 
     it 'should have a get_kml_document method' do
@@ -810,12 +812,12 @@ describe 'Document' do
     end
 end
 
-describe 'ColorStyle' do
+describe 'Kamelopard::ColorStyle' do
     before(:each) do
-        @o = ColorStyle.new 'ffffffff'
+        @o = Kamelopard::ColorStyle.new 'ffffffff'
     end
 
-    it_should_behave_like 'ColorStyle'
+    it_should_behave_like 'Kamelopard::ColorStyle'
 
     it 'should return the right KML' do
         @o.color = 'deadbeef'
@@ -827,15 +829,15 @@ describe 'ColorStyle' do
     end
 end
 
-describe 'BalloonStyle' do
+describe 'Kamelopard::BalloonStyle' do
     before(:each) do
-        @o = BalloonStyle.new 'balloon text'
+        @o = Kamelopard::BalloonStyle.new 'balloon text'
         @o.textColor = 'deadbeef'
         @o.bgColor = 'deadbeef'
         @o.displayMode = :hide
     end
 
-    it_should_behave_like 'KMLObject'
+    it_should_behave_like 'Kamelopard::Object'
     it_should_behave_like 'KML_includes_id'
     it_should_behave_like 'KML_producer'
 
@@ -855,10 +857,10 @@ describe 'BalloonStyle' do
     end
 end
 
-describe 'KMLxy' do
+describe 'Kamelopard::XY' do
     before(:each) do
         @x, @y, @xunits, @yunits = 0.2, 13, :fraction, :pixels
-        @o = KMLxy.new @x, @y, @xunits, @yunits
+        @o = Kamelopard::XY.new @x, @y, @xunits, @yunits
     end
 
     it 'should return the right KML' do
@@ -871,10 +873,10 @@ describe 'KMLxy' do
     end
 end
 
-describe 'Icon' do
+describe 'Kamelopard::Icon' do
     before(:each) do
         @href = 'icon href'
-        @o = Icon.new(@href)
+        @o = Kamelopard::Icon.new(@href)
         @values = {
             'href' => @href,
             'x' => 1.0,
@@ -915,9 +917,9 @@ describe 'Icon' do
     end
 end
 
-describe 'IconStyle' do
+describe 'Kamelopard::IconStyle' do
     before(:each) do
-        @href = 'IconStyle href'
+        @href = 'Kamelopard::IconStyle href'
         @scale = 1.0
         @heading = 2.0
         @hs_x = 0.4
@@ -926,10 +928,10 @@ describe 'IconStyle' do
         @hs_yunits = :pixels
         @color = 'abcdefab'
         @colorMode = :random
-        @o = IconStyle.new @href, @scale, @heading, @hs_x, @hs_y, @hs_xunits, @hs_yunits, @color, @colorMode
+        @o = Kamelopard::IconStyle.new @href, @scale, @heading, @hs_x, @hs_y, @hs_xunits, @hs_yunits, @color, @colorMode
     end
 
-    it_should_behave_like 'ColorStyle'
+    it_should_behave_like 'Kamelopard::ColorStyle'
 
     it 'should support the right elements' do
         @o.should respond_to(:scale)
@@ -951,16 +953,16 @@ describe 'IconStyle' do
     end
 end
 
-describe 'LabelStyle' do
+describe 'Kamelopard::LabelStyle' do
     before(:each) do
         @fields = %w[ scale color colorMode ]
         @scale = 2
         @color = 'abcdefab'
         @colorMode = :random
-        @o = LabelStyle.new @scale, @color, @colorMode
+        @o = Kamelopard::LabelStyle.new @scale, @color, @colorMode
     end
 
-    it_should_behave_like 'ColorStyle'
+    it_should_behave_like 'Kamelopard::ColorStyle'
 
     it 'should have a scale field' do
         @o.should respond_to(:scale)
@@ -969,7 +971,7 @@ describe 'LabelStyle' do
     end
 end
 
-describe 'LineStyle' do
+describe 'Kamelopard::LineStyle' do
     before(:each) do
         @width = 1
         @outerColor = 'aaaaaaaa'
@@ -977,7 +979,7 @@ describe 'LineStyle' do
         @physicalWidth = 3
         @color = 'abcdefab'
         @colorMode = :normal
-        @o = LineStyle.new @width, @outerColor, @outerWidth, @physicalWidth, @color, @colorMode
+        @o = Kamelopard::LineStyle.new @width, @outerColor, @outerWidth, @physicalWidth, @color, @colorMode
         @values = {
             'width' => @width,
             'outerColor' => @outerColor,
@@ -987,7 +989,7 @@ describe 'LineStyle' do
         @fields = @values.keys
     end
 
-    it_should_behave_like 'ColorStyle'
+    it_should_behave_like 'Kamelopard::ColorStyle'
 
     it 'should do its KML right' do
         @values.each do |k, v|
@@ -998,16 +1000,16 @@ describe 'LineStyle' do
     end
 end
 
-describe 'ListStyle' do
+describe 'Kamelopard::ListStyle' do
     before(:each) do
         @bgColor = 'ffffffff'
         @state = :closed
         @listItemType = :check
         @href = 'list href'
-        @o = ListStyle.new @bgColor, @state, @href, @listItemType
+        @o = Kamelopard::ListStyle.new @bgColor, @state, @href, @listItemType
     end
 
-    it_should_behave_like 'KMLObject'
+    it_should_behave_like 'Kamelopard::Object'
     it_should_behave_like 'KML_includes_id'
     it_should_behave_like 'KML_producer'
 
@@ -1027,16 +1029,16 @@ describe 'ListStyle' do
     end
 end
 
-describe 'PolyStyle' do
+describe 'Kamelopard::PolyStyle' do
     before(:each) do
         @fill = 1
         @outline = 1
         @color = 'abcdefab'
         @colorMode = :random
-        @o = PolyStyle.new @fill, @outline, @color, @colorMode
+        @o = Kamelopard::PolyStyle.new @fill, @outline, @color, @colorMode
     end
 
-    it_should_behave_like 'ColorStyle'
+    it_should_behave_like 'Kamelopard::ColorStyle'
 
     it 'should have the right fields' do
         fields = %w[ fill outline ]
@@ -1054,7 +1056,7 @@ end
 
 describe 'StyleSelector' do
     before(:each) do
-        @o = StyleSelector.new 
+        @o = Kamelopard::StyleSelector.new 
     end
 
     it_should_behave_like 'StyleSelector'
@@ -1063,7 +1065,7 @@ end
 describe 'Style' do
     before(:each) do
         i, la, lin, p, b, lis = get_test_substyles
-        @o = Style.new i, la, lin, p, b, lis
+        @o = Kamelopard::Style.new i, la, lin, p, b, lis
     end
 
     it_should_behave_like 'StyleSelector'
@@ -1092,8 +1094,8 @@ describe 'StyleMap' do
 
     before(:each) do
         i, la, lin, p, b, lis = get_test_substyles
-        s = Style.new i, nil, nil, nil, b, lis
-        @o = StyleMap.new({ 'normal' => s, 'highlight' => 'someUrl' })
+        s = Kamelopard::Style.new i, nil, nil, nil, b, lis
+        @o = Kamelopard::StyleMap.new({ 'normal' => s, 'highlight' => 'someUrl' })
     end
 
     it_should_behave_like 'StyleSelector'
@@ -1103,19 +1105,19 @@ describe 'StyleMap' do
     end
 
     it 'should merge right' do
-        o = StyleMap.new({ 'normal' => Style.new(nil, nil, nil, nil, nil, nil) })
+        o = Kamelopard::StyleMap.new({ 'normal' => Kamelopard::Style.new(nil, nil, nil, nil, nil, nil) })
         o.merge( { 'highlight' => 'test2' } )
         has_correct_stylemap_kml?(o).should be_true
     end
 end
 
-describe 'Placemark' do
+describe 'Kamelopard::Placemark' do
     before(:each) do
-        @p = KMLPoint.new(123, 123)
-        @o = Placemark.new 'placemark', @p
+        @p = Kamelopard::Point.new(123, 123)
+        @o = Kamelopard::Placemark.new 'placemark', @p
     end
 
-    it_should_behave_like 'Feature'
+    it_should_behave_like 'Kamelopard::Feature'
 
     it 'supports the right attributes' do
         [
@@ -1129,19 +1131,19 @@ describe 'Placemark' do
     end
 
     it 'handles returning point correctly' do
-        o1 = Placemark.new 'non-point', KMLObject.new
-        o2 = Placemark.new 'non-point', KMLPoint.new(123, 123)
+        o1 = Kamelopard::Placemark.new 'non-point', Kamelopard::Object.new
+        o2 = Kamelopard::Placemark.new 'non-point', Kamelopard::Point.new(123, 123)
         lambda { o1.point }.should raise_exception
         lambda { o2.point }.should_not raise_exception
     end
 end
 
-describe 'FlyTo' do
+describe 'Kamelopard::FlyTo' do
     before(:each) do
-        @o = FlyTo.new 
+        @o = Kamelopard::FlyTo.new 
     end
 
-    it_should_behave_like 'TourPrimitive'
+    it_should_behave_like 'Kamelopard::TourPrimitive'
 
     it 'puts the right stuff in the KML' do
         duration = 10
@@ -1152,25 +1154,25 @@ describe 'FlyTo' do
         @o.to_kml.elements['//gx:flyToMode'].text.should == mode.to_s
     end
 
-    it 'handles AbstractView correctly' do
-        o = FlyTo.new LookAt.new(KMLPoint.new(100, 100))
-        o.view.class.should == LookAt
-        o = FlyTo.new KMLPoint.new(90,90)
-        o.view.class.should == LookAt
-        o = FlyTo.new Camera.new(KMLPoint.new(90,90))
-        o.view.class.should == Camera
+    it 'handles Kamelopard::AbstractView correctly' do
+        o = Kamelopard::FlyTo.new Kamelopard::LookAt.new(Kamelopard::Point.new(100, 100))
+        o.view.class.should == Kamelopard::LookAt
+        o = Kamelopard::FlyTo.new Kamelopard::Point.new(90,90)
+        o.view.class.should == Kamelopard::LookAt
+        o = Kamelopard::FlyTo.new Kamelopard::Camera.new(Kamelopard::Point.new(90,90))
+        o.view.class.should == Kamelopard::Camera
     end
 end
 
-describe 'AnimatedUpdate' do
+describe 'Kamelopard::AnimatedUpdate' do
     before(:each) do
         @duration = 10
         @target = 'abcd'
         @delayedstart = 10
-        @o = AnimatedUpdate.new([], @duration, @target, @delayedstart)
+        @o = Kamelopard::AnimatedUpdate.new([], @duration, @target, @delayedstart)
     end
 
-    it_should_behave_like 'TourPrimitive'
+    it_should_behave_like 'Kamelopard::TourPrimitive'
 
     it 'allows adding updates' do
         @o.updates.size.should == 0
@@ -1180,7 +1182,7 @@ describe 'AnimatedUpdate' do
     end
 
     it 'returns the right KML' do
-        @o.is_a?(AnimatedUpdate).should == true
+        @o.is_a?(Kamelopard::AnimatedUpdate).should == true
         @o << '<Change><Placemark targetId="1"><visibility>1</visibility></Placemark></Change>'
         d = @o.to_kml
         d.elements['//Update/targetHref'].text.should == @target
@@ -1190,43 +1192,53 @@ describe 'AnimatedUpdate' do
     end
 end
 
-describe 'TourControl' do
+describe 'Kamelopard::TourControl' do
     before(:each) do
-        @o = TourControl.new
+        @o = Kamelopard::TourControl.new
     end
 
-    it_should_behave_like 'TourPrimitive'
+    it_should_behave_like 'Kamelopard::TourPrimitive'
 
     it 'should have the right KML' do
         @o.to_kml.elements['//gx:playMode'].text.should == 'pause'
     end
 end
 
-describe 'Wait' do
+describe 'Kamelopard::Wait' do
     before(:each) do
         @pause = 10
-        @o = Wait.new(@pause)
+        @o = Kamelopard::Wait.new(@pause)
     end
 
-    it_should_behave_like 'TourPrimitive'
+    it_should_behave_like 'Kamelopard::TourPrimitive'
 
     it 'should have the right KML' do
         @o.to_kml.elements['//gx:duration'].text.to_i.should == @pause
     end
 end
 
-describe 'SoundCue' do
+describe 'Kamelopard::SoundCue' do
     before(:each) do
         @href = 'href'
         @delayedStart = 10.0
-        @o = SoundCue.new @href, @delayedStart
+        @o = Kamelopard::SoundCue.new @href, @delayedStart
     end
 
-    it_should_behave_like 'TourPrimitive'
+    it_should_behave_like 'Kamelopard::TourPrimitive'
 
     it 'should have the right KML' do
         d = @o.to_kml
         d.elements['//href'].text.should == @href
         d.elements['//gx:delayedStart'].text.to_f.should == @delayedStart
     end
+end
+
+describe 'Kamelopard::Tour' do
+    before(:each) do
+        @name = 'TourName'
+        @description = 'TourDescription'
+        @o = Kamelopard::Tour.new @name, @description
+    end
+
+    it_should_behave_like 'Kamelopard::Object'
 end
