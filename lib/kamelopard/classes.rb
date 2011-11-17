@@ -104,15 +104,13 @@ module Kamelopard
         attr_accessor :id, :comment
 
         def initialize(comment = nil)
-            @id = "#{self.class.name}_#{ Kamelopard.get_next_id }"
+            @id = "#{self.class.name.gsub('Kamelopard::', '')}_#{ Kamelopard.get_next_id }"
             @comment = comment.gsub(/</, '&lt;') unless comment.nil?
         end
 
         # Returns KML string for this object. Objects should override this method
-        def to_kml(elem = nil)
-            if not elem.nil? then
-                elem.attributes['id'] = @id
-            end
+        def to_kml(elem)
+            elem.attributes['id'] = @id
             if not @comment.nil? and @comment != '' then
                 c = REXML::Comment.new " #{@comment} ", elem
                 return c
@@ -1375,12 +1373,13 @@ module Kamelopard
         def to_kml(elem = nil)
             k = REXML::Element.new 'gx:Tour'
             super k
-            Kamelopard.kml_array([
+            Kamelopard.kml_array(k, [
                 [ @name, 'name' ],
                 [ @description, 'description' ],
-            ], k)
+            ])
             p = REXML::Element.new 'gx:Playlist'
             @items.map do |a| a.to_kml p end
+            k << p
             elem << k unless elem.nil?
             k
         end
@@ -1400,13 +1399,14 @@ module Kamelopard
             end
         end
 
-        def to_kml(indent = 0)
-            k = super(indent) + Kamelopard.kml_array([
+        def to_kml(elem)
+            super
+            Kamelopard.kml_array(elem, [
                 [ @color, 'color' ],
                 [ @drawOrder, 'drawOrder' ],
-            ], indent + 4)
-            k << @icon.to_kml(indent) unless @icon.nil?
-            k
+            ])
+            @icon.to_kml(elem) unless @icon.nil?
+            elem
         end
     end
 
@@ -1422,15 +1422,20 @@ module Kamelopard
             @rotation = rotation
         end
 
-        def to_kml(indent = 0)
-            k = "#{ ' ' * indent }<ScreenOverlay id=\"#{ @id }\">\n"
-            k << super(indent + 4)
-            k << @overlayXY.to_kml('overlayXY', indent + 4)   unless @overlayXY.nil?
-            k << @screenXY.to_kml('screenXY', indent + 4)     unless @screenXY.nil?
-            k << @rotationXY.to_kml('rotationXY', indent + 4) unless @rotationXY.nil?
-            k << @size.to_kml('size', indent + 4)             unless @size.nil?
-            k << "#{ ' ' * indent }    <rotation>#{ @rotation }</rotation>\n" unless @rotation.nil?
-            k << "#{ ' ' * indent }</ScreenOverlay>\n"
+        def to_kml(elem = nil)
+            k = REXML::Element.new 'ScreenOverlay'
+            super k
+            @overlayXY.to_kml('overlayXY', k)   unless @overlayXY.nil?
+            @screenXY.to_kml('screenXY', k)     unless @screenXY.nil?
+            @rotationXY.to_kml('rotationXY', k) unless @rotationXY.nil?
+            @size.to_kml('size', k)             unless @size.nil?
+            if ! @rotation.nil? then
+                d = REXML::Element.new 'rotation'
+                d.text = @rotation
+                k << d
+            end
+            elem << k unless elem.nil?
+            k
         end
     end
 
@@ -1445,17 +1450,21 @@ module Kamelopard
             @near = near
         end
 
-        def to_kml(indent = 0)
-
-            <<-viewvolume
-    #{ ' ' * indent }<ViewVolume>
-    #{ ' ' * indent }    <near>#{@near}</near>
-    #{ ' ' * indent }    <leftFov>#{@leftFov}</leftFov>
-    #{ ' ' * indent }    <rightFov>#{@rightFov}</rightFov>
-    #{ ' ' * indent }    <bottomFov>#{@bottomFov}</bottomFov>
-    #{ ' ' * indent }    <topFov>#{@topFov}</topFov>
-    #{ ' ' * indent }</ViewVolume>
-            viewvolume
+        def to_kml(elem = nil)
+            p = REXML::Element.new 'ViewVolume'
+            {
+                :near => @near,
+                :leftFov => @leftFov,
+                :rightFov => @rightFov,
+                :topFov => @topFov,
+                :bottomFov => @bottomFov
+            }.each do |k, v|
+                d = REXML::Element.new k.to_s
+                d.text = v
+                p << d
+            end
+            elem << p unless elem.nil?
+            p
         end
     end
 
@@ -1470,16 +1479,20 @@ module Kamelopard
             @gridOrigin = gridOrigin
         end
 
-        def to_kml(indent = 0)
-            
-            <<-imagepyramid
-    #{ ' ' * indent }<ImagePyramid>
-    #{ ' ' * indent }    <tileSize>#{@tileSize}</tileSize>
-    #{ ' ' * indent }    <maxWidth>#{@maxWidth}</maxWidth>
-    #{ ' ' * indent }    <maxHeight>#{@maxHeight}</maxHeight>
-    #{ ' ' * indent }    <gridOrigin>#{@gridOrigin}</gridOrigin>
-    #{ ' ' * indent }</ImagePyramid>
-            imagepyramid
+        def to_kml(elem = nil)
+            p = REXML::Element.new 'ImagePyramid'
+            {
+                :tileSize => @tileSize,
+                :maxWidth => @maxWidth,
+                :maxHeight => @maxHeight,
+                :gridOrigin => @gridOrigin
+            }.each do |k, v|
+                d = REXML::Element.new k.to_s
+                d.text = v
+                p << d
+            end
+            elem << p unless elem.nil?
+            p
         end
     end
 
@@ -1500,15 +1513,22 @@ module Kamelopard
             @shape = shape
         end
 
-        def to_kml(indent = 0)
-            k = "#{ ' ' * indent }<PhotoOverlay>\n"
-            k << super(indent + 4)
-            k << @viewVolume.to_kml(indent + 4) unless @viewVolume.nil?
-            k << @imagePyramid.to_kml(indent + 4) unless @imagePyramid.nil?
-            k << @point.to_kml(indent + 4, true)
-            k << "#{ ' ' * indent }    <rotation>#{ @rotation }</rotation>\n"
-            k << "#{ ' ' * indent }    <shape>#{ @shape }</shape>\n"
-            k << "#{ ' ' * indent }</PhotoOverlay>\n"
+        def to_kml(elem = nil)
+            p = REXML::Element.new 'PhotoOverlay'
+            super p
+            @viewVolume.to_kml p   unless @viewVolume.nil?
+            @imagePyramid.to_kml p unless @imagePyramid.nil?
+            p << @point.to_kml(true)
+            {
+                :rotation => @rotation,
+                :shape => @shape
+            }.each do |k, v|
+                d = REXML::Element.new k.to_s
+                d.text = v
+                p << d
+            end
+            elem << p unless elem.nil?
+            p
         end
     end
 

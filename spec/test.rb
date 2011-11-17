@@ -19,6 +19,21 @@ def fields_exist(o, fields)
     end
 end
 
+def match_view_vol(x, e)
+    %w[ near rightFov topFov ].each do |a|
+        x.elements["//#{a}"].text.to_i.should == e
+    end
+    %w[ leftFov bottomFov ].each do |a|
+        x.elements["//#{a}"].text.to_i.should == -e
+    end
+end
+
+def match_image_pyramid(x, e)
+    %w[ tileSize maxWidth maxHeight gridOrigin ].each do |a|
+        x.elements["//#{a}"].text.to_i.should == e
+    end
+end
+
 def validate_abstractview(k, type, point, heading, tilt, roll, range, mode)
     [
         [ k.root.name != type, "Wrong type #{ k.root.name }" ],
@@ -266,7 +281,6 @@ end
 shared_examples_for 'Kamelopard::Feature' do
     def document_has_styles(d)
         si = d.elements['//Style[@id="icon"]']
-        STDERR.puts @o.class if si.nil?
         raise 'Could not find iconstyle' if si.nil?
         sl = d.elements['//Style[@id="list"]']
         raise 'Could not find liststyle' if sl.nil?
@@ -517,27 +531,45 @@ shared_examples_for 'StyleSelector' do
     end
 end
 
-shared_examples_for 'Kamelopard::TourPrimitive' do
-    it_should_behave_like 'Kamelopard::Object'
-    it_should_behave_like 'KML_includes_id'
-    it_should_behave_like 'KML_producer'
-
+shared_examples_for 'KML_root_name' do
     it 'should have the right namespace and root' do
         d = @o.to_kml
-        ns = 'http://www.google.com/kml/ext/2.2'
-        d.add_namespace 'gx', ns
-        d.root.namespace.should == ns
+        if ! @ns.nil? then
+            ns_url = 'http://www.google.com/kml/ext/2.2'
+            d.add_namespace @ns, ns_url
+            d.root.namespace.should == ns_url
+        end
         d.root.name.should == @o.class.name.gsub('Kamelopard::', '')
     end
 end
 
-describe 'Kamelopard::Object' do
+shared_examples_for 'Kamelopard::TourPrimitive' do
     before(:each) do
-        @o = Kamelopard::Object.new()
+        @ns = 'gx'
     end
 
     it_should_behave_like 'Kamelopard::Object'
+    it_should_behave_like 'KML_includes_id'
     it_should_behave_like 'KML_producer'
+    it_should_behave_like 'KML_root_name'
+end
+
+shared_examples_for 'Kamelopard::Overlay' do
+    it_should_behave_like 'Kamelopard::Feature'
+
+    it 'should have the right KML' do
+        href = 'look for this href'
+        drawOrder = 10
+        color = 'ffffff'
+        @o.icon = Kamelopard::Icon.new href
+        @o.drawOrder = drawOrder
+        @o.color = color
+
+        d = @o.to_kml
+        d.elements['//href'].text.should == href
+        d.elements['//color'].text.should == color
+        d.elements['//drawOrder'].text.to_i.should == drawOrder
+    end
 end
 
 describe 'Kamelopard::Point' do
@@ -1238,7 +1270,119 @@ describe 'Kamelopard::Tour' do
         @name = 'TourName'
         @description = 'TourDescription'
         @o = Kamelopard::Tour.new @name, @description
+        @ns = 'gx'
     end
 
     it_should_behave_like 'Kamelopard::Object'
+    it_should_behave_like 'KML_includes_id'
+    it_should_behave_like 'KML_producer'
+    it_should_behave_like 'KML_root_name'
+
+    it 'has the right KML' do
+        Kamelopard::Wait.new
+        Kamelopard::Wait.new
+        Kamelopard::Wait.new
+        Kamelopard::Wait.new
+
+        d = @o.to_kml
+        d.elements['//name'].text.should == @name
+        d.elements['//description'].text.should == @description
+        p = d.elements['//gx:Playlist']
+        p.should_not be_nil
+        p.elements.size.should == 4
+    end
+end
+
+describe 'Kamelopard::ScreenOverlay' do
+    before(:each) do
+        @x = 10
+        @un = :pixel
+        @xy = Kamelopard::XY.new @x, @x, @un, @un
+        @rotation = 10
+        @name = 'some name'
+        @o = Kamelopard::ScreenOverlay.new Kamelopard::Icon.new('test'), @name, @xy, @rotation, @xy, @xy, @xy
+    end
+
+    it_should_behave_like 'Kamelopard::Overlay'
+
+    it 'has the right attributes' do
+        fields = %w[ overlayXY screenXY rotationXY size rotation ]
+        fields_exist @o, fields
+    end
+
+    it 'has the right KML' do
+        d = @o.to_kml
+        d.elements['//name'].text.should == @name
+        d.elements['//rotation'].text.to_i.should == @rotation
+        %w[ overlayXY screenXY rotationXY size ].each do |a|
+            d.elements["//#{a}"].attributes['x'] = @x
+            d.elements["//#{a}"].attributes['y'] = @x
+            d.elements["//#{a}"].attributes['xunits'] = @un
+            d.elements["//#{a}"].attributes['yunits'] = @un
+        end
+    end
+end
+
+describe 'Kamelopard::ViewVolume' do
+    before(:each) do
+        @n = 34
+        @o = Kamelopard::ViewVolume.new @n, -@n, @n, -@n, @n
+    end
+
+    it 'has the right attributes' do
+        fields = %w[ leftFov rightFov bottomFov topFov near ]
+        fields_exist @o, fields
+    end
+
+    it 'has the right KML' do
+        d = @o.to_kml
+        d.root.name.should == 'ViewVolume'
+        match_view_vol(d, @n)
+    end
+end
+
+describe 'Kamelopard::ImagePyramind' do
+    before(:each) do
+        @n = 34
+        @o = Kamelopard::ImagePyramid.new @n, @n, @n, @n
+    end
+
+    it 'has the right attributes' do
+        fields = %w[ tileSize maxWidth maxHeight gridOrigin ]
+        fields_exist @o, fields
+    end
+
+    it 'has the right KML' do
+        d = @o.to_kml
+        d.root.name.should == 'ImagePyramid'
+        match_image_pyramid(d, @n)
+    end
+end
+
+describe 'Kamelopard::PhotoOverlay' do
+    before(:each) do
+        @n = 34
+        @rotation = 10
+        @point = Kamelopard::Point.new(@n, @n)
+        @icon = Kamelopard::Icon.new('test')
+        @vv = Kamelopard::ViewVolume.new @n, -@n, @n, -@n, @n
+        @ip = Kamelopard::ImagePyramid.new @n, @n, @n, @n
+        @shape = 'cylinder'
+        @o = Kamelopard::PhotoOverlay.new @icon, @point, @rotation, @vv, @ip, @shape
+    end
+
+    it_should_behave_like 'Kamelopard::Overlay'
+
+    it 'has the right attributes' do
+        fields = %w[ rotation viewvolume imagepyramid point shape ]
+        fields_exist @o, fields
+    end
+
+    it 'has the right KML' do
+        d = @o.to_kml
+        d.elements['//shape'].text.should == @shape
+        d.elements['//rotation'].text.to_i.should == @rotation
+        match_view_vol(d.elements['//ViewVolume'], @n).should be_true
+        match_image_pyramid(d.elements['//ImagePyramid'], @n).should be_true
+    end
 end
