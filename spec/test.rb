@@ -1445,9 +1445,30 @@ describe 'Kamelopard::GroundOverlay' do
         test_lat_lon_quad(d, @n)
     end
 end
-    #        k << @latlonbox.to_kml(indent + 4) unless @latlonbox.nil?
-    #        k << @latlonquad.to_kml(indent + 4) unless @latlonquad.nil?
-    #        k << "#{ ' ' * indent }</GroundOverlay>\n"
+    #class Lod
+    #    attr_accessor :minpixels, :maxpixels, :minfade, :maxfade
+    #    def initialize(minpixels, maxpixels, minfade, maxfade)
+    #        @minpixels = minpixels
+    #        @maxpixels = maxpixels
+    #        @minfade = minfade
+    #        @maxfade = maxfade
+    #    end
+
+    #    def to_kml(elem = nil)
+    #        k = REXML::Element.new 'Lod'
+    #        m = REXML::Element.new 'minLodPixels'
+    #        m.text = @minpixels
+    #        k.elements << m
+    #        m = REXML::Element.new 'maxLodPixels'
+    #        m.text = @maxpixels
+    #        k.elements << m
+    #        m = REXML::Element.new 'minFadeExtent'
+    #        m.text = @minfade
+    #        k.elements << m
+    #        m = REXML::Element.new 'maxFadeExtent'
+    #        m.text = @maxfade
+    #        k.elements << m
+    #        elem.elements << k unless elem.nil?
     #        k
     #    end
     #end
