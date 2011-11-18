@@ -1582,7 +1582,7 @@ module Kamelopard
                 end
             end
             if (not @minAltitude.nil? or not @maxAltitude.nil?) then
-                Kamelopard.add_altitudeMode(mode, k)
+                Kamelopard.add_altitudeMode(@altitudeMode, k)
             end
             m = REXML::Element.new 'rotation'
             m.text = @rotation
@@ -1602,13 +1602,13 @@ module Kamelopard
             @upperLeft = upperLeft
         end
 
-        def to_kml(indent = 0)
-
-            <<-latlonquad
-    #{ ' ' * indent }<gx:LatLonQuad>
-    #{ ' ' * indent }    <coordinates>#{ @lowerLeft.longitude },#{ @lowerLeft.latitude } #{ @lowerRight.longitude },#{ @lowerRight.latitude } #{ @upperRight.longitude },#{ @upperRight.latitude } #{ @upperLeft.longitude },#{ @upperLeft.latitude }</coordinates>
-    #{ ' ' * indent }</gx:LatLonQuad>
-            latlonquad
+        def to_kml(elem = nil)
+            k = REXML::Element.new 'gx:LatLonQuad'
+            d = REXML::Element.new 'coordinates'
+            d.text = "#{ @lowerLeft.longitude },#{ @lowerLeft.latitude } #{ @lowerRight.longitude },#{ @lowerRight.latitude } #{ @upperRight.longitude },#{ @upperRight.latitude } #{ @upperLeft.longitude },#{ @upperLeft.latitude }"
+            k << d
+            elem << k unless elem.nil?
+            k
         end
     end
 
@@ -1623,17 +1623,17 @@ module Kamelopard
             @altitudeMode = altitudeMode
         end
 
-        def to_kml(indent = 0)
+        def to_kml(elem = nil)
             raise "Either latlonbox or latlonquad must be non-nil" if @latlonbox.nil? and @latlonquad.nil?
-
-            k = "#{ ' ' * indent}<GroundOverlay id=\"#{ @id }\">\n"
-            k << super(indent + 4)
-            k << "#{ ' ' * indent }    <altitude>#{ @altitude }</altitude>\n"
-            k << ' ' * indent
-            Kamelopard.add_altitudeMode(mode, k)
-            k << @latlonbox.to_kml(indent + 4) unless @latlonbox.nil?
-            k << @latlonquad.to_kml(indent + 4) unless @latlonquad.nil?
-            k << "#{ ' ' * indent }</GroundOverlay>\n"
+            k = REXML::Element.new 'GroundOverlay'
+            super k
+            d = REXML::Element.new 'altitude'
+            d.text = @altitude
+            k << d
+            Kamelopard.add_altitudeMode(@altitudeMode, k)
+            @latlonbox.to_kml(k) unless @latlonbox.nil?
+            @latlonquad.to_kml(k) unless @latlonquad.nil?
+            elem << k unless elem.nil?
             k
         end
     end

@@ -5,6 +5,17 @@ require 'rexml/document'
 
 # XXX test everything's to_kml(elem), instead of just to_kml(nil)
 
+def test_lat_lon_quad(d, n)
+    d.elements['//coordinates'].text.should == "#{n},#{n} #{n},#{n} #{n},#{n} #{n},#{n}"
+end
+
+def test_lat_lon_box(l, latlon)
+    l.elements['//north'].text.should == latlon.north.to_s
+    l.elements['//south'].text.should == latlon.south.to_s
+    l.elements['//east'].text.should == latlon.east.to_s
+    l.elements['//west'].text.should == latlon.west.to_s
+end
+
 def check_kml_values(o, values)
     values.each do |k, v|
         o.method("#{k}=").call(v)
@@ -101,6 +112,12 @@ def get_kml_header
 <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
 <Document>
     header
+end
+
+shared_examples_for 'field_producer' do
+    it 'has the right attributes' do
+        fields_exist @o, @fields
+    end
 end
 
 shared_examples_for 'Kamelopard::Object' do
@@ -418,10 +435,7 @@ shared_examples_for 'Kamelopard::Feature' do
 
         it 'creates the right LatLonAltBox' do 
             @l.should_not be_nil
-            @l.elements['north'].text.should == @latlon.north.to_s
-            @l.elements['south'].text.should == @latlon.south.to_s
-            @l.elements['east'].text.should == @latlon.east.to_s
-            @l.elements['west'].text.should == @latlon.west.to_s
+            test_lat_lon_box(@l, @latlon)
         end
 
         it 'creates the right LOD' do
@@ -575,12 +589,13 @@ end
 describe 'Kamelopard::Point' do
     before(:each) do
         @attrs = { :lat => 12.4, :long => 34.2, :alt => 500 }
-        @fields = %w[ latitude longitude altitude ]
+        @fields = %w[ latitude longitude altitude altitudeMode extrude ]
         @o = Kamelopard::Point.new @attrs[:long], @attrs[:lat], @attrs[:alt]
     end
 
     it_should_behave_like 'KML_includes_id'
     it_should_behave_like 'Kamelopard::Geometry'
+    it_should_behave_like 'field_producer'
 
     it 'accepts different coordinate formats' do
         coords = [ [ '123D30m12.2s S', '34D56m24.4s E' ],
@@ -599,11 +614,6 @@ describe 'Kamelopard::Point' do
             q = f.to_s
         end
         q.should =~ /out of range/
-    end
-
-    it 'has the right attributes' do
-        fields = %w[ latitude longitude altitude altitudeMode extrude ]
-        fields_exist @o, fields
     end
 
     describe 'KML output' do
@@ -653,6 +663,10 @@ end
 describe 'Kamelopard::LineString' do
     before(:each) do
         @o = Kamelopard::LineString.new([ [1,2,3], [2,3,4], [3,4,5] ])
+        @fields = %w[
+            altitudeOffset extrude tessellate altitudeMode
+            drawOrder longitude latitude altitude
+        ]
     end
 
     it_should_behave_like 'altitudeMode'
@@ -660,14 +674,7 @@ describe 'Kamelopard::LineString' do
     it_should_behave_like 'KML_producer'
     it_should_behave_like 'Kamelopard::Geometry'
     it_should_behave_like 'Kamelopard::CoordinateList'
-
-    it 'has the right attributes' do
-        fields = %w[
-            altitudeOffset extrude tessellate altitudeMode
-            drawOrder longitude latitude altitude
-        ]
-        fields_exist @o, fields
-    end
+    it_should_behave_like 'field_producer'
 
     it 'contains the right KML attributes' do
         @o.altitudeOffset = nil
@@ -692,6 +699,7 @@ end
 describe 'Kamelopard::LinearRing' do
     before(:each) do
         @o = Kamelopard::LinearRing.new([ [1,2,3], [2,3,4], [3,4,5] ])
+        @fields = %w[ altitudeOffset extrude tessellate altitudeMode ]
     end
 
     it_should_behave_like 'altitudeMode'
@@ -699,11 +707,7 @@ describe 'Kamelopard::LinearRing' do
     it_should_behave_like 'KML_producer'
     it_should_behave_like 'Kamelopard::Geometry'
     it_should_behave_like 'Kamelopard::CoordinateList'
-
-    it 'has the right attributes' do
-        fields = %w[ altitudeOffset extrude tessellate altitudeMode ]
-        fields_exist @o, fields
-    end
+    it_should_behave_like 'field_producer'
 
     it 'contains the right KML attributes' do
         @o.altitudeOffset = nil
@@ -728,6 +732,7 @@ describe 'Kamelopard::Camera' do
     end
 
     it_should_behave_like 'Kamelopard::Camera-like'
+    it_should_behave_like 'field_producer'
 
     it 'contains the right KML attributes' do
         @o.roll = 12
@@ -743,6 +748,8 @@ describe 'Kamelopard::LookAt' do
     end
 
     it_should_behave_like 'Kamelopard::Camera-like'
+    it_should_behave_like 'field_producer'
+
     it 'contains the right KML attributes' do
         @o.range = 10
         k = @o.to_kml
@@ -755,14 +762,11 @@ describe 'Kamelopard::TimeStamp' do
     before(:each) do
         @when = '01 Dec 1934 12:12:12 PM'
         @o = Kamelopard::TimeStamp.new @when
+        @fields = [ :when ]
     end
 
     it_should_behave_like 'Kamelopard::TimePrimitive'
-
-    it 'has the right attributes' do
-        @o.should respond_to(:when)
-        @o.should respond_to(:when=)
-    end
+    it_should_behave_like 'field_producer'
 
     it 'has the right KML elements' do
         k = @o.to_kml
@@ -776,14 +780,11 @@ describe 'Kamelopard::TimeSpan' do
         @begin = '01 Dec 1934 12:12:12 PM'
         @end = '02 Dec 1934 12:12:12 PM'
         @o = Kamelopard::TimeSpan.new @begin, @end
+        @fields = %w[ begin end ]
     end
 
     it_should_behave_like 'Kamelopard::TimePrimitive'
-
-    it 'has the right attributes' do
-        fields = %w[ begin end ]
-        fields_exist @o, fields
-    end
+    it_should_behave_like 'field_producer'
 
     it 'has the right KML elements' do
         k = @o.to_kml
@@ -928,10 +929,7 @@ describe 'Kamelopard::Icon' do
 
     it_should_behave_like 'KML_includes_id'
     it_should_behave_like 'KML_producer'
-
-    it 'has the right attributes' do
-        fields_exist @o, @fields
-    end
+    it_should_behave_like 'field_producer'
 
     it 'puts the right fields in KML' do
         @fields.each do |f|
@@ -1022,6 +1020,7 @@ describe 'Kamelopard::LineStyle' do
     end
 
     it_should_behave_like 'Kamelopard::ColorStyle'
+    it_should_behave_like 'field_producer'
 
     it 'should do its KML right' do
         @values.each do |k, v|
@@ -1039,16 +1038,13 @@ describe 'Kamelopard::ListStyle' do
         @listItemType = :check
         @href = 'list href'
         @o = Kamelopard::ListStyle.new @bgColor, @state, @href, @listItemType
+        @fields = %w[ bgColor state listItemType href ]
     end
 
     it_should_behave_like 'Kamelopard::Object'
     it_should_behave_like 'KML_includes_id'
     it_should_behave_like 'KML_producer'
-
-    it 'has the right fields' do
-        fields = %w[ bgColor state listItemType href ]
-        fields_exist @o, fields
-    end
+    it_should_behave_like 'field_producer'
 
     it 'makes the right KML' do
         values = {
@@ -1301,14 +1297,11 @@ describe 'Kamelopard::ScreenOverlay' do
         @rotation = 10
         @name = 'some name'
         @o = Kamelopard::ScreenOverlay.new Kamelopard::Icon.new('test'), @name, @xy, @rotation, @xy, @xy, @xy
+        @fields = %w[ overlayXY screenXY rotationXY size rotation ]
     end
 
     it_should_behave_like 'Kamelopard::Overlay'
-
-    it 'has the right attributes' do
-        fields = %w[ overlayXY screenXY rotationXY size rotation ]
-        fields_exist @o, fields
-    end
+    it_should_behave_like 'field_producer'
 
     it 'has the right KML' do
         d = @o.to_kml
@@ -1327,12 +1320,10 @@ describe 'Kamelopard::ViewVolume' do
     before(:each) do
         @n = 34
         @o = Kamelopard::ViewVolume.new @n, -@n, @n, -@n, @n
+        @fields = %w[ leftFov rightFov bottomFov topFov near ]
     end
 
-    it 'has the right attributes' do
-        fields = %w[ leftFov rightFov bottomFov topFov near ]
-        fields_exist @o, fields
-    end
+    it_should_behave_like 'field_producer'
 
     it 'has the right KML' do
         d = @o.to_kml
@@ -1345,12 +1336,10 @@ describe 'Kamelopard::ImagePyramind' do
     before(:each) do
         @n = 34
         @o = Kamelopard::ImagePyramid.new @n, @n, @n, @n
+        @fields = %w[ tileSize maxWidth maxHeight gridOrigin ]
     end
 
-    it 'has the right attributes' do
-        fields = %w[ tileSize maxWidth maxHeight gridOrigin ]
-        fields_exist @o, fields
-    end
+    it_should_behave_like 'field_producer'
 
     it 'has the right KML' do
         d = @o.to_kml
@@ -1369,14 +1358,11 @@ describe 'Kamelopard::PhotoOverlay' do
         @ip = Kamelopard::ImagePyramid.new @n, @n, @n, @n
         @shape = 'cylinder'
         @o = Kamelopard::PhotoOverlay.new @icon, @point, @rotation, @vv, @ip, @shape
+        @fields = %w[ rotation viewvolume imagepyramid point shape ]
     end
 
     it_should_behave_like 'Kamelopard::Overlay'
-
-    it 'has the right attributes' do
-        fields = %w[ rotation viewvolume imagepyramid point shape ]
-        fields_exist @o, fields
-    end
+    it_should_behave_like 'field_producer'
 
     it 'has the right KML' do
         d = @o.to_kml
@@ -1386,3 +1372,82 @@ describe 'Kamelopard::PhotoOverlay' do
         match_image_pyramid(d.elements['//ImagePyramid'], @n).should be_true
     end
 end
+
+describe 'Kamelopard::LatLonBox' do
+    before(:each) do
+        @n = 130.2
+        @o = Kamelopard::LatLonBox.new @n, @n, @n, @n, @n, @n, @n, :relativeToGround
+        @fields = %w[ north south east west rotation minAltitude maxAltitude altitudeMode ]
+    end
+
+    it_should_behave_like 'KML_producer'
+    it_should_behave_like 'field_producer'
+
+    it 'has the right KML in altitude mode' do
+        d = @o.to_kml(nil, true)
+        d.elements['//minAltitude'].text.should == @n.to_s
+        d.elements['//maxAltitude'].text.should == @n.to_s
+        test_lat_lon_box(d, @o)
+    end
+
+    it 'has the right KML in non-altitude mode' do
+        d = @o.to_kml(nil, false)
+        test_lat_lon_box(d, @o)
+    end
+end
+
+describe 'Kamelopard::LatLonQuad' do
+    before(:each) do
+        @n = 123.2
+        @p = Kamelopard::Point.new @n, @n
+        @o = Kamelopard::LatLonQuad.new @p, @p, @p, @p
+        @fields = %w[ lowerLeft lowerRight upperRight upperLeft ]
+    end
+
+    it_should_behave_like 'KML_producer'
+    it_should_behave_like 'field_producer'
+
+    it 'has the right KML' do
+        d = @o.to_kml
+        test_lat_lon_quad(d, @n)
+    end
+end
+
+describe 'Kamelopard::GroundOverlay' do
+    before(:each) do
+        @icon_href = 'some href'
+        @i = Kamelopard::Icon.new @icon_href
+        @n = 123.2
+        @lb = Kamelopard::LatLonBox.new @n, @n, @n, @n, @n, @n, @n, :relativeToGround
+        @p = Kamelopard::Point.new @n, @n
+        @lq = Kamelopard::LatLonQuad.new @p, @p, @p, @p
+        @altmode = :relativeToSeaFloor
+        @o = Kamelopard::GroundOverlay.new @i, @lb, @lq, @n, @altmode
+        @fields = %w[ altitude altitudeMode latlonbox latlonquad ]
+    end
+
+    it_should_behave_like 'Kamelopard::Overlay'
+    it_should_behave_like 'field_producer'
+    it_should_behave_like 'altitudeMode'
+
+    it 'complains when latlonbox and latlonquad are nil' do
+        o = Kamelopard::GroundOverlay.new @i, nil, nil, @n, @altmode
+        lambda { o.to_kml }.should raise_exception
+        o.latlonquad = @lq
+        lambda { o.to_kml }.should_not raise_exception
+    end
+
+    it 'has the right KML' do
+        d = @o.to_kml
+        d.root.name.should == 'GroundOverlay'
+        d.elements['//altitude'].text.should == @n.to_s
+        test_lat_lon_box(d, @lb)
+        test_lat_lon_quad(d, @n)
+    end
+end
+    #        k << @latlonbox.to_kml(indent + 4) unless @latlonbox.nil?
+    #        k << @latlonquad.to_kml(indent + 4) unless @latlonquad.nil?
+    #        k << "#{ ' ' * indent }</GroundOverlay>\n"
+    #        k
+    #    end
+    #end
