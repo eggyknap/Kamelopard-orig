@@ -16,6 +16,12 @@ def test_lat_lon_box(l, latlon)
     l.elements['//west'].text.should == latlon.west.to_s
 end
 
+def test_lod(d, lodval)
+    %w[ minLodPixels maxLodPixels minFadeExtent maxFadeExtent ].each do |f|
+        d.elements["//#{f}"].text.to_i.should == lodval
+    end
+end
+
 def check_kml_values(o, values)
     values.each do |k, v|
         o.method("#{k}=").call(v)
@@ -749,11 +755,11 @@ describe 'Kamelopard::LookAt' do
 
     it_should_behave_like 'Kamelopard::Camera-like'
     it_should_behave_like 'field_producer'
+    it_should_behave_like 'KML_root_name'
 
     it 'contains the right KML attributes' do
         @o.range = 10
         k = @o.to_kml
-        k.root.name.should == 'LookAt'
         k.elements['[range=10]'].should_not be_nil
     end
 end
@@ -767,10 +773,10 @@ describe 'Kamelopard::TimeStamp' do
 
     it_should_behave_like 'Kamelopard::TimePrimitive'
     it_should_behave_like 'field_producer'
+    it_should_behave_like 'KML_root_name'
 
     it 'has the right KML elements' do
         k = @o.to_kml
-        k.root.name.should == 'TimeStamp'
         k.elements["[when='#{ @when }']"].should_not be_nil
     end
 end
@@ -785,10 +791,10 @@ describe 'Kamelopard::TimeSpan' do
 
     it_should_behave_like 'Kamelopard::TimePrimitive'
     it_should_behave_like 'field_producer'
+    it_should_behave_like 'KML_root_name'
 
     it 'has the right KML elements' do
         k = @o.to_kml
-        k.root.name.should == 'TimeSpan'
         k.elements["[begin='#{ @begin }']"].should_not be_nil
         k.elements["[end='#{ @end }']"].should_not be_nil
     end
@@ -851,12 +857,12 @@ describe 'Kamelopard::ColorStyle' do
     end
 
     it_should_behave_like 'Kamelopard::ColorStyle'
+    it_should_behave_like 'KML_root_name'
 
     it 'should return the right KML' do
         @o.color = 'deadbeef'
         @o.colorMode = :random
         d = @o.to_kml
-        d.root.name.should == 'ColorStyle'
         d.elements['//color'].text.should == 'deadbeef'
         d.elements['//colorMode'].text.should == 'random'
     end
@@ -873,6 +879,7 @@ describe 'Kamelopard::BalloonStyle' do
     it_should_behave_like 'Kamelopard::Object'
     it_should_behave_like 'KML_includes_id'
     it_should_behave_like 'KML_producer'
+    it_should_behave_like 'KML_root_name'
 
     it 'should have the right attributes' do
         @o.bgColor.should == 'deadbeef'
@@ -882,7 +889,6 @@ describe 'Kamelopard::BalloonStyle' do
 
     it 'should return the right KML' do
         s = @o.to_kml
-        s.root.name.should == 'BalloonStyle'
         s.elements['//text'].text.should == 'balloon text'
         s.elements['//bgColor'].text.should == 'deadbeef'
         s.elements['//textColor'].text.should == 'deadbeef'
@@ -1324,10 +1330,10 @@ describe 'Kamelopard::ViewVolume' do
     end
 
     it_should_behave_like 'field_producer'
+    it_should_behave_like 'KML_root_name'
 
     it 'has the right KML' do
         d = @o.to_kml
-        d.root.name.should == 'ViewVolume'
         match_view_vol(d, @n)
     end
 end
@@ -1340,10 +1346,10 @@ describe 'Kamelopard::ImagePyramind' do
     end
 
     it_should_behave_like 'field_producer'
+    it_should_behave_like 'KML_root_name'
 
     it 'has the right KML' do
         d = @o.to_kml
-        d.root.name.should == 'ImagePyramid'
         match_image_pyramid(d, @n)
     end
 end
@@ -1429,6 +1435,7 @@ describe 'Kamelopard::GroundOverlay' do
     it_should_behave_like 'Kamelopard::Overlay'
     it_should_behave_like 'field_producer'
     it_should_behave_like 'altitudeMode'
+    it_should_behave_like 'KML_root_name'
 
     it 'complains when latlonbox and latlonquad are nil' do
         o = Kamelopard::GroundOverlay.new @i, nil, nil, @n, @altmode
@@ -1439,36 +1446,217 @@ describe 'Kamelopard::GroundOverlay' do
 
     it 'has the right KML' do
         d = @o.to_kml
-        d.root.name.should == 'GroundOverlay'
         d.elements['//altitude'].text.should == @n.to_s
         test_lat_lon_box(d, @lb)
         test_lat_lon_quad(d, @n)
     end
 end
-    #class Lod
-    #    attr_accessor :minpixels, :maxpixels, :minfade, :maxfade
-    #    def initialize(minpixels, maxpixels, minfade, maxfade)
-    #        @minpixels = minpixels
-    #        @maxpixels = maxpixels
-    #        @minfade = minfade
-    #        @maxfade = maxfade
-    #    end
 
-    #    def to_kml(elem = nil)
-    #        k = REXML::Element.new 'Lod'
-    #        m = REXML::Element.new 'minLodPixels'
-    #        m.text = @minpixels
-    #        k.elements << m
-    #        m = REXML::Element.new 'maxLodPixels'
-    #        m.text = @maxpixels
-    #        k.elements << m
-    #        m = REXML::Element.new 'minFadeExtent'
-    #        m.text = @minfade
-    #        k.elements << m
-    #        m = REXML::Element.new 'maxFadeExtent'
-    #        m.text = @maxfade
-    #        k.elements << m
-    #        elem.elements << k unless elem.nil?
-    #        k
-    #    end
-    #end
+describe 'Kamelopard::Lod' do
+    before(:each) do
+        @n = 324
+        @o = Kamelopard::Lod.new @n, @n, @n, @n
+        @fields = %w[ minpixels maxpixels minfade maxfade ]
+    end
+
+    it_should_behave_like 'field_producer'
+    it_should_behave_like 'KML_root_name'
+
+    it 'has the right KML' do
+        d = @o.to_kml
+        test_lod d, @n
+    end
+end
+
+describe 'Kamelopard::Region' do
+    before(:each) do
+        @n = 12
+        @lb = Kamelopard::LatLonBox.new @n, @n, @n, @n, @n, @n, @n, :relativeToGround
+        @ld = Kamelopard::Lod.new @n, @n, @n, @n
+        @o = Kamelopard::Region.new @lb, @ld
+        @fields = %w[ latlonaltbox lod ]
+    end
+
+    it_should_behave_like 'Kamelopard::Object'
+    it_should_behave_like 'field_producer'
+    it_should_behave_like 'KML_root_name'
+
+    it 'has the right KML' do
+        d = @o.to_kml
+        test_lat_lon_box(d.elements['//LatLonAltBox'], @lb)
+        test_lod(d.elements['//Lod'], @n)
+    end
+end
+
+describe 'Kamelopard::Orientation' do
+    before(:each) do
+        @n = 37
+        @o = Kamelopard::Orientation.new @n, @n, @n
+        @fields = %w[ heading tilt roll ]
+    end
+
+    it_should_behave_like 'KML_producer'
+    it_should_behave_like 'field_producer'
+    it_should_behave_like 'KML_root_name'
+
+    it 'should complain with weird arguments' do
+        lambda { Kamelopard::Orientation.new -1, @n, @n }.should raise_exception
+        lambda { Kamelopard::Orientation.new @n, -1, @n }.should raise_exception
+        lambda { Kamelopard::Orientation.new @n, @n, -1 }.should raise_exception
+        lambda { Kamelopard::Orientation.new 483, @n,  @n }.should raise_exception
+        lambda { Kamelopard::Orientation.new @n,  483, @n }.should raise_exception
+        lambda { Kamelopard::Orientation.new @n,  @n,  483 }.should raise_exception
+    end
+
+    it 'has the right KML' do
+        d = @o.to_kml
+        @fields.each do |f|
+            d.elements["//#{f}"].text.to_i.should == @n
+        end
+    end
+end
+
+describe 'Kamelopard::Scale' do
+    before(:each) do
+        @n = 213
+        @o = Kamelopard::Scale.new @n, @n, @n
+        @fields = %w[ x y z ]
+    end
+
+    it_should_behave_like 'KML_producer'
+    it_should_behave_like 'field_producer'
+    it_should_behave_like 'KML_root_name'
+
+    it 'has the right KML' do
+        d = @o.to_kml
+        @fields.each do |f|
+            d.elements["//#{f}"].text.to_i.should == @n
+        end
+    end
+end
+
+describe 'Kamelopard::Alias' do
+    before(:each) do
+        @n = 'some href'
+        @o = Kamelopard::Alias.new @n, @n
+        @fields = %w[ targetHref sourceHref ]
+    end
+
+    it_should_behave_like 'KML_producer'
+    it_should_behave_like 'field_producer'
+    it_should_behave_like 'KML_root_name'
+
+    it 'has the right KML' do
+        d = @o.to_kml
+        @fields.each do |f|
+            d.elements["//#{f}"].text.should == @n
+        end
+    end
+end
+
+describe 'Kamelopard::ResourceMap' do
+    before(:each) do
+        targets = %w[ Neque porro quisquam est qui  dolorem     ipsum      quia dolor sit  amet consectetur adipisci velit ]
+        sources = %w[ Lorem ipsum dolor    sit amet consectetur adipiscing elit Nunc  quis odio metus       Fusce    at    ]
+        @aliases = []
+        targets.zip(sources).each do |a|
+            @aliases << Kamelopard::Alias.new(a[0], a[1])
+        end
+        @o = Kamelopard::ResourceMap.new @aliases
+        @fields = [ 'aliases' ]
+    end
+
+    it_should_behave_like 'KML_producer'
+    it_should_behave_like 'field_producer'
+    it_should_behave_like 'KML_root_name'
+
+    it 'accepts various aliases correctly' do
+        # ResourceMap should accept its initializer's alias argument either as
+        # an array of Alias object, or as a single Alias object. The
+        # before(:each) block tests the former, and this test the latter
+        o = Kamelopard::ResourceMap.new Kamelopard::Alias.new('test', 'test')
+        o.aliases.size.should == 1
+        @o.aliases.size.should == @aliases.size
+    end
+
+    it 'has the right KML' do
+        # Make this a REXML::Document instead of just a collection of elements, for better XPath support
+        d = REXML::Document.new
+        d << @o.to_kml
+        @aliases.each do |a|
+            d.elements["//Alias[targetHref=\"#{a.targetHref}\" and sourceHref=\"#{a.sourceHref}\"]"].should_not be_nil
+        end
+    end
+end
+
+describe 'Kamelopard::Link' do
+    before(:each) do
+        @href = 'some href'
+        @refreshMode = :onInterval
+        @viewRefreshMode = :onRegion
+        @o = Kamelopard::Link.new @href, @refreshMode, @viewRefreshMode
+        @fields = %w[ href refreshMode refreshInterval viewRefreshMode viewBoundScale viewFormat httpQuery ]
+    end
+
+    it_should_behave_like 'Kamelopard::Object'
+    it_should_behave_like 'KML_producer'
+    it_should_behave_like 'field_producer'
+    it_should_behave_like 'KML_root_name'
+
+    it 'has the right KML' do
+        @n = 213
+        @o.refreshInterval = @n
+        @o.viewBoundScale = @n 
+        @o.viewFormat = @href
+        @o.httpQuery = @href
+        d = @o.to_kml
+        {
+            :href => @href,
+            :refreshMode => @refreshMode,
+            :refreshInterval => @n,
+            :viewRefreshMode => @viewRefreshMode,
+            :viewBoundScale => @n,
+            :viewFormat => @href,
+            :httpQuery => @href
+        }.each do |k, v|
+            d.elements["//#{k}"].text.should == v.to_s
+        end
+    end
+end
+
+describe 'Kamelopard::Model' do
+    before(:each) do
+        @n = 123
+        @href = 'some href'
+        @refreshMode = :onInterval
+        @viewRefreshMode = :onRegion
+        @link = Kamelopard::Link.new @href, @refreshMode, @viewRefreshMode
+        @loc = Kamelopard::Point.new @n, @n, @n
+        @orient = Kamelopard::Orientation.new @n, @n, @n
+        @scale = Kamelopard::Scale.new @n, @n, @n
+        targets = %w[ Neque porro quisquam est qui  dolorem     ipsum      quia dolor sit  amet consectetur adipisci velit ]
+        sources = %w[ Lorem ipsum dolor    sit amet consectetur adipiscing elit Nunc  quis odio metus       Fusce    at    ]
+        @aliases = []
+        targets.zip(sources).each do |a|
+            @aliases << Kamelopard::Alias.new(a[0], a[1])
+        end
+        @resmap = Kamelopard::ResourceMap.new @aliases
+        @o = Kamelopard::Model.new @link, @loc, @orient, @scale, @resmap
+        @fields = %w[ link location orientation scale resourceMap ]
+    end
+
+    it_should_behave_like 'Kamelopard::Geometry'
+    it_should_behave_like 'KML_producer'
+    it_should_behave_like 'field_producer'
+
+    it 'makes the right KML' do
+        d = REXML::Document.new
+        d << @o.to_kml
+        %w[ Link Location Orientation Scale ResourceMap ].each do |f|
+            d.elements["//#{f}"].should_not be_nil
+        end
+        %w[ longitude latitude altitude ].each do |f|
+            d.elements["//Location/#{f}"].text.to_i.should == @n
+        end
+    end
+end
