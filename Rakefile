@@ -1,7 +1,7 @@
 gemspec = eval(File.read(Dir["*.gemspec"].first))
 desc 'test kamelopard'
 task :test do
-    system "ruby test.rb"
+    system "rspec spec/*"
 end
 
 desc 'test gemspec'
