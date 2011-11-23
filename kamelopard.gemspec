@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
     s.name = 'kamelopard'
-    s.version = '0.0.3'
-    s.date = '2011-08-24'
+    s.version = '0.0.4'
+    s.date = '2011-11-23'
     s.files = Dir['lib/**/*.rb']
     s.authors = ['Joshua Tolley']
     s.email = 'josh@endpoint.com'

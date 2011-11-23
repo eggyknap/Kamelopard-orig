@@ -1,3 +1,10 @@
+= 0.0.4
+
+* Changed all KML output to produce REXML::Element and REXML::Document objects, instead of simply strings containing XML
+* Wrapped all of Kamelopard in a module, to prevent name collisions
+* Changed variuos names to something meaningful, where previously they'd been deliberately made strange to avoid namespace problems
+* Finished test suite, taking into account all the above changes
+
 = 0.0.3
 
 * Significantly expanded test suite after converting it to use rspec
