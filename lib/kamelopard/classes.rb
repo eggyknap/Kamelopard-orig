@@ -722,7 +722,7 @@ module Kamelopard
 
         # Returns the current Tour object
         def tour
-            @tours << Tour.new if @tours.length == 0
+            Tour.new if @tours.length == 0
             @tours.last
         end
 
