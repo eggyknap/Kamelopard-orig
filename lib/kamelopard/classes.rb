@@ -1206,7 +1206,7 @@ module Kamelopard
     # of descendants of these.
     class TourPrimitive < Object
         def initialize
-            Document.instance.tours << self
+            Document.instance.tour << self
             super
         end
     end

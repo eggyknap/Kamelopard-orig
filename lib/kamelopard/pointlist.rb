@@ -19,7 +19,7 @@ class NDPointList
 
     def <<(a)
         # Append points to our list
-        if a.kind_of? Kamelopard::Point then
+        if a.kind_of? KMLPoint then
             if self.dim == 3 then
                 @points << [a.longitude, a.latitude, a.altitude]
             else
