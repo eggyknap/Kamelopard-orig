@@ -9,6 +9,7 @@ module Kamelopard
     require 'kamelopard/pointlist'
     require 'rexml/document'
     require 'rexml/element'
+    require 'yaml'
 
     @@sequence = 0
 
@@ -138,7 +139,7 @@ module Kamelopard
             "Point (#{@longitude}, #{@latitude}, #{@altitude}, mode = #{@altitudeMode}, #{ @extrude ? 'extruded' : 'not extruded' })"
         end
 
-        def to_kml(short = false)
+        def to_kml(elem = nil, short = false)
             e = REXML::Element.new 'Point'
             super(e)
             e.attributes['id'] = @id
@@ -154,9 +155,8 @@ module Kamelopard
                 Kamelopard.add_altitudeMode(@altitudeMode, e)
             end
 
-            d = REXML::Document.new
-            d.add_element e
-            d
+            elem << e unless elem.nil?
+            e
         end
     end
 
@@ -1158,11 +1158,8 @@ module Kamelopard
         attr_accessor :name, :geometry
         def initialize(name = nil, geo = nil)
             super(name)
-            if geo.respond_to? '[]' then
-                @geometry = geo
-            else
-                @geometry = [ geo ]
-            end
+            @geometry = []
+            self.geometry=(geo)
         end
         
         def to_kml(elem = nil)
@@ -1171,6 +1168,14 @@ module Kamelopard
             @geometry.each do |i| i.to_kml(k) unless i.nil? end
             elem << k unless elem.nil?
             k
+        end
+
+        def geometry=(geo)
+            if geo.kind_of? Array then
+                @geometry.concat geo
+            else
+                @geometry << geo
+            end
         end
 
         def to_s
@@ -1518,7 +1523,7 @@ module Kamelopard
             super p
             @viewVolume.to_kml p   unless @viewVolume.nil?
             @imagePyramid.to_kml p unless @imagePyramid.nil?
-            p << @point.to_kml(true)
+            p << @point.to_kml(nil, true)
             {
                 :rotation => @rotation,
                 :shape => @shape

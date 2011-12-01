@@ -643,7 +643,7 @@ describe 'Kamelopard::Point' do
         it 'provides the correct short form' do
             @o.altitudeMode = :clampToSeaFloor
             @o.extrude = 1
-            k = @o.to_kml(true)
+            k = @o.to_kml(nil, true)
             k.elements['//extrude'].should be_nil
             k.elements['//altitudeMode'].should be_nil
         end
