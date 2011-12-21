@@ -9,6 +9,7 @@ module Kamelopard
     require 'kamelopard/pointlist'
     require 'rexml/document'
     require 'rexml/element'
+    require 'xml'
     require 'yaml'
 
     @@sequence = 0
@@ -38,10 +39,14 @@ module Kamelopard
             if ! a[0].nil? then
                 if a[1].kind_of? Proc then
                     a[1].call(e)
+                elsif a[0].kind_of? XML::Node then
+                    d = XML::Node.new(a[1])
+                    d << a[0]
+                    e << d
                 else
-                    t = REXML::Element.new a[1]
-                    t.text = a[0].to_s
-                    e.elements.add t
+                    t = XML::Node.new a[1]
+                    t << a[0].to_s
+                    e << t
                 end
             end
         end
@@ -91,29 +96,30 @@ module Kamelopard
     def Kamelopard.add_altitudeMode(mode, e)
         return if mode.nil?
         if mode == :clampToGround or mode == :relativeToGround or mode == :absolute then
-            t = REXML::Element.new 'altitudeMode'
+            t = XML::Node.new 'altitudeMode'
         else
-            t = REXML::Element.new 'gx:altitudeMode'
+            t = XML::Node.new 'gx:altitudeMode'
         end
-        t.text = mode
-        e.elements.add t
+        t << mode.to_s
+        e << t
     end
 
     # Base class for all Kamelopard objects. Manages object ID and a single
     # comment string associated with the object
     class Object
-        attr_accessor :id, :comment
+        attr_accessor :obj_id, :comment
 
         def initialize(comment = nil)
-            @id = "#{self.class.name.gsub('Kamelopard::', '')}_#{ Kamelopard.get_next_id }"
+            @obj_id = "#{self.class.name.gsub('Kamelopard::', '')}_#{ Kamelopard.get_next_id }"
             @comment = comment.gsub(/</, '&lt;') unless comment.nil?
         end
 
         # Returns KML string for this object. Objects should override this method
         def to_kml(elem)
-            elem.attributes['id'] = @id
+            elem.attributes['id'] = @obj_id
             if not @comment.nil? and @comment != '' then
-                c = REXML::Comment.new " #{@comment} ", elem
+                c = XML::Node.new_comment " #{@comment} "
+                elem << c
                 return c
             end
         end
@@ -140,17 +146,17 @@ module Kamelopard
         end
 
         def to_kml(elem = nil, short = false)
-            e = REXML::Element.new 'Point'
+            e = XML::Node.new 'Point'
             super(e)
-            e.attributes['id'] = @id
-            c = REXML::Element.new 'coordinates'
-            c.text = "#{ @longitude }, #{ @latitude }, #{ @altitude }"
-            e.elements.add c
+            e.attributes['id'] = @obj_id
+            c = XML::Node.new 'coordinates'
+            c << "#{ @longitude }, #{ @latitude }, #{ @altitude }"
+            e << c
 
             if not short then
-                c = REXML::Element.new 'extrude'
-                c.text = @extrude ? 1 : 0
-                e.elements.add c
+                c = XML::Node.new 'extrude'
+                c << ( @extrude ? 1 : 0 ).to_s
+                e << c
 
                 Kamelopard.add_altitudeMode(@altitudeMode, e)
             end
@@ -178,15 +184,15 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            e = REXML::Element.new 'coordinates'
+            e = XML::Node.new 'coordinates'
             t = ''
             @coordinates.each do |a|
                 t << "#{ a[0] },#{ a[1] }"
                 t << ",#{ a[2] }" if a.size > 2
                 t << ' '
             end
-            e.text = t.chomp(' ')
-            elem.elements.add e unless elem.nil?
+            e << t.chomp(' ')
+            elem << e unless elem.nil?
             e
         end
 
@@ -276,7 +282,7 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            k = REXML::Element.new 'LineString'
+            k = XML::Node.new 'LineString'
             super(k)
             Kamelopard.kml_array(k, [
                 [@altitudeOffset, 'gx:altitudeOffset'],
@@ -286,7 +292,7 @@ module Kamelopard
             ])
             @coordinates.to_kml(k) unless @coordinates.nil?
             Kamelopard.add_altitudeMode @altitudeMode, k
-            elem.elements << k unless elem.nil?
+            elem << k unless elem.nil?
             k
         end
     end
@@ -325,7 +331,7 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            k = REXML::Element.new 'LinearRing'
+            k = XML::Node.new 'LinearRing'
             super(k)
             Kamelopard.kml_array(k, [
                 [ @altitudeOffset, 'gx:altitudeOffset' ],
@@ -334,7 +340,7 @@ module Kamelopard
             ])
             Kamelopard.add_altitudeMode(@altitudeMode, k)
             @coordinates.to_kml(k)
-            elem.elements << k unless elem.nil?
+            elem << k unless elem.nil?
             k
         end
     end
@@ -405,7 +411,7 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            t = REXML::Element.new @className
+            t = XML::Node.new @className
             super(t)
             Kamelopard.kml_array(t, [
                 [ @point.nil? ? nil : @point.longitude, 'longitude' ],
@@ -418,21 +424,21 @@ module Kamelopard
             ])
             Kamelopard.add_altitudeMode(@altitudeMode, t)
             if @options.keys.length > 0 then
-                vo = REXML::Element.new 'gx:ViewerOptions'
+                vo = XML::Node.new 'gx:ViewerOptions'
                 @options.each do |k, v|
-                    o = REXML::Element.new 'gx:option'
+                    o = XML::Node.new 'gx:option'
                     o.attributes['name'] = k
                     o.attributes['enabled'] = v ? 'true' : 'false'
-                    vo.elements << o
+                    vo << o
                 end
-                t.elements << vo
+                t << vo
             end
             if not @timestamp.nil? then
                 @timestamp.to_kml(t, 'gx')
             elsif not @timespan.nil? then
                 @timespan.to_kml(t, 'gx')
             end
-            elem.elements << t unless elem.nil?
+            elem << t unless elem.nil?
             t
         end
 
@@ -497,12 +503,12 @@ module Kamelopard
             prefix = ''
             prefix = ns + ':' unless ns.nil?
             
-            k = REXML::Element.new "#{prefix}TimeStamp"
+            k = XML::Node.new "#{prefix}TimeStamp"
             super(k)
-            w = REXML::Element.new 'when'
-            w.text = @when
-            k.elements << w
-            elem.elements << k unless elem.nil?
+            w = XML::Node.new 'when'
+            w << @when
+            k << w
+            elem << k unless elem.nil?
             k
         end
     end
@@ -521,18 +527,18 @@ module Kamelopard
             prefix = ''
             prefix = ns + ':' unless ns.nil?
             
-            k = REXML::Element.new "#{prefix}TimeSpan"
+            k = XML::Node.new "#{prefix}TimeSpan"
             super(k)
             if not @begin.nil? then
-                w = REXML::Element.new 'begin'
-                w.text = @begin
-                k.elements << w
+                w = XML::Node.new 'begin'
+                w << @begin
+                k << w
             end
             if not @end.nil? then
-                w = REXML::Element.new 'end'
-                w.text = @end
-                k.elements << w
-                elem.elements << k unless elem.nil?
+                w = XML::Node.new 'end'
+                w << @end
+                k << w
+                elem << k unless elem.nil?
             end
             k
         end
@@ -547,10 +553,10 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            e = REXML::Element.new 'Snippet'
-            e.attributes['maxLines'] = @maxLines
-            e.text = @text
-            elem.elements << e unless elem.nil?
+            e = XML::Node.new 'Snippet'
+            e.attributes['maxLines'] = @maxLines.to_s
+            e << @text
+            elem << e unless elem.nil?
             e
         end
     end
@@ -559,10 +565,10 @@ module Kamelopard
     class Feature < Object
         # Abatract class
         attr_accessor :visibility, :open, :atom_author, :atom_link, :name,
-            :phoneNumber, :snippet, :description, :abstractView,
+            :phoneNumber, :description, :abstractView,
             :timeprimitive, :styleUrl, :styleSelector, :region, :metadata,
             :extendedData, :styles
-        attr_reader :addressDetails
+        attr_reader :addressDetails, :snippet
 
         def initialize (name = nil)
             super()
@@ -570,6 +576,14 @@ module Kamelopard
             @visibility = true
             @open = false
             @styles = []
+        end
+
+        def snippet=(a)
+            if a.is_a? String then
+                @snippet = Kamelopard::Snippet.new a
+            else
+                @snippet = a
+            end
         end
 
         def timestamp
@@ -598,27 +612,27 @@ module Kamelopard
         end
 
         # This function accepts either a StyleSelector object, or a string
-        # containing the desired StyleSelector's @id
+        # containing the desired StyleSelector's @obj_id
         def styleUrl=(a)
             if a.is_a? String then
                 @styleUrl = a
             elsif a.respond_to? 'id' then
-                @styleUrl = "##{ a.id }"
+                @styleUrl = "##{ a.obj_id }"
             else
                 @styleUrl = a.to_s
             end
         end
 
         def self.add_author(o, a)
-            e = REXML::Element.new 'atom:name'
-            e.text = a
-            f = REXML::Element.new 'atom:author'
+            e = XML::Node.new 'atom:name'
+            e << a.to_s
+            f = XML::Node.new 'atom:author'
             f << e
             o << f
         end
 
         def to_kml(elem = nil)
-            elem = REXML::Element.new 'Feature' if elem.nil?
+            elem = XML::Node.new 'Feature' if elem.nil?
             super(elem)
             Kamelopard.kml_array(elem, [
                     [@name, 'name'],
@@ -677,7 +691,7 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            h = REXML::Element.new 'Folder'
+            h = XML::Node.new 'Folder'
             super h
             @features.each do |a|
                 a.to_kml(h)
@@ -685,7 +699,7 @@ module Kamelopard
             @folders.each do |a|
                 a.to_kml(h)
             end
-            elem.elements << h unless elem.nil?
+            elem << h unless elem.nil?
             h
         end
 
@@ -738,9 +752,11 @@ module Kamelopard
     #    end
 
         def get_kml_document
-            k = REXML::Document.new
-            k << REXML::XMLDecl.default
-            r = REXML::Element.new('kml')
+            k = XML::Document.new
+            # XXX fix this
+            #k << XML::XMLDecl.default
+            k.root = XML::Node.new('kml')
+            r = k.root
             if @uses_xal then
                 r.attributes['xmlns:xal'] = "urn:oasis:names:tc:ciq:xsdschema:xAL:2.0"
             end
@@ -749,13 +765,12 @@ module Kamelopard
             r.attributes['xmlns:gx'] = 'http://www.google.com/kml/ext/2.2'
             r.attributes['xmlns:kml'] = 'http://www.opengis.net/kml/2.2'
             r.attributes['xmlns:atom'] = 'http://www.w3.org/2005/Atom'
-            r.elements << self.to_kml
-            k << r
+            r << self.to_kml
             k
         end
 
         def to_kml
-            d = REXML::Element.new 'Document'
+            d = XML::Node.new 'Document'
             super(d)
 
             # Print styles first
@@ -830,14 +845,14 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            k = elem.nil? ? REXML::Element.new('ColorStyle') : elem
+            k = elem.nil? ? XML::Node.new('ColorStyle') : elem
             super k
-            e = REXML::Element.new 'color'
-            e.text = @color
-            k.elements << e
-            e = REXML::Element.new 'colorMode'
-            e.text = @colorMode
-            k.elements << e
+            e = XML::Node.new 'color'
+            e << @color
+            k << e
+            e = XML::Node.new 'colorMode'
+            e << @colorMode
+            k << e
             k
         end
     end
@@ -858,7 +873,7 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            k = REXML::Element.new 'BalloonStyle'
+            k = XML::Node.new 'BalloonStyle'
             super k
             Kamelopard.kml_array(k, [
                 [ @bgColor, 'bgColor' ],
@@ -882,28 +897,28 @@ module Kamelopard
         end
 
         def to_kml(name, elem = nil)
-            k = REXML::Element.new name
+            k = XML::Node.new name
             k.attributes['x'] = @x
             k.attributes['y'] = @y
             k.attributes['xunits'] = @xunits
             k.attributes['yunits'] = @yunits
-            elem.elements << k unless elem.nil?
+            elem << k unless elem.nil?
             k
         end
     end
 
     # Corresponds to the KML Icon object
     class Icon
-        attr_accessor :id, :href, :x, :y, :w, :h, :refreshMode, :refreshInterval, :viewRefreshMode, :viewRefreshTime, :viewBoundScale, :viewFormat, :httpQuery
+        attr_accessor :obj_id, :href, :x, :y, :w, :h, :refreshMode, :refreshInterval, :viewRefreshMode, :viewRefreshTime, :viewBoundScale, :viewFormat, :httpQuery
 
         def initialize(href = nil)
             @href = href
-            @id = "Icon_#{ Kamelopard.get_next_id }"
+            @obj_id = "Icon_#{ Kamelopard.get_next_id }"
         end
 
         def to_kml(elem = nil)
-            k = REXML::Element.new 'Icon'
-            k.attributes['id'] = @id
+            k = XML::Node.new 'Icon'
+            k.attributes['id'] = @obj_id
             Kamelopard.kml_array(k, [
                 [@href, 'href'],
                 [@x, 'gx:x'],
@@ -918,7 +933,7 @@ module Kamelopard
                 [@viewFormat, 'viewFormat'],
                 [@httpQuery, 'httpQuery'],
             ])
-            elem.elements << k unless elem.nil?
+            elem << k unless elem.nil?
             k
         end
     end
@@ -936,22 +951,22 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            k = REXML::Element.new 'IconStyle'
+            k = XML::Node.new 'IconStyle'
             super(k)
             Kamelopard.kml_array( k, [
                 [ @scale, 'scale' ],
                 [ @heading, 'heading' ]
             ])
             if not @hotspot.nil? then
-                h = REXML::Element.new 'hotSpot'
-                h.attributes['x'] = @hotspot.x
-                h.attributes['y'] = @hotspot.y
-                h.attributes['xunits'] = @hotspot.xunits
-                h.attributes['yunits'] = @hotspot.yunits
-                k.elements << h
+                h = XML::Node.new 'hotSpot'
+                h.attributes['x'] = @hotspot.x.to_s
+                h.attributes['y'] = @hotspot.y.to_s
+                h.attributes['xunits'] = @hotspot.xunits.to_s
+                h.attributes['yunits'] = @hotspot.yunits.to_s
+                k << h
             end
             @icon.to_kml(k) unless @icon.nil?
-            elem.elements << k unless elem.nil?
+            elem << k unless elem.nil?
             k
         end
     end
@@ -966,12 +981,12 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            k = REXML::Element.new 'LabelStyle'
+            k = XML::Node.new 'LabelStyle'
             super k
-            s = REXML::Element.new 'scale'
-            s.text = @scale
-            k.elements << s
-            elem.elements << k unless elem.nil?
+            s = XML::Node.new 'scale'
+            s << @scale.to_s
+            k << s
+            elem << k unless elem.nil?
             k
         end
     end
@@ -991,7 +1006,7 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            k = REXML::Element.new 'LineStyle'
+            k = XML::Node.new 'LineStyle'
             super k
             Kamelopard.kml_array(k, [
                 [ @width, 'width' ],
@@ -999,7 +1014,7 @@ module Kamelopard
                 [ @outerWidth, 'gx:outerWidth' ],
                 [ @physicalWidth, 'gx:physicalWidth' ],
             ])
-            elem.elements << k unless elem.nil?
+            elem << k unless elem.nil?
             k
         end
     end
@@ -1007,11 +1022,16 @@ module Kamelopard
     # Corresponds to KML's ListStyle object. Color is stored as an 8-character hex
     # string, with two characters each of alpha, blue, green, and red values, in
     # that order, matching the ordering the KML spec demands.
-    class ListStyle < ColorStyle
+    #--
+    # This doesn't descend from ColorStyle because I don't want the to_kml()
+    # call to super() adding color and colorMode elements to the KML -- Google
+    # Earth complains about 'em
+    #++
+    class ListStyle < Object
         attr_accessor :listItemType, :bgColor, :state, :href
 
         def initialize(bgcolor = nil, state = nil, href = nil, listitemtype = nil)
-            super(nil, :normal)
+            super()
             @bgcolor = bgcolor
             @state = state
             @href = href
@@ -1019,21 +1039,21 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            k = REXML::Element.new 'ListStyle'
-            super k
+            k = XML::Node.new 'ListStyle'
+            # super k -- Don't bother 
             Kamelopard.kml_array(k, [
                 [@listitemtype, 'listItemType'],
                 [@bgcolor, 'bgColor']
             ])
             if (! @state.nil? or ! @href.nil?) then
-                i = REXML::Element.new 'ItemIcon'
+                i = XML::Node.new 'ItemIcon'
                 Kamelopard.kml_array(i, [
                     [ @state, 'state' ],
                     [ @href, 'href' ]
                 ])
-                k.elements << i
+                k << i
             end
-            elem.elements << k unless elem.nil?
+            elem << k unless elem.nil?
             k
         end
     end
@@ -1051,13 +1071,13 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            k = REXML::Element.new 'PolyStyle'
+            k = XML::Node.new 'PolyStyle'
             super k
             Kamelopard.kml_array( k, [
                 [ @fill, 'fill' ],
                 [ @outline, 'outline' ]
             ])
-            elem.elements << k unless elem.nil?
+            elem << k unless elem.nil?
             k
         end
     end
@@ -1081,7 +1101,7 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            elem = REXML::Element.new 'StyleSelector' if elem.nil?
+            elem = XML::Node.new 'StyleSelector' if elem.nil?
             super elem
             elem
         end
@@ -1102,7 +1122,7 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            k = REXML::Element.new 'Style'
+            k = XML::Node.new 'Style'
             super(k)
             @icon.to_kml(k) unless @icon.nil?
             @label.to_kml(k) unless @label.nil?
@@ -1110,7 +1130,7 @@ module Kamelopard
             @poly.to_kml(k) unless @poly.nil?
             @balloon.to_kml(k) unless @balloon.nil?
             @list.to_kml(k) unless @list.nil?
-            elem.elements << k unless elem.nil?
+            elem << k unless elem.nil?
             k
         end
     end
@@ -1131,23 +1151,23 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            t = REXML::Element.new 'StyleMap'
+            t = XML::Node.new 'StyleMap'
             super t
             @pairs.each do |k, v|
-                p = REXML::Element.new 'Pair'
-                key = REXML::Element.new 'key'
-                key.text = k
-                p.elements << key 
+                p = XML::Node.new 'Pair'
+                key = XML::Node.new 'key'
+                key << k.to_s
+                p. << key 
                 if v.kind_of? Style then
                     v.to_kml(p)
                 else
-                    s = REXML::Element.new 'styleUrl'
-                    s.text = v
-                    p.elements << s
+                    s = XML::Node.new 'styleUrl'
+                    s << v.to_s
+                    p << s
                 end
-                t.elements << p
+                t << p
             end
-            elem.elements << t unless elem.nil?
+            elem << t unless elem.nil?
             t
         end
     end
@@ -1158,12 +1178,13 @@ module Kamelopard
         attr_accessor :name, :geometry
         def initialize(name = nil, geo = nil)
             super(name)
+            # XXX FAIL... Placemarks should have 0 or 1 geometry elements. Use MultiGeometry for more
             @geometry = []
             self.geometry=(geo)
         end
         
         def to_kml(elem = nil)
-            k = REXML::Element.new 'Placemark'
+            k = XML::Node.new 'Placemark'
             super k
             @geometry.each do |i| i.to_kml(k) unless i.nil? end
             elem << k unless elem.nil?
@@ -1179,7 +1200,7 @@ module Kamelopard
         end
 
         def to_s
-            "Placemark id #{ @id } named #{ @name }"
+            "Placemark id #{ @obj_id } named #{ @name }"
         end
 
         def longitude
@@ -1236,7 +1257,7 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            k = REXML::Element.new 'gx:FlyTo'
+            k = XML::Node.new 'gx:FlyTo'
             super k
             Kamelopard.kml_array(k, [
                 [ @duration, 'gx:duration' ],
@@ -1261,7 +1282,7 @@ module Kamelopard
             super()
             begin
                 raise "incorrect object type" unless @target.kind_of? Object
-                @target = target.id
+                @target = target.obj_id
             rescue RuntimeError
                 @target = target
             end
@@ -1272,23 +1293,23 @@ module Kamelopard
 
         # Adds another update string, presumably containing a <Change> element
         def <<(a)
-            @updates << REXML::Document.new(a).root
+            @updates << XML::Node.new_text( a )
         end
 
         def to_kml(elem = nil)
-            k = REXML::Element.new 'gx:AnimatedUpdate'
+            k = XML::Node.new 'gx:AnimatedUpdate'
             super(k)
-            d = REXML::Element.new 'gx:duration'
-            d.text = @duration
+            d = XML::Node.new 'gx:duration'
+            d << @duration.to_s
             k << d
             if not @delayedStart.nil? then
-                d = REXML::Element.new 'gx:delayedStart'
-                d.text = @delayedStart
+                d = XML::Node.new 'gx:delayedStart'
+                d << @delayedStart.to_s
                 k << d
             end
-            d = REXML::Element.new 'Update'
-            q = REXML::Element.new 'targetHref'
-            q.text = @target
+            d = XML::Node.new 'Update'
+            q = XML::Node.new 'targetHref'
+            q << @target.to_s
             d << q
             @updates.each do |i| d << i end
             k << d
@@ -1304,10 +1325,10 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            k = REXML::Element.new 'gx:TourControl'
+            k = XML::Node.new 'gx:TourControl'
             super(k)
-            q = REXML::Element.new 'gx:playMode'
-            q.text = 'pause'
+            q = XML::Node.new 'gx:playMode'
+            q << 'pause'
             k << q
             elem << k unless elem.nil?
             k
@@ -1323,10 +1344,10 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            k = REXML::Element.new 'gx:Wait'
+            k = XML::Node.new 'gx:Wait'
             super k
-            d = REXML::Element.new 'gx:duration'
-            d.text = @duration
+            d = XML::Node.new 'gx:duration'
+            d << @duration.to_s
             k << d
             elem << k unless elem.nil?
             k
@@ -1343,14 +1364,14 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            k = REXML::Element.new 'gx:SoundCue'
+            k = XML::Node.new 'gx:SoundCue'
             super k
-            d = REXML::Element.new 'href'
-            d.text = @href
+            d = XML::Node.new 'href'
+            d << @href.to_s
             k << d
             if not @delayedStart.nil? then
-                d = REXML::Element.new 'gx:delayedStart'
-                d.text = @delayedStart
+                d = XML::Node.new 'gx:delayedStart'
+                d << @delayedStart.to_s
                 k << d
             end
             elem << k unless elem.nil?
@@ -1376,13 +1397,13 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            k = REXML::Element.new 'gx:Tour'
+            k = XML::Node.new 'gx:Tour'
             super k
             Kamelopard.kml_array(k, [
                 [ @name, 'name' ],
                 [ @description, 'description' ],
             ])
-            p = REXML::Element.new 'gx:Playlist'
+            p = XML::Node.new 'gx:Playlist'
             @items.map do |a| a.to_kml p end
             k << p
             elem << k unless elem.nil?
@@ -1428,15 +1449,15 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            k = REXML::Element.new 'ScreenOverlay'
+            k = XML::Node.new 'ScreenOverlay'
             super k
             @overlayXY.to_kml('overlayXY', k)   unless @overlayXY.nil?
             @screenXY.to_kml('screenXY', k)     unless @screenXY.nil?
             @rotationXY.to_kml('rotationXY', k) unless @rotationXY.nil?
             @size.to_kml('size', k)             unless @size.nil?
             if ! @rotation.nil? then
-                d = REXML::Element.new 'rotation'
-                d.text = @rotation
+                d = XML::Node.new 'rotation'
+                d << @rotation.to_s
                 k << d
             end
             elem << k unless elem.nil?
@@ -1456,7 +1477,7 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            p = REXML::Element.new 'ViewVolume'
+            p = XML::Node.new 'ViewVolume'
             {
                 :near => @near,
                 :leftFov => @leftFov,
@@ -1464,8 +1485,8 @@ module Kamelopard
                 :topFov => @topFov,
                 :bottomFov => @bottomFov
             }.each do |k, v|
-                d = REXML::Element.new k.to_s
-                d.text = v
+                d = XML::Node.new k.to_s
+                d << v.to_s
                 p << d
             end
             elem << p unless elem.nil?
@@ -1485,15 +1506,15 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            p = REXML::Element.new 'ImagePyramid'
+            p = XML::Node.new 'ImagePyramid'
             {
                 :tileSize => @tileSize,
                 :maxWidth => @maxWidth,
                 :maxHeight => @maxHeight,
                 :gridOrigin => @gridOrigin
             }.each do |k, v|
-                d = REXML::Element.new k.to_s
-                d.text = v
+                d = XML::Node.new k.to_s
+                d << v.to_s
                 p << d
             end
             elem << p unless elem.nil?
@@ -1519,7 +1540,7 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            p = REXML::Element.new 'PhotoOverlay'
+            p = XML::Node.new 'PhotoOverlay'
             super p
             @viewVolume.to_kml p   unless @viewVolume.nil?
             @imagePyramid.to_kml p unless @imagePyramid.nil?
@@ -1528,8 +1549,8 @@ module Kamelopard
                 :rotation => @rotation,
                 :shape => @shape
             }.each do |k, v|
-                d = REXML::Element.new k.to_s
-                d.text = v
+                d = XML::Node.new k.to_s
+                d << v.to_s
                 p << d
             end
             elem << p unless elem.nil?
@@ -1571,7 +1592,7 @@ module Kamelopard
 
         def to_kml(elem = nil, alt = false)
             name = alt ? 'LatLonAltBox' : 'LatLonBox'
-            k = REXML::Element.new name
+            k = XML::Node.new name
             [
                 ['north', @north], 
                 ['south', @south], 
@@ -1581,18 +1602,18 @@ module Kamelopard
                 ['maxAltitude', @maxAltitude]
             ].each do |a|
                 if not a[1].nil? then
-                    m = REXML::Element.new a[0]
-                    m.text = a[1]
-                    k.elements << m
+                    m = XML::Node.new a[0]
+                    m << a[1].to_s
+                    k << m
                 end
             end
             if (not @minAltitude.nil? or not @maxAltitude.nil?) then
                 Kamelopard.add_altitudeMode(@altitudeMode, k)
             end
-            m = REXML::Element.new 'rotation'
-            m.text = @rotation
-            k.elements << m
-            elem.elements << k unless elem.nil?
+            m = XML::Node.new 'rotation'
+            m = @rotation.to_s
+            k << m
+            elem << k unless elem.nil?
             k
         end
     end
@@ -1608,9 +1629,9 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            k = REXML::Element.new 'gx:LatLonQuad'
-            d = REXML::Element.new 'coordinates'
-            d.text = "#{ @lowerLeft.longitude },#{ @lowerLeft.latitude } #{ @lowerRight.longitude },#{ @lowerRight.latitude } #{ @upperRight.longitude },#{ @upperRight.latitude } #{ @upperLeft.longitude },#{ @upperLeft.latitude }"
+            k = XML::Node.new 'gx:LatLonQuad'
+            d = XML::Node.new 'coordinates'
+            d << "#{ @lowerLeft.longitude },#{ @lowerLeft.latitude } #{ @lowerRight.longitude },#{ @lowerRight.latitude } #{ @upperRight.longitude },#{ @upperRight.latitude } #{ @upperLeft.longitude },#{ @upperLeft.latitude }"
             k << d
             elem << k unless elem.nil?
             k
@@ -1630,10 +1651,10 @@ module Kamelopard
 
         def to_kml(elem = nil)
             raise "Either latlonbox or latlonquad must be non-nil" if @latlonbox.nil? and @latlonquad.nil?
-            k = REXML::Element.new 'GroundOverlay'
+            k = XML::Node.new 'GroundOverlay'
             super k
-            d = REXML::Element.new 'altitude'
-            d.text = @altitude
+            d = XML::Node.new 'altitude'
+            d << @altitude.to_s
             k << d
             Kamelopard.add_altitudeMode(@altitudeMode, k)
             @latlonbox.to_kml(k) unless @latlonbox.nil?
@@ -1654,20 +1675,20 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            k = REXML::Element.new 'Lod'
-            m = REXML::Element.new 'minLodPixels'
-            m.text = @minpixels
-            k.elements << m
-            m = REXML::Element.new 'maxLodPixels'
-            m.text = @maxpixels
-            k.elements << m
-            m = REXML::Element.new 'minFadeExtent'
-            m.text = @minfade
-            k.elements << m
-            m = REXML::Element.new 'maxFadeExtent'
-            m.text = @maxfade
-            k.elements << m
-            elem.elements << k unless elem.nil?
+            k = XML::Node.new 'Lod'
+            m = XML::Node.new 'minLodPixels'
+            m << @minpixels.to_s
+            k << m
+            m = XML::Node.new 'maxLodPixels'
+            m << @maxpixels.to_s
+            k << m
+            m = XML::Node.new 'minFadeExtent'
+            m << @minfade.to_s
+            k << m
+            m = XML::Node.new 'maxFadeExtent'
+            m << @maxfade.to_s
+            k << m
+            elem << k unless elem.nil?
             k
         end
     end
@@ -1683,11 +1704,11 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            k = REXML::Element.new 'Region'
+            k = XML::Node.new 'Region'
             super(k)
             @latlonaltbox.to_kml(k, true) unless @latlonaltbox.nil?
             @lod.to_kml(k) unless @lod.nil?
-            elem.elements << k unless elem.nil?
+            elem << k unless elem.nil?
             k
         end
     end
@@ -1708,14 +1729,14 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            x = REXML::Element.new 'Orientation'
+            x = XML::Node.new 'Orientation'
             {
                 :heading => @heading,
                 :tilt => @tilt,
                 :roll => @roll
             }.each do |k, v|
-                d = REXML::Element.new k.to_s
-                d.text = v
+                d = XML::Node.new k.to_s
+                d << v.to_s
                 x << d
             end
             elem << x unless elem.nil?
@@ -1733,14 +1754,14 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            x = REXML::Element.new 'Scale'
+            x = XML::Node.new 'Scale'
             {
                 :x => @x,
                 :y => @y,
                 :z => @z
             }.each do |k, v|
-                d = REXML::Element.new k.to_s
-                d.text = v
+                d = XML::Node.new k.to_s
+                d << v.to_s
                 x << d
             end
             elem << x unless elem.nil?
@@ -1757,13 +1778,13 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            x = REXML::Element.new 'Alias'
+            x = XML::Node.new 'Alias'
             {
                 :targetHref => @targetHref,
                 :sourceHref => @sourceHref,
             }.each do |k, v|
-                d = REXML::Element.new k.to_s
-                d.text = v
+                d = XML::Node.new k.to_s
+                d << v.to_s
                 x << d
             end
             elem << x unless elem.nil?
@@ -1786,7 +1807,7 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            k = REXML::Element.new 'ResourceMap'
+            k = XML::Node.new 'ResourceMap'
             @aliases.each do |a| k << a.to_kml(k) end
             elem << k unless elem.nil?
             k
@@ -1804,15 +1825,15 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            x = REXML::Element.new 'Link'
+            x = XML::Node.new 'Link'
             super x
             {
                 :href => @href,
                 :refreshMode => @refreshMode,
                 :viewRefreshMode => @viewRefreshMode,
             }.each do |k, v|
-                d = REXML::Element.new k.to_s
-                d.text = v
+                d = XML::Node.new k.to_s
+                d << v.to_s
                 x << d
             end
             Kamelopard.kml_array(x, [
@@ -1843,16 +1864,16 @@ module Kamelopard
         end
 
         def to_kml(elem = nil)
-            x = REXML::Element.new 'Model'
+            x = XML::Node.new 'Model'
             super x
-            loc = REXML::Element.new 'Location'
+            loc = XML::Node.new 'Location'
             {
                 :longitude => @location.longitude,
                 :latitude => @location.latitude,
                 :altitude => @location.altitude,
             }.each do |k, v|
-                d = REXML::Element.new k.to_s
-                d.text = v
+                d = XML::Node.new k.to_s
+                d << v.to_s
                 loc << d
             end
             x << loc
@@ -1863,6 +1884,73 @@ module Kamelopard
             @resourceMap.to_kml x
             elem << x unless elem.nil?
             x
+        end
+    end
+
+    # Corresponds to the KML Polygon class
+    class Polygon < Geometry
+        # NB!  No support for tessellate, because Google Earth doesn't support it, it seems
+        attr_accessor :outer, :inner, :altitudeMode, :extrude
+
+        def initialize(outer, extrude = 0, altitudeMode = :clampToGround)
+            super()
+            @outer = outer
+            @extrude = extrude
+            @altitudeMode = altitudeMode
+            @inner = []
+        end
+
+        def inner=(a)
+            if a.kind_of? Array then
+                @inner = a
+            else
+                @inner = [ a ]
+            end
+        end
+
+        def <<(a)
+            @inner << a
+        end
+
+        def to_kml(elem = nil)
+            k = XML::Node.new 'Polygon'
+            super k
+            e = XML::Node.new 'extrude'
+            e << @extrude.to_s
+            k << e
+            Kamelopard.add_altitudeMode @altitudeMode, k
+            e = XML::Node.new('outerBoundaryIs')
+            e << @outer.to_kml
+            k << e
+            @inner.each do |i|
+                e = XML::Node.new('innerBoundaryIs')
+                e << i.to_kml
+                k << e
+            end
+            elem << k unless elem.nil?
+            k
+        end
+    end
+
+    class MultiGeometry < Geometry
+        attr_accessor :geometries
+
+        def initialize(a = nil)
+            @geometries = []
+            @geometries << a unless a.nil?
+        end
+
+        def <<(a)
+            @geometries << a
+        end
+
+        def to_kml(elem = nil)
+            e = XML::Node.new 'MultiGeometry'
+            @geometries.each do |g|
+                g.to_kml e
+            end
+            elem << e unless elem.nil?
+            e
         end
     end
 

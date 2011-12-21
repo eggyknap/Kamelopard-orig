@@ -1,19 +1,19 @@
 # vim:ts=4:sw=4:et:smartindent:nowrap
 def fly_to(p, d = 0, r = 100, m = nil)
-    m = Document.instance.flyto_mode if m.nil?
-    FlyTo.new(p, r, d, m)
+    m = Kamelopard::Document.instance.flyto_mode if m.nil?
+    Kamelopard::FlyTo.new(p, r, d, m)
 end
 
 def set_flyto_mode_to(a)
-    Document.instance.flyto_mode = a
+    Kamelopard::Document.instance.flyto_mode = a
 end
 
 def mod_popup_for(p, v)
-    a = AnimatedUpdate.new
-    if ! p.is_a? Placemark then
+    a = Kamelopard::AnimatedUpdate.new
+    if ! p.is_a? Kamelopard::Placemark then
         raise "Can't show popups for things that aren't placemarks"
     end
-    a << "<Change><Placemark targetId=\"#{p.id}\"><visibility>#{v}</visibility></Placemark></Change>"
+    a << "<Change><Placemark targetId=\"#{p.obj_id}\"><visibility>#{v}</visibility></Placemark></Change>"
     a
 end
 
@@ -26,12 +26,12 @@ def show_popup_for(p)
 end
 
 def point(lo, la, alt=0, mode=nil, extrude = false)
-    KMLPoint.new(lo, la, alt, mode.nil? ? :clampToGround : mode, extrude)
+    Kamelopard::Point.new(lo, la, alt, mode.nil? ? :clampToGround : mode, extrude)
 end
 
-# Returns the KML that makes up the current Document, as a string.
+# Returns the KML that makes up the current Kamelopard::Document, as a string.
 def get_kml
-    Document.instance.get_kml_document
+    Kamelopard::Document.instance.get_kml_document
 end
 
 def get_kml_string
@@ -39,26 +39,26 @@ def get_kml_string
 end
 
 def pause(p)
-    Wait.new p
+    Kamelopard::Wait.new p
 end
 
 def name_tour(a)
-    Document.instance.tour.name = a
+    Kamelopard::Document.instance.tour.name = a
 end
 
 def new_folder(name)
-    Folder.new(name)
+    Kamelopard::Folder.new(name)
 end
 
 def name_folder(a)
-    Document.instance.folder.name = a
+    Kamelopard::Document.instance.folder.name = a
 end
 
 def zoom_out(dist = 1000, dur = 0, mode = nil)
-    l = Document.instance.tour.last_abs_view
+    l = Kamelopard::Document.instance.tour.last_abs_view
     raise "No current position to zoom out from\n" if l.nil?
     l.range += dist
-    FlyTo.new(l, nil, dur, mode)
+    Kamelopard::FlyTo.new(l, nil, dur, mode)
 end
 
 # Creates a list of FlyTo elements to orbit and look at a given point (center),
@@ -69,7 +69,7 @@ end
 # subtract 360 from the endHeading. The tilt argument matches the KML LookAt
 # tilt argument
 def orbit(center, range = 100, tilt = 0, startHeading = 0, endHeading = 360)
-    fly_to LookAt.new(center, startHeading, tilt, range), 2, nil
+    fly_to Kamelopard::LookAt.new(center, startHeading, tilt, range), 2, nil
 
     # We want at least 5 points (arbitrarily chosen value), plus at least 5 for
     # each full revolution
@@ -86,15 +86,15 @@ def orbit(center, range = 100, tilt = 0, startHeading = 0, endHeading = 360)
     lastval = startHeading
     startHeading.step(endHeading, step) do |theta|
         lastval = theta
-        fly_to LookAt.new(center, theta, tilt, range), 2, nil, 'smooth'
+        fly_to Kamelopard::LookAt.new(center, theta, tilt, range), 2, nil, 'smooth'
     end
     if lastval != endHeading then
-        fly_to LookAt.new(center, endHeading, tilt, range), 2, nil, 'smooth'
+        fly_to Kamelopard::LookAt.new(center, endHeading, tilt, range), 2, nil, 'smooth'
     end
 end
 
 def sound_cue(href, ds = nil)
-    SoundCue.new href, ds
+    Kamelopard::SoundCue.new href, ds
 end
 
 # XXX This implementation of orbit is trying to do things the hard way, but the code might be useful for other situations where the hard way is the only possible one
