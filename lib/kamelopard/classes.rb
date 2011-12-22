@@ -898,10 +898,10 @@ module Kamelopard
 
         def to_kml(name, elem = nil)
             k = XML::Node.new name
-            k.attributes['x'] = @x
-            k.attributes['y'] = @y
-            k.attributes['xunits'] = @xunits
-            k.attributes['yunits'] = @yunits
+            k.attributes['x'] = @x.to_s
+            k.attributes['y'] = @y.to_s
+            k.attributes['xunits'] = @xunits.to_s
+            k.attributes['yunits'] = @yunits.to_s
             elem << k unless elem.nil?
             k
         end
