@@ -27,31 +27,39 @@ def get_obj_child_content(object, name)
 end
 
 def build_doc_from_node(node)
-  doc = XML::Document.string(node.to_kml.to_s)
+  kml =<<XXXX
+  <kml xmlns="http://www.opengis.net/kml/2.2"
+  xmlns:gx="http://www.google.com/kml/ext/2.2"
+  xmlns:kml="http://www.opengis.net/kml/3.2"
+  xmlns:atom="http://www.w3.org/2005/Atom">
+    #{node.to_kml.to_s}
+  </kml>
+XXXX
+  doc = XML::Document.string(kml)
 end
 
 
 def test_lat_lon_quad(d, n)
-    d.elements['//coordinates'].text.should == "#{n},#{n} #{n},#{n} #{n},#{n} #{n},#{n}"
+    get_child_content(d, 'coordinates').should == "#{n},#{n} #{n},#{n} #{n},#{n} #{n},#{n}"
 end
 
 def test_lat_lon_box(l, latlon)
-    l.elements['//north'].text.should == latlon.north.to_s
-    l.elements['//south'].text.should == latlon.south.to_s
-    l.elements['//east'].text.should == latlon.east.to_s
-    l.elements['//west'].text.should == latlon.west.to_s
+    get_child_content(d, 'north').should == latlon.north.to_s
+    get_child_content(d, 'south').should == latlon.south.to_s
+    get_child_content(d, 'east').should == latlon.east.to_s
+    get_child_content(d, 'west').should == latlon.west.to_s
 end
 
 def test_lod(d, lodval)
     %w[ minLodPixels maxLodPixels minFadeExtent maxFadeExtent ].each do |f|
-        d.elements["//#{f}"].text.to_i.should == lodval
+        get_child_content(d, "#{f}").to_i.should == lodval
     end
 end
 
 def check_kml_values(o, values)
     values.each do |k, v|
         o.method("#{k}=").call(v)
-        o.to_kml.elements["//#{k}"].text.should == v.to_s
+        get_obj_child_content(o, "#{k}").should == v.to_s
     end
 end
 
@@ -64,16 +72,16 @@ end
 
 def match_view_vol(x, e)
     %w[ near rightFov topFov ].each do |a|
-        x.elements["//#{a}"].text.to_i.should == e
+        get_child_content(x, "#{a}").to_i.should == e
     end
     %w[ leftFov bottomFov ].each do |a|
-        x.elements["//#{a}"].text.to_i.should == -e
+        get_child_content(x, "#{a}").to_i.should == e
     end
 end
 
 def match_image_pyramid(x, e)
     %w[ tileSize maxWidth maxHeight gridOrigin ].each do |a|
-        x.elements["//#{a}"].text.to_i.should == e
+        get_child_content(x, "#{a}").to_i.should == e
     end
 end
 
@@ -232,21 +240,22 @@ shared_examples_for 'Kamelopard::AbstractView' do
         @o[:streetview] = true
         @o[:sunlight] = true
         @o[:historicalimagery] = true
-        k = @o.to_kml
-        #TODO fix here
-        k.elements["//ViewerOptions | //gx:ViewerOptions"].should_not be_nil
-        k.elements["//gx:option[@name='sunlight',@enabled='true']"].should_not be_nil
-        k.elements["//gx:option[@name='streetview',@enabled='true']"].should_not be_nil
-        k.elements["//gx:option[@name='historicalimagery',@enabled='true']"].should_not be_nil
+        doc = build_doc_from_node(@o)
+        v = doc.find("//ViewerOptions | //gx:ViewerOptions")
+        v.should_not be_nil
+        v.find(".//gx:option[@name='sunlight',@enabled='true']").should_not be_nil
+        v.find(".//gx:option[@name='streetview',@enabled='true']").should_not be_nil
+        v.find(".//gx:option[@name='historicalimagery',@enabled='true']").should_not be_nil
 
         @o[:streetview] = false
         @o[:sunlight] = false
         @o[:historicalimagery] = false
-        k = @o.to_kml
-        k.elements["//ViewerOptions | //gx:ViewerOptions"].should_not be_nil
-        k.elements["//gx:option[@name='sunlight',@enabled='false']"].should_not be_nil
-        k.elements["//gx:option[@name='streetview',@enabled='false']"].should_not be_nil
-        k.elements["//gx:option[@name='historicalimagery',@enabled='false']"].should_not be_nil
+        doc = build_doc_from_node(@o)
+        v = doc.find("//ViewerOptions | //gx:ViewerOptions")
+        v.should_not be_nil
+        v.find(".//gx:option[@name='sunlight',@enabled='true']").should_not be_nil
+        v.find(".//gx:option[@name='streetview',@enabled='true']").should_not be_nil
+        v.find(".//gx:option[@name='historicalimagery',@enabled='true']").should_not be_nil
     end
 
     it 'whines when a strange option is provided' do
@@ -426,11 +435,13 @@ shared_examples_for 'Kamelopard::Feature' do
             e.content.should == marker
         end
     end
+#TODO: investigate why the field atom:author is missing
 
     it 'correctly KML-ifies the atom:author field' do
         o = Kamelopard::Feature.new()
         marker = 'Look for this text'
-        o.to_kml.elements['//atom:author/atom:name'].text.should == marker
+        doc = build_doc_from_node o
+        doc.find('//atom:author/atom:name').content.should == marker
     end
 
     it 'returns the right KML for boolean fields' do
@@ -460,9 +471,10 @@ shared_examples_for 'Kamelopard::Feature' do
             @r = Kamelopard::Region.new(@latlon, @lod)
             @o.region = @r
 
-            @reg = @o.to_kml.elements['//Region']
-            @l = @reg.elements['LatLonAltBox']
-            @ld = @reg.elements['Lod']
+            @reg = get_obj_child(@o, 'Region')
+            @l = get_obj_child(@o, 'LatLonAltBox')
+            @ld = get_obj_child(@o, 'Lod')
+
         end
 
         it 'creates a Kamelopard::Region element' do
@@ -563,9 +575,8 @@ shared_examples_for 'Kamelopard::ColorStyle' do
         colorMode = :random
         @o.color = color
         @o.colorMode = colorMode
-        d = @o.to_kml
-        d.elements['//color'].text.should == color
-        d.elements['//colorMode'].text.should == colorMode.to_s
+        get_obj_child_content(@o, 'color').should == color
+        get_obj_child_content(@o, 'colorMode').should == colorMode.to_s
     end
 end
 
@@ -590,7 +601,7 @@ shared_examples_for 'KML_root_name' do
             d.add_namespace @ns, ns_url
             d.root.namespace.should == ns_url
         end
-        d.root.name.should == @o.class.name.gsub('Kamelopard::', '')
+        d.name.should == @o.class.name.gsub('Kamelopard::', '')
     end
 end
 
@@ -892,9 +903,8 @@ describe 'Kamelopard::ColorStyle' do
     it 'should return the right KML' do
         @o.color = 'deadbeef'
         @o.colorMode = :random
-        d = @o.to_kml
-        d.elements['//color'].text.should == 'deadbeef'
-        d.elements['//colorMode'].text.should == 'random'
+        get_obj_child_content(@o, 'color').should == 'deadbeef'
+        get_obj_child_content(@o, 'colorMode').should == 'random'
     end
 end
 
@@ -918,11 +928,10 @@ describe 'Kamelopard::BalloonStyle' do
     end
 
     it 'should return the right KML' do
-        s = @o.to_kml
-        s.elements['//text'].text.should == 'balloon text'
-        s.elements['//bgColor'].text.should == 'deadbeef'
-        s.elements['//textColor'].text.should == 'deadbeef'
-        s.elements['//displayMode'].text.should == 'hide'
+        get_object_child_content(@o, 'text').should = 'balloon text'
+        get_object_child_content(@o, 'bgColor').should = 'deadbeef'
+        get_object_child_content(@o, 'textColor').should = 'deadbeef'
+        get_object_child_content(@o, 'displayMode').should = 'hide'
     end
 end
 
@@ -1033,7 +1042,7 @@ describe 'Kamelopard::LabelStyle' do
     it 'should have a scale field' do
         @o.should respond_to(:scale)
         @o.should respond_to(:scale=)
-        @o.to_kml.elements['//scale'].text.to_i.should == @scale
+        get_obj_child_content(@o, 'scale').to_i.should == @scale
     end
 end
 
@@ -1062,7 +1071,7 @@ describe 'Kamelopard::LineStyle' do
         @values.each do |k, v|
             @o.method("#{k}=").call(v)
             elem = (k == 'width' ? k : "gx:#{k}" )
-            @o.to_kml.elements["//#{elem}"].text.should == v.to_s
+            get_obj_child_content(@o, "#{elem}").should == v.to_s
         end
     end
 end
@@ -1579,7 +1588,7 @@ describe 'Kamelopard::Alias' do
     it 'has the right KML' do
         d = @o.to_kml
         @fields.each do |f|
-            d.elements["//#{f}"].text.should == @n
+            get_child_content(d, "#{f}").should == @n
         end
     end
 end
