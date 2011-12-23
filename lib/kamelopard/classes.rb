@@ -140,7 +140,7 @@ module Kamelopard
             @altitudeMode = altmode
             @extrude = extrude
         end
-        
+
         def to_s
             "Point (#{@longitude}, #{@latitude}, #{@altitude}, mode = #{@altitudeMode}, #{ @extrude ? 'extruded' : 'not extruded' })"
         end
@@ -427,7 +427,7 @@ module Kamelopard
                 vo = XML::Node.new 'gx:ViewerOptions'
                 @options.each do |k, v|
                     o = XML::Node.new 'gx:option'
-                    o.attributes['name'] = k
+                    o.attributes['name'] = k.to_s
                     o.attributes['enabled'] = v ? 'true' : 'false'
                     vo << o
                 end
@@ -502,7 +502,7 @@ module Kamelopard
         def to_kml(elem = nil, ns = nil)
             prefix = ''
             prefix = ns + ':' unless ns.nil?
-            
+
             k = XML::Node.new "#{prefix}TimeStamp"
             super(k)
             w = XML::Node.new 'when'
@@ -526,7 +526,7 @@ module Kamelopard
         def to_kml(elem = nil, ns = nil)
             prefix = ''
             prefix = ns + ':' unless ns.nil?
-            
+
             k = XML::Node.new "#{prefix}TimeSpan"
             super(k)
             if not @begin.nil? then
@@ -655,9 +655,9 @@ module Kamelopard
             @timeprimitive.to_kml(elem) unless @timeprimitive.nil?
             @region.to_kml(elem) unless @region.nil?
             yield(elem) if block_given?
-            elem 
+            elem
         end
-        
+
         def styles_to_kml(elem)
             @styles.each do |a|
                 a.to_kml(elem)
@@ -794,7 +794,7 @@ module Kamelopard
     class ColorStyle < Object
         attr_accessor :color
         attr_reader :colorMode
-        
+
         def initialize(color, colorMode = :normal)
             super()
             # Note: color element order is aabbggrr
@@ -1040,7 +1040,7 @@ module Kamelopard
 
         def to_kml(elem = nil)
             k = XML::Node.new 'ListStyle'
-            # super k -- Don't bother 
+            # super k -- Don't bother
             Kamelopard.kml_array(k, [
                 [@listitemtype, 'listItemType'],
                 [@bgcolor, 'bgColor']
@@ -1157,7 +1157,7 @@ module Kamelopard
                 p = XML::Node.new 'Pair'
                 key = XML::Node.new 'key'
                 key << k.to_s
-                p. << key 
+                p. << key
                 if v.kind_of? Style then
                     v.to_kml(p)
                 else
@@ -1182,7 +1182,7 @@ module Kamelopard
             @geometry = []
             self.geometry=(geo)
         end
-        
+
         def to_kml(elem = nil)
             k = XML::Node.new 'Placemark'
             super k
@@ -1594,9 +1594,9 @@ module Kamelopard
             name = alt ? 'LatLonAltBox' : 'LatLonBox'
             k = XML::Node.new name
             [
-                ['north', @north], 
-                ['south', @south], 
-                ['east', @east], 
+                ['north', @north],
+                ['south', @south],
+                ['east', @east],
                 ['west', @west],
                 ['minAltitude', @minAltitude],
                 ['maxAltitude', @maxAltitude]

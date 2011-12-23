@@ -2,30 +2,64 @@
 $LOAD_PATH << './lib'
 require 'kamelopard'
 require 'rexml/document'
-
+require "xml"
 # XXX test everything's to_kml(elem), instead of just to_kml(nil)
 
+# method returns the first node found among children with given name
+def get_child(node, name)
+    node.children.detect{ |child| child.name == name}
+end
+
+# method returns the content of the first node found among children with given name
+def get_child_content(node, name)
+    n = node.children.detect{ |child| child.name == name}
+    n.content unless n.nil?
+end
+
+def get_obj_child(object, name)
+  k = object.to_kml
+  get_child(k, name)
+end
+
+def get_obj_child_content(object, name)
+  k = object.to_kml
+  get_child_content(k, name)
+end
+
+def build_doc_from_node(node)
+  kml =<<XXXX
+  <kml xmlns="http://www.opengis.net/kml/2.2"
+  xmlns:gx="http://www.google.com/kml/ext/2.2"
+  xmlns:kml="http://www.opengis.net/kml/3.2"
+  xmlns:atom="http://www.w3.org/2005/Atom">
+    #{node.to_kml.to_s}
+  </kml>
+XXXX
+  doc = XML::Document.string(kml)
+end
+
+
 def test_lat_lon_quad(d, n)
-    d.elements['//coordinates'].text.should == "#{n},#{n} #{n},#{n} #{n},#{n} #{n},#{n}"
+    get_child_content(d, 'coordinates').should == "#{n},#{n} #{n},#{n} #{n},#{n} #{n},#{n}"
 end
 
 def test_lat_lon_box(l, latlon)
-    l.elements['//north'].text.should == latlon.north.to_s
-    l.elements['//south'].text.should == latlon.south.to_s
-    l.elements['//east'].text.should == latlon.east.to_s
-    l.elements['//west'].text.should == latlon.west.to_s
+    get_child_content(d, 'north').should == latlon.north.to_s
+    get_child_content(d, 'south').should == latlon.south.to_s
+    get_child_content(d, 'east').should == latlon.east.to_s
+    get_child_content(d, 'west').should == latlon.west.to_s
 end
 
 def test_lod(d, lodval)
     %w[ minLodPixels maxLodPixels minFadeExtent maxFadeExtent ].each do |f|
-        d.elements["//#{f}"].text.to_i.should == lodval
+        get_child_content(d, "#{f}").to_i.should == lodval
     end
 end
 
 def check_kml_values(o, values)
     values.each do |k, v|
         o.method("#{k}=").call(v)
-        o.to_kml.elements["//#{k}"].text.should == v.to_s
+        get_obj_child_content(o, "#{k}").should == v.to_s
     end
 end
 
@@ -38,16 +72,16 @@ end
 
 def match_view_vol(x, e)
     %w[ near rightFov topFov ].each do |a|
-        x.elements["//#{a}"].text.to_i.should == e
+        get_child_content(x, "#{a}").to_i.should == e
     end
     %w[ leftFov bottomFov ].each do |a|
-        x.elements["//#{a}"].text.to_i.should == -e
+        get_child_content(x, "#{a}").to_i.should == e
     end
 end
 
 def match_image_pyramid(x, e)
     %w[ tileSize maxWidth maxHeight gridOrigin ].each do |a|
-        x.elements["//#{a}"].text.to_i.should == e
+        get_child_content(x, "#{a}").to_i.should == e
     end
 end
 
@@ -81,11 +115,11 @@ end
 
 def get_test_styles()
     i, la, lin, p, b, lis = get_test_substyles()
-    
+
     si = Kamelopard::Style.new i
     sl = Kamelopard::Style.new i, la, lin, p, b, lis
     sm = Kamelopard::StyleMap.new( { :icon => si, :list => sl } )
-    
+
     si.id = 'icon'
     sl.id = 'list'
     sm.id = 'map'
@@ -127,12 +161,13 @@ shared_examples_for 'field_producer' do
 end
 
 shared_examples_for 'Kamelopard::Object' do
+
     it 'descends from Kamelopard::Object' do
         @o.kind_of?(Kamelopard::Object).should == true
     end
 
     it 'has an id' do
-        @o.id.should_not be_nil
+        @o.obj_id.should_not be_nil
     end
 
     it 'allows a comment' do
@@ -151,12 +186,14 @@ shared_examples_for 'altitudeMode' do
     it 'uses the right altitudeMode element' do
         [:absolute, :clampToGround, :relativeToGround].each do |m|
             @o.altitudeMode = m
-            @o.to_kml.elements["//altitudeMode"].text.should == m.to_s
+            k = @o.to_kml
+            get_child_content(k, "altitudeMode").should == m.to_s
         end
 
         [:clampToSeaFloor, :relativeToSeaFloor].each do |m|
             @o.altitudeMode = m
-            @o.to_kml.elements["//gx:altitudeMode"].text.should == m.to_s
+            k = @o.to_kml
+            get_child_content(k, "gx:altitudeMode").should == m.to_s
         end
     end
 end
@@ -164,7 +201,7 @@ end
 shared_examples_for 'KML_includes_id' do
     it 'should include the object ID in the KML' do
         d = @o.to_kml
-        d.root.attributes['id'].should_not be_nil
+        d.attributes['id'].should_not be_nil
     end
 end
 
@@ -203,20 +240,22 @@ shared_examples_for 'Kamelopard::AbstractView' do
         @o[:streetview] = true
         @o[:sunlight] = true
         @o[:historicalimagery] = true
-        k = @o.to_kml
-        k.elements["//ViewerOptions | //gx:ViewerOptions"].should_not be_nil
-        k.elements["//gx:option[@name='sunlight',@enabled='true']"].should_not be_nil
-        k.elements["//gx:option[@name='streetview',@enabled='true']"].should_not be_nil
-        k.elements["//gx:option[@name='historicalimagery',@enabled='true']"].should_not be_nil
+        doc = build_doc_from_node(@o)
+        v = doc.find("//ViewerOptions | //gx:ViewerOptions")
+        v.should_not be_nil
+        v.find(".//gx:option[@name='sunlight',@enabled='true']").should_not be_nil
+        v.find(".//gx:option[@name='streetview',@enabled='true']").should_not be_nil
+        v.find(".//gx:option[@name='historicalimagery',@enabled='true']").should_not be_nil
 
         @o[:streetview] = false
         @o[:sunlight] = false
         @o[:historicalimagery] = false
-        k = @o.to_kml
-        k.elements["//ViewerOptions | //gx:ViewerOptions"].should_not be_nil
-        k.elements["//gx:option[@name='sunlight',@enabled='false']"].should_not be_nil
-        k.elements["//gx:option[@name='streetview',@enabled='false']"].should_not be_nil
-        k.elements["//gx:option[@name='historicalimagery',@enabled='false']"].should_not be_nil
+        doc = build_doc_from_node(@o)
+        v = doc.find("//ViewerOptions | //gx:ViewerOptions")
+        v.should_not be_nil
+        v.find(".//gx:option[@name='sunlight',@enabled='true']").should_not be_nil
+        v.find(".//gx:option[@name='streetview',@enabled='true']").should_not be_nil
+        v.find(".//gx:option[@name='historicalimagery',@enabled='true']").should_not be_nil
     end
 
     it 'whines when a strange option is provided' do
@@ -226,19 +265,21 @@ shared_examples_for 'Kamelopard::AbstractView' do
         lambda { @o[:historicalimagery] = true }.should_not raise_exception
     end
 end
- 
+
 shared_examples_for 'Kamelopard::CoordinateList' do
     it 'returns coordinates in its KML' do
         @o << [[1,2,3], [2,3,4], [3,4,5]]
         k = @o.to_kml
-        e = k.elements['//coordinates']
-        e = k.root if e.nil?
+        e = get_child(k, 'coordinates')
+        #e = k.elements['//coordinates']
+        #e = k.root if e.nil?
+        e = k if e.nil?
 
         e.should_not be_nil
         e.name.should == 'coordinates'
-        e.text.should =~ /1.0,2.0,3.0/
-        e.text.should =~ /2.0,3.0,4.0/
-        e.text.should =~ /3.0,4.0,5.0/
+        e.content.should =~ /1.0,2.0,3.0/
+        e.content.should =~ /2.0,3.0,4.0/
+        e.content.should =~ /3.0,4.0,5.0/
     end
 
     describe 'when adding elements' do
@@ -282,12 +323,11 @@ shared_examples_for 'Kamelopard::Camera-like' do
     it 'contains the right KML attributes' do
         @o.heading = 12
         @o.tilt = 12
-        k = @o.to_kml
-        k.elements['//longitude'].should_not be_nil
-        k.elements['//latitude'].should_not be_nil
-        k.elements['//altitude'].should_not be_nil
-        k.elements['//heading'].should_not be_nil
-        k.elements['//tilt'].should_not be_nil
+        get_obj_child(@o, 'longitude').should_not be_nil
+        get_obj_child(@o, 'latitude').should_not be_nil
+        get_obj_child(@o, 'altitude').should_not be_nil
+        get_obj_child(@o, 'heading').should_not be_nil
+        get_obj_child(@o, 'tilt').should_not be_nil
     end
 end
 
@@ -303,16 +343,18 @@ end
 
 shared_examples_for 'Kamelopard::Feature' do
     def document_has_styles(d)
-        si = d.elements['//Style[@id="icon"]']
+        doc = build_doc_from_node d
+
+        si = d.find '//Style[@id="icon"]'
         raise 'Could not find iconstyle' if si.nil?
-        sl = d.elements['//Style[@id="list"]']
+        sl = d.find '//Style[@id="list"]'
         raise 'Could not find liststyle' if sl.nil?
-        sm = d.elements['//StyleMap[@id="map"]']
+        sm = d.find '//StyleMap[@id="map"]'
         raise 'Could not find stylemap' if sm.nil?
 
-        si = d.elements['//StyleMap/Pair/Style[@id="icon"]']
+        si = d.find '//StyleMap/Pair/Style[@id="icon"]'
         raise 'Could not find iconstyle in stylemap' if si.nil?
-        sl = d.elements['//StyleMap/Pair/Style[@id="list"]']
+        sl = d.find '//StyleMap/Pair/Style[@id="list"]'
         raise 'Could not find liststyle in stylemap' if sl.nil?
         true
     end
@@ -340,9 +382,8 @@ shared_examples_for 'Kamelopard::Feature' do
     it 'handles extended address stuff correctly' do
         @o.addressDetails = 'These are some extended details'
         k = Kamelopard::Document.instance.get_kml_document
-        k.root.attributes['xmlns:xal'].should == 'urn:oasis:names:tc:ciq:xsdschema:xAL:2.0'
-        k = @o.to_kml
-        k.elements['//xal:AddressDetails'].text.should == @o.addressDetails
+        k.root['xmlns:xal'].should == 'urn:oasis:names:tc:ciq:xsdschema:xAL:2.0'
+        get_obj_child_content(@o, 'xal:AddressDetails').should == @o.addressDetails
     end
 
     it 'handles styles correctly' do
@@ -351,7 +392,7 @@ shared_examples_for 'Kamelopard::Feature' do
             @o.to_kml.elements['//styleUrl'].text.should == "##{s.id}"
         end
         @o.styleUrl = '#random'
-        @o.to_kml.elements['//styleUrl'].text.should == '#random'
+        get_obj_child_content(@o, 'styleUrl').should == "#random"
     end
 
     it 'returns style KML correctly' do
@@ -362,7 +403,7 @@ shared_examples_for 'Kamelopard::Feature' do
         header = get_kml_header
         e = REXML::Element.new 'test'
         @o.styles_to_kml e
-        
+
         document_has_styles(e).should == true
     end
 
@@ -373,9 +414,9 @@ shared_examples_for 'Kamelopard::Feature' do
             p = Kamelopard::Feature.new()
             Kamelopard::Document.instance.folder << p
             p.instance_variable_set("@#{f}".to_sym, marker)
-            e = p.to_kml.elements["//#{f}"]
+            e = get_obj_child_content p, "#{f}"
             e.should_not be_nil
-            e.text.should == marker
+            e.content.should == marker
         end
     end
 
@@ -389,17 +430,18 @@ shared_examples_for 'Kamelopard::Feature' do
         ].each do |a|
             p = Kamelopard::Feature.new()
             p.instance_variable_set(a[0], marker)
-            e = p.to_kml.elements["//#{a[1]}"]
+            e = get_child p, "#{a[1]}"
             e.should_not be_nil
-            e.text.should == marker
+            e.content.should == marker
         end
     end
+#TODO: investigate why the field atom:author is missing
 
     it 'correctly KML-ifies the atom:author field' do
         o = Kamelopard::Feature.new()
         marker = 'Look for this text'
-        o.atom_author = marker
-        o.to_kml.elements['//atom:author/atom:name'].text.should == marker
+        doc = build_doc_from_node o
+        doc.find('//atom:author/atom:name').content.should == marker
     end
 
     it 'returns the right KML for boolean fields' do
@@ -407,7 +449,7 @@ shared_examples_for 'Kamelopard::Feature' do
             [false, true].each do |v|
                 o = Kamelopard::Feature.new()
                 o.instance_variable_set("@#{k}".to_sym, v)
-                o.to_kml.elements["//#{k}"].text.to_i.should == (v ? 1 : 0)
+                get_obj_child_content(o, "#{k}").to_i.should == (v ? 1 : 0)
             end
         end
     end
@@ -429,9 +471,10 @@ shared_examples_for 'Kamelopard::Feature' do
             @r = Kamelopard::Region.new(@latlon, @lod)
             @o.region = @r
 
-            @reg = @o.to_kml.elements['//Region']
-            @l = @reg.elements['LatLonAltBox']
-            @ld = @reg.elements['Lod']
+            @reg = get_obj_child(@o, 'Region')
+            @l = get_obj_child(@o, 'LatLonAltBox')
+            @ld = get_obj_child(@o, 'Lod')
+
         end
 
         it 'creates a Kamelopard::Region element' do
@@ -439,7 +482,7 @@ shared_examples_for 'Kamelopard::Feature' do
             @reg.attributes['id'].should == @r.id
         end
 
-        it 'creates the right LatLonAltBox' do 
+        it 'creates the right LatLonAltBox' do
             @l.should_not be_nil
             test_lat_lon_box(@l, @latlon)
         end
@@ -477,11 +520,11 @@ shared_examples_for 'Kamelopard::Feature' do
         @o.abstractView = camera
         a = @o.to_kml.elements['//Camera']
         a.should_not be_nil
-        validate_abstractview(a, 'Camera', p, heading, tilt, roll, range, mode).should be_true 
+        validate_abstractview(a, 'Camera', p, heading, tilt, roll, range, mode).should be_true
         @o.abstractView = lookat
         a = @o.to_kml.elements['//LookAt']
         a.should_not be_nil
-        validate_abstractview(a, 'LookAt', p, heading, tilt, roll, range, mode).should be_true 
+        validate_abstractview(a, 'LookAt', p, heading, tilt, roll, range, mode).should be_true
     end
 end
 
@@ -532,9 +575,8 @@ shared_examples_for 'Kamelopard::ColorStyle' do
         colorMode = :random
         @o.color = color
         @o.colorMode = colorMode
-        d = @o.to_kml
-        d.elements['//color'].text.should == color
-        d.elements['//colorMode'].text.should == colorMode.to_s
+        get_obj_child_content(@o, 'color').should == color
+        get_obj_child_content(@o, 'colorMode').should == colorMode.to_s
     end
 end
 
@@ -559,7 +601,7 @@ shared_examples_for 'KML_root_name' do
             d.add_namespace @ns, ns_url
             d.root.namespace.should == ns_url
         end
-        d.root.name.should == @o.class.name.gsub('Kamelopard::', '')
+        d.name.should == @o.class.name.gsub('Kamelopard::', '')
     end
 end
 
@@ -628,24 +670,24 @@ describe 'Kamelopard::Point' do
 
         it 'has the right coordinates' do
             k = @o.to_kml
-            k.elements['//coordinates'].text.should == "#{ @attrs[:long] }, #{ @attrs[:lat] }, #{ @attrs[:alt] }"
+            get_child_content(k, 'coordinates').should == "#{ @attrs[:long] }, #{ @attrs[:lat] }, #{ @attrs[:alt] }"
         end
 
         it 'handles extrude properly' do
-            @o.extrude = true 
+            @o.extrude = true
             k = @o.to_kml
-            k.elements['//extrude'].text.should == '1'
-            @o.extrude = false 
+            get_child_content(k, 'extrude').should == '1'
+            @o.extrude = false
             k = @o.to_kml
-            k.elements['//extrude'].text.should == '0'
+            get_child_content(k, 'extrude').should == '0'
         end
 
         it 'provides the correct short form' do
             @o.altitudeMode = :clampToSeaFloor
             @o.extrude = 1
             k = @o.to_kml(nil, true)
-            k.elements['//extrude'].should be_nil
-            k.elements['//altitudeMode'].should be_nil
+            get_child_content(k, 'extrude').should be_nil
+            get_child_content(k, 'altitudeMode').should be_nil
         end
     end
 end
@@ -684,21 +726,21 @@ describe 'Kamelopard::LineString' do
 
     it 'contains the right KML attributes' do
         @o.altitudeOffset = nil
-        @o.to_kml.elements['//gx:altitudeOffset'].should be_nil
+        get_obj_child(@o, 'gx:altitudeOffset').should be_nil
         @o.altitudeOffset = 1
-        @o.to_kml.elements['//gx:altitudeOffset'].should_not be_nil
+        get_obj_child(@o, 'gx:altitudeOffset').should_not be_nil
         @o.extrude = nil
-        @o.to_kml.elements['//extrude'].should be_nil
-        @o.extrude = true 
-        @o.to_kml.elements['//extrude'].should_not be_nil
+        get_obj_child(@o, 'extrude').should be_nil
+        @o.extrude = true
+        get_obj_child(@o, 'extrude').should_not be_nil
         @o.tessellate = nil
-        @o.to_kml.elements['//tessellate'].should be_nil
-        @o.tessellate = true 
-        @o.to_kml.elements['//tessellate'].should_not be_nil
+        get_obj_child(@o, 'tessellate').should be_nil
+        @o.tessellate = true
+        get_obj_child(@o, 'tessellate').should_not be_nil
         @o.drawOrder = nil
-        @o.to_kml.elements['//gx:drawOrder'].should be_nil
-        @o.drawOrder = true 
-        @o.to_kml.elements['//gx:drawOrder'].should_not be_nil
+        get_obj_child(@o, 'gx:drawOrder').should be_nil
+        @o.drawOrder = true
+        get_obj_child(@o, 'gx:drawOrder').should_not be_nil
     end
 end
 
@@ -717,17 +759,17 @@ describe 'Kamelopard::LinearRing' do
 
     it 'contains the right KML attributes' do
         @o.altitudeOffset = nil
-        @o.to_kml.elements['gx:altitudeOffset'].should be_nil
+        get_obj_child(@o, 'gx:altitudeOffset').should be_nil
         @o.altitudeOffset = 1
-        @o.to_kml.elements['gx:altitudeOffset'].should_not be_nil
+        get_obj_child(@o, 'gx:altitudeOffset').should_not be_nil
         @o.extrude = nil
-        @o.to_kml.elements['extrude'].should be_nil
-        @o.extrude = true 
-        @o.to_kml.elements['extrude'].should_not be_nil
+        get_obj_child(@o, 'extrude').should be_nil
+        @o.extrude = true
+        get_obj_child(@o, 'extrude').should_not be_nil
         @o.tessellate = nil
-        @o.to_kml.elements['tessellate'].should be_nil
-        @o.tessellate = true 
-        @o.to_kml.elements['tessellate'].should_not be_nil
+        get_obj_child(@o, 'tessellate').should be_nil
+        @o.tessellate = true
+        get_obj_child(@o, 'tessellate').should_not be_nil
     end
 end
 
@@ -742,8 +784,7 @@ describe 'Kamelopard::Camera' do
 
     it 'contains the right KML attributes' do
         @o.roll = 12
-        k = @o.to_kml
-        k.elements['//roll]'].text.should == '12'
+        get_obj_child_content(@o, 'roll').should == '12'
     end
 end
 
@@ -759,8 +800,8 @@ describe 'Kamelopard::LookAt' do
 
     it 'contains the right KML attributes' do
         @o.range = 10
-        k = @o.to_kml
-        k.elements['[range=10]'].should_not be_nil
+        doc = build_doc_from_node @o
+        doc.find('*[range=10]').should_not be_nil
     end
 end
 
@@ -862,9 +903,8 @@ describe 'Kamelopard::ColorStyle' do
     it 'should return the right KML' do
         @o.color = 'deadbeef'
         @o.colorMode = :random
-        d = @o.to_kml
-        d.elements['//color'].text.should == 'deadbeef'
-        d.elements['//colorMode'].text.should == 'random'
+        get_obj_child_content(@o, 'color').should == 'deadbeef'
+        get_obj_child_content(@o, 'colorMode').should == 'random'
     end
 end
 
@@ -888,11 +928,10 @@ describe 'Kamelopard::BalloonStyle' do
     end
 
     it 'should return the right KML' do
-        s = @o.to_kml
-        s.elements['//text'].text.should == 'balloon text'
-        s.elements['//bgColor'].text.should == 'deadbeef'
-        s.elements['//textColor'].text.should == 'deadbeef'
-        s.elements['//displayMode'].text.should == 'hide'
+        get_object_child_content(@o, 'text').should = 'balloon text'
+        get_object_child_content(@o, 'bgColor').should = 'deadbeef'
+        get_object_child_content(@o, 'textColor').should = 'deadbeef'
+        get_object_child_content(@o, 'displayMode').should = 'hide'
     end
 end
 
@@ -1003,7 +1042,7 @@ describe 'Kamelopard::LabelStyle' do
     it 'should have a scale field' do
         @o.should respond_to(:scale)
         @o.should respond_to(:scale=)
-        @o.to_kml.elements['//scale'].text.to_i.should == @scale
+        get_obj_child_content(@o, 'scale').to_i.should == @scale
     end
 end
 
@@ -1032,7 +1071,7 @@ describe 'Kamelopard::LineStyle' do
         @values.each do |k, v|
             @o.method("#{k}=").call(v)
             elem = (k == 'width' ? k : "gx:#{k}" )
-            @o.to_kml.elements["//#{elem}"].text.should == v.to_s
+            get_obj_child_content(@o, "#{elem}").should == v.to_s
         end
     end
 end
@@ -1090,7 +1129,7 @@ end
 
 describe 'StyleSelector' do
     before(:each) do
-        @o = Kamelopard::StyleSelector.new 
+        @o = Kamelopard::StyleSelector.new
     end
 
     it_should_behave_like 'StyleSelector'
@@ -1174,7 +1213,7 @@ end
 
 describe 'Kamelopard::FlyTo' do
     before(:each) do
-        @o = Kamelopard::FlyTo.new 
+        @o = Kamelopard::FlyTo.new
     end
 
     it_should_behave_like 'Kamelopard::TourPrimitive'
@@ -1549,7 +1588,7 @@ describe 'Kamelopard::Alias' do
     it 'has the right KML' do
         d = @o.to_kml
         @fields.each do |f|
-            d.elements["//#{f}"].text.should == @n
+            get_child_content(d, "#{f}").should == @n
         end
     end
 end
@@ -1606,7 +1645,7 @@ describe 'Kamelopard::Link' do
     it 'has the right KML' do
         @n = 213
         @o.refreshInterval = @n
-        @o.viewBoundScale = @n 
+        @o.viewBoundScale = @n
         @o.viewFormat = @href
         @o.httpQuery = @href
         d = @o.to_kml
@@ -1666,5 +1705,5 @@ describe 'Kamelopard::Container' do
         @o = Kamelopard::Container.new()
     end
 
-    it_should_behave_like 'Kamelopard::Container' 
+    it_should_behave_like 'Kamelopard::Container'
 end
