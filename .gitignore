@@ -1,2 +1,4 @@
 \.*\.swp
-kameleopard*.gem
+kamelopard*.gem
+*.*~
+Gemfile.lock
