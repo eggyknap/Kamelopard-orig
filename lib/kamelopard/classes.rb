@@ -1295,11 +1295,7 @@ module Kamelopard
 
         # Adds another update string, presumably containing a <Change> element
         def <<(a)
-            if a.is_a? String then
-                @updates << XML::Node.new_cdata(a)
-            else
-                @updates << a
-            end
+            @updates << a
         end
 
         def to_kml(elem = nil)
