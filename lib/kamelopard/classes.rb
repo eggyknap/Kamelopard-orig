@@ -1313,10 +1313,10 @@ module Kamelopard
             q << @target.to_s
             d << q
             @updates.each do |i|
-                parser = reader = XML::Parser.string(a)
+                parser = reader = XML::Parser.string(i)
                 doc = parser.parse
                 node = doc.child
-                n = d.import(node)
+                n = node.copy true
                 d << n
             end
             k << d
