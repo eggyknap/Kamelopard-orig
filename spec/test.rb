@@ -1,7 +1,6 @@
 # vim:ts=4:sw=4:et:smartindent:nowrap
 $LOAD_PATH << './lib'
 require 'kamelopard'
-require 'rexml/document'
 require "xml"
 # XXX test everything's to_kml(elem), instead of just to_kml(nil)
 
