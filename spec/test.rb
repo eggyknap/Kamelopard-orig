@@ -1275,7 +1275,6 @@ describe 'Kamelopard::AnimatedUpdate' do
         @o.is_a?(Kamelopard::AnimatedUpdate).should == true
         @o << '<Change><Placemark targetId="1"><visibility>1</visibility></Placemark></Change>'
         d = @o.to_kml
-        puts d
         doc = build_doc_from_node @o
         find_first_kml(doc, "//kml:Update/kml:targetHref").content.should == @target
         find_first_kml(doc, "//kml:Update/kml:Change/kml:Placemark").should_not be_nil
