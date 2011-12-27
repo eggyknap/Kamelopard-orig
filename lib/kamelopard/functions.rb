@@ -9,12 +9,18 @@ def set_flyto_mode_to(a)
 end
 
 def mod_popup_for(p, v)
-    a = Kamelopard::AnimatedUpdate.new
+    au = Kamelopard::AnimatedUpdate.new
     if ! p.is_a? Kamelopard::Placemark then
         raise "Can't show popups for things that aren't placemarks"
     end
-    a << "<Change><Placemark targetId=\"#{p.obj_id}\"><visibility>#{v}</visibility></Placemark></Change>"
-    a
+    a = XML::Node.new 'Change'
+    b = XML::Node.new 'Placemark'
+    b.attributes['targetId'] = p.obj_id
+    c = XML::Node.new 'visibility'
+    c << XML::Node.new_text(v.to_s)
+    b << c
+    a << b
+    au << a
 end
 
 def hide_popup_for(p)

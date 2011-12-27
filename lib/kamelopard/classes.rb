@@ -1286,14 +1286,19 @@ module Kamelopard
             rescue RuntimeError
                 @target = target
             end
-            @updates = updates
+            @updates = []
+            updates.each do |u| self.<<(u) end
             @duration = duration
             @delayedStart = delayedstart
         end
 
         # Adds another update string, presumably containing a <Change> element
         def <<(a)
-            @updates << XML::Node.new_text( a )
+            if a.is_a? String then
+                @snippet = XML::Node.new_cdata(a)
+            else
+                @updates << a
+            end
         end
 
         def to_kml(elem = nil)
@@ -1949,6 +1954,53 @@ module Kamelopard
             @geometries.each do |g|
                 g.to_kml e
             end
+            elem << e unless elem.nil?
+            e
+        end
+    end
+
+    class NetworkLink < Feature
+        attr_accessor :refreshVisibility, :flyToView, :link
+
+        def initialize(href = '', refreshMode = :onChange, viewRefreshMode = :never)
+            super()
+            @link = Link.new(href, refreshMode, viewRefreshMode)
+            @refreshVisibility = 0
+            @flyToView = 0
+        end
+
+        def refreshMode
+            link.refreshMode
+        end
+
+        def viewRefreshMode
+            link.viewRefreshMode
+        end
+
+        def href
+            link.href
+        end
+
+        def refreshMode=(a)
+            link.refreshMode = a
+        end
+
+        def viewRefreshMode=(a)
+            link.viewRefreshMode = a
+        end
+
+        def href=(a)
+            link.href = a
+        end
+
+        def to_kml(elem = nil)
+            e = XML::Node.new 'NetworkLink'
+            super e
+            @link.to_kml e
+            Kamelopard.kml_array(e, [
+                [@flyToView, 'flyToView'],
+                [@refreshVisibility, 'refreshVisibility']
+            ])
             elem << e unless elem.nil?
             e
         end
