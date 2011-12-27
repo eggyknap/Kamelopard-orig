@@ -32,6 +32,7 @@ def build_doc_from_node(node)
   xmlns:gx="http://www.google.com/kml/ext/2.2"
   xmlns:kml="http://www.opengis.net/kml/3.2"
   xmlns:atom="http://www.w3.org/2005/Atom">
+  xmlns="urn:oasis:names:tc:ciq:xsdschema:xAL:2.0"
     #{node.to_kml.to_s}
   </kml>
 XXXX
@@ -414,7 +415,7 @@ shared_examples_for 'Kamelopard::Feature' do
             p = Kamelopard::Feature.new()
             Kamelopard::Document.instance.folder << p
             p.instance_variable_set("@#{f}".to_sym, marker)
-            e = get_obj_child_content p, "#{f}"
+            e = get_obj_child p, "#{f}"
             e.should_not be_nil
             e.content.should == marker
         end
@@ -430,7 +431,7 @@ shared_examples_for 'Kamelopard::Feature' do
         ].each do |a|
             p = Kamelopard::Feature.new()
             p.instance_variable_set(a[0], marker)
-            e = get_child p, "#{a[1]}"
+            e = get_child p.to_kml, a[1]
             e.should_not be_nil
             e.content.should == marker
         end
@@ -458,9 +459,10 @@ shared_examples_for 'Kamelopard::Feature' do
         maxlines = 2
         text = "This is my snippet\nIt's more than two lines long.\nNo, really."
         @o.snippet = Kamelopard::Snippet.new(text, maxlines)
-        s = @o.to_kml.elements["//Snippet[@maxLines='#{ maxlines }']"]
+        doc = build_doc_from_node @o
+        s = doc.find_first("//kml:Snippet[@maxLines='#{maxlines}']", 'kml:http://www.opengis.net/kml/2.2')
         s.should_not be_nil
-        s.text.should == text
+        s.content.should == text
     end
 
     describe 'correctly produces Kamelopard::Region KML' do
@@ -479,7 +481,8 @@ shared_examples_for 'Kamelopard::Feature' do
 
         it 'creates a Kamelopard::Region element' do
             @reg.should_not be_nil
-            @reg.attributes['id'].should == @r.id
+            @reg.attributes['id'].should == @r.object_id
+
         end
 
         it 'creates the right LatLonAltBox' do
@@ -817,8 +820,8 @@ describe 'Kamelopard::TimeStamp' do
     it_should_behave_like 'KML_root_name'
 
     it 'has the right KML elements' do
-        k = @o.to_kml
-        k.elements["[when='#{ @when }']"].should_not be_nil
+        doc = build_doc_from_node @o
+        doc.find("//*/*[when='#{@when}']").should_not be_nil
     end
 end
 
@@ -835,9 +838,9 @@ describe 'Kamelopard::TimeSpan' do
     it_should_behave_like 'KML_root_name'
 
     it 'has the right KML elements' do
-        k = @o.to_kml
-        k.elements["[begin='#{ @begin }']"].should_not be_nil
-        k.elements["[end='#{ @end }']"].should_not be_nil
+        doc = build_doc_from_node @o
+        doc.find("//*/*[begin='#{ @begin }']").should_not be_nil
+        doc.find("//*/*[end='#{ @end }']").should_not be_nil
     end
 end
 
@@ -846,7 +849,6 @@ describe 'Kamelopard::Feature' do
         @o = Kamelopard::Feature.new('Some feature')
         @fields = []
     end
-
     it_should_behave_like 'Kamelopard::Feature'
 end
 
