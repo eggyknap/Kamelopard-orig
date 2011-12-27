@@ -1524,8 +1524,13 @@ describe 'Kamelopard::GroundOverlay' do
     it 'has the right KML' do
         d = @o.to_kml
         get_child_content(d, 'altitude').should == @n.to_s
-        test_lat_lon_box(d, @lb)
-        test_lat_lon_quad(d, @n)
+
+        lat_lon_box = get_child d, "LatLonBox"
+        test_lat_lon_box(lat_lon_box, @lb)
+
+
+        lat_lon_quad = get_child d, "gx:LatLonQuad"
+        test_lat_lon_quad(lat_lon_quad, @n)
     end
 end
 
@@ -1560,8 +1565,8 @@ describe 'Kamelopard::Region' do
 
     it 'has the right KML' do
         d = @o.to_kml
-        test_lat_lon_box(d.elements['//LatLonAltBox'], @lb)
-        test_lod(d.elements['//Lod'], @n)
+        test_lat_lon_box(get_child(d, 'LatLonAltBox'), @lb)
+        test_lod(get_child(d, 'Lod'), @n)
     end
 end
 
@@ -1588,7 +1593,7 @@ describe 'Kamelopard::Orientation' do
     it 'has the right KML' do
         d = @o.to_kml
         @fields.each do |f|
-            d.elements["//#{f}"].text.to_i.should == @n
+            get_child_content(d, f).to_i.should == @n
         end
     end
 end
@@ -1607,7 +1612,7 @@ describe 'Kamelopard::Scale' do
     it 'has the right KML' do
         d = @o.to_kml
         @fields.each do |f|
-            d.elements["//#{f}"].text.to_i.should == @n
+            get_child_content(d, f).to_i.should == @n
         end
     end
 end
@@ -1658,10 +1663,10 @@ describe 'Kamelopard::ResourceMap' do
 
     it 'has the right KML' do
         # Make this a REXML::Document instead of just a collection of elements, for better XPath support
-        d = REXML::Document.new
-        d << @o.to_kml
+        doc = build_doc_from_node @o
+
         @aliases.each do |a|
-            d.elements["//Alias[targetHref=\"#{a.targetHref}\" and sourceHref=\"#{a.sourceHref}\"]"].should_not be_nil
+            find_first_kml(doc, "//kml:Alias[kml:targetHref=\"#{a.targetHref}\" and kml:sourceHref=\"#{a.sourceHref}\"]").should_not be_nil
         end
     end
 end
@@ -1696,7 +1701,7 @@ describe 'Kamelopard::Link' do
             :viewFormat => @href,
             :httpQuery => @href
         }.each do |k, v|
-            d.elements["//#{k}"].text.should == v.to_s
+            get_child_content(d, k.to_s).should == v.to_s
         end
     end
 end
@@ -1727,13 +1732,14 @@ describe 'Kamelopard::Model' do
     it_should_behave_like 'field_producer'
 
     it 'makes the right KML' do
-        d = REXML::Document.new
-        d << @o.to_kml
+        d = @o.to_kml
         %w[ Link Location Orientation Scale ResourceMap ].each do |f|
-            d.elements["//#{f}"].should_not be_nil
+            get_child(d, f).should_not be_nil
         end
         %w[ longitude latitude altitude ].each do |f|
-            d.elements["//Location/#{f}"].text.to_i.should == @n
+            location = get_child(d, "Location")
+            location.should_not be_nil
+            get_child_content(location, f).to_i.should == @n
         end
     end
 end
