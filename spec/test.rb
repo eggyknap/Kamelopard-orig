@@ -9,6 +9,10 @@ def find_first_kml(doc, xpath)
   doc.find_first xpath, "kml:http://www.opengis.net/kml/2.2"
 end
 
+def find_all_gx(doc, xpath)
+  doc.find xpath, "gx=http://www.google.com/kml/ext/2.2"
+end
+
 # method returns the first node found among children with given name
 def get_child(node, name)
     node.children.detect{ |child| child.name == name}
@@ -81,16 +85,16 @@ end
 
 def match_view_vol(x, e)
     %w[ near rightFov topFov ].each do |a|
-        get_child_content(x, "#{a}").to_i.should == e
+        get_child_content(x, a).to_i.should == e
     end
     %w[ leftFov bottomFov ].each do |a|
-        get_child_content(x, "#{a}").to_i.should == e
+        get_child_content(x, a).to_i.should == -e
     end
 end
 
 def match_image_pyramid(x, e)
     %w[ tileSize maxWidth maxHeight gridOrigin ].each do |a|
-        get_child_content(x, "#{a}").to_i.should == e
+        get_child_content(x, a).to_i.should == e
     end
 end
 
@@ -640,10 +644,12 @@ shared_examples_for 'Kamelopard::Overlay' do
         @o.drawOrder = drawOrder
         @o.color = color
 
-        d = @o.to_kml
-        d.elements['//href'].text.should == href
-        d.elements['//color'].text.should == color
-        d.elements['//drawOrder'].text.to_i.should == drawOrder
+        x = get_obj_child(@o, "Icon")
+        get_child_content(x, "href").should == href
+
+        get_obj_child_content(@o, "color").should == color
+        get_obj_child_content(@o, "drawOrder").to_i.should == drawOrder
+
     end
 end
 
@@ -1297,7 +1303,7 @@ describe 'Kamelopard::TourControl' do
     it_should_behave_like 'Kamelopard::TourPrimitive'
 
     it 'should have the right KML' do
-        @o.to_kml.elements['//gx:playMode'].text.should == 'pause'
+        get_obj_child_content(@o, "gx:playMode").should == 'pause'
     end
 end
 
@@ -1310,7 +1316,7 @@ describe 'Kamelopard::Wait' do
     it_should_behave_like 'Kamelopard::TourPrimitive'
 
     it 'should have the right KML' do
-        @o.to_kml.elements['//gx:duration'].text.to_i.should == @pause
+        get_obj_child_content(@o, "gx:duration").to_i.should == @pause
     end
 end
 
@@ -1325,8 +1331,8 @@ describe 'Kamelopard::SoundCue' do
 
     it 'should have the right KML' do
         d = @o.to_kml
-        d.elements['//href'].text.should == @href
-        d.elements['//gx:delayedStart'].text.to_f.should == @delayedStart
+        get_obj_child_content(@o, "href").should == @href
+        get_obj_child_content(@o, "gx:delayedStart").to_f.should == @delayedStart
     end
 end
 
@@ -1349,12 +1355,13 @@ describe 'Kamelopard::Tour' do
         Kamelopard::Wait.new
         Kamelopard::Wait.new
 
-        d = @o.to_kml
-        d.elements['//name'].text.should == @name
-        d.elements['//description'].text.should == @description
-        p = d.elements['//gx:Playlist']
-        p.should_not be_nil
-        p.elements.size.should == 4
+        get_obj_child_content(@o, "name").should == @name
+        get_obj_child_content(@o, "description").should == @description
+
+        playlist = get_obj_child(@o, "gx:Playlist")
+        playlist.should_not be_nil
+        playlist.children.length.should == 4
+
     end
 end
 
@@ -1374,13 +1381,15 @@ describe 'Kamelopard::ScreenOverlay' do
 
     it 'has the right KML' do
         d = @o.to_kml
-        d.elements['//name'].text.should == @name
-        d.elements['//rotation'].text.to_i.should == @rotation
+        get_obj_child_content(@o, "name").should == @name
+        get_obj_child_content(@o, "rotation").should == @rotation.to_s
         %w[ overlayXY screenXY rotationXY size ].each do |a|
-            d.elements["//#{a}"].attributes['x'] = @x
-            d.elements["//#{a}"].attributes['y'] = @x
-            d.elements["//#{a}"].attributes['xunits'] = @un
-            d.elements["//#{a}"].attributes['yunits'] = @un
+            node = get_obj_child(@o, a)
+            node.attributes['x'].should == @x.to_s
+            node.attributes['y'].should == @x.to_s
+            node.attributes['xunits'].should == @un.to_s
+            node.attributes['yunits'].should == @un.to_s
+
         end
     end
 end
@@ -1434,11 +1443,16 @@ describe 'Kamelopard::PhotoOverlay' do
     it_should_behave_like 'field_producer'
 
     it 'has the right KML' do
-        d = @o.to_kml
-        d.elements['//shape'].text.should == @shape
-        d.elements['//rotation'].text.to_i.should == @rotation
-        match_view_vol(d.elements['//ViewVolume'], @n).should be_true
-        match_image_pyramid(d.elements['//ImagePyramid'], @n).should be_true
+
+        get_obj_child_content(@o, "shape").should == @shape
+        get_obj_child_content(@o, "rotation").should == @rotation.to_s
+
+
+        volume = get_obj_child(@o, "ViewVolume")
+        pyramid = get_obj_child(@o, "ImagePyramid")
+
+        match_view_vol(volume, @n).should be_true
+        match_image_pyramid(pyramid, @n).should be_true
     end
 end
 
@@ -1454,8 +1468,8 @@ describe 'Kamelopard::LatLonBox' do
 
     it 'has the right KML in altitude mode' do
         d = @o.to_kml(nil, true)
-        d.elements['//minAltitude'].text.should == @n.to_s
-        d.elements['//maxAltitude'].text.should == @n.to_s
+        get_child_content(d, "minAltitude").should == @n.to_s
+        get_child_content(d, "maxAltitude").should == @n.to_s
         test_lat_lon_box(d, @o)
     end
 
@@ -1509,7 +1523,7 @@ describe 'Kamelopard::GroundOverlay' do
 
     it 'has the right KML' do
         d = @o.to_kml
-        d.elements['//altitude'].text.should == @n.to_s
+        get_child_content(d, 'altitude').should == @n.to_s
         test_lat_lon_box(d, @lb)
         test_lat_lon_quad(d, @n)
     end
