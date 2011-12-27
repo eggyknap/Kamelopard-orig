@@ -38,8 +38,8 @@ def build_doc_from_node(node)
   <kml xmlns="http://www.opengis.net/kml/2.2"
   xmlns:gx="http://www.google.com/kml/ext/2.2"
   xmlns:kml="http://www.opengis.net/kml/2.2"
-  xmlns:atom="http://www.w3.org/2005/Atom">
-  xmlns="urn:oasis:names:tc:ciq:xsdschema:xAL:2.0"
+  xmlns:atom="http://www.w3.org/2005/Atom"
+  xmlns:xal="urn:oasis:names:tc:ciq:xsdschema:xAL:2.0">
     #{node.to_kml.to_s}
   </kml>
 XXXX
