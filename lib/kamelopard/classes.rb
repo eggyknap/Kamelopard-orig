@@ -1040,7 +1040,8 @@ module Kamelopard
 
         def to_kml(elem = nil)
             k = XML::Node.new 'ListStyle'
-            # super k -- Don't bother
+
+            super k
             Kamelopard.kml_array(k, [
                 [@listitemtype, 'listItemType'],
                 [@bgcolor, 'bgColor']
