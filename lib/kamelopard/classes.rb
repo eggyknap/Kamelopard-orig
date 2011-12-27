@@ -1294,7 +1294,7 @@ module Kamelopard
 
         # Adds another update string, presumably containing a <Change> element
         def <<(a)
-            @updates << XML::Node.new_text( a )
+            @updates << a
         end
 
         def to_kml(elem = nil)
@@ -1312,7 +1312,13 @@ module Kamelopard
             q = XML::Node.new 'targetHref'
             q << @target.to_s
             d << q
-            @updates.each do |i| d << i end
+            @updates.each do |i|
+                parser = reader = XML::Parser.string(a)
+                doc = parser.parse
+                node = doc.child
+                n = d.import(node)
+                d << n
+            end
             k << d
             elem << k unless elem.nil?
             k
