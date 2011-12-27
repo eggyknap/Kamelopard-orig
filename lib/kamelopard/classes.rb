@@ -1040,7 +1040,8 @@ module Kamelopard
 
         def to_kml(elem = nil)
             k = XML::Node.new 'ListStyle'
-            # super k -- Don't bother
+
+            super k
             Kamelopard.kml_array(k, [
                 [@listitemtype, 'listItemType'],
                 [@bgcolor, 'bgColor']
@@ -1295,7 +1296,7 @@ module Kamelopard
         # Adds another update string, presumably containing a <Change> element
         def <<(a)
             if a.is_a? String then
-                @snippet = XML::Node.new_cdata(a)
+                @updates << XML::Node.new_cdata(a)
             else
                 @updates << a
             end
@@ -1316,7 +1317,13 @@ module Kamelopard
             q = XML::Node.new 'targetHref'
             q << @target.to_s
             d << q
-            @updates.each do |i| d << i end
+            @updates.each do |i|
+                parser = reader = XML::Parser.string(i)
+                doc = parser.parse
+                node = doc.child
+                n = node.copy true
+                d << n
+            end
             k << d
             elem << k unless elem.nil?
             k
