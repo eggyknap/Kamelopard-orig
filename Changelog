@@ -3,7 +3,7 @@
 * Converted from REXML to libxml; speed improved dramatically
 * Added better CDATA support to Feature description attributes
 * Removed color elements from ListStyle
-* Fix Snippets to make them more reliable
+* Fix AnimatedUpdates and Snippets to make them more reliable
 * Added support for Polygon and MultiGeometry objects
 * Fixed support functions and PointList to handle Kamelopard module
 * Added NetworkLink objects
