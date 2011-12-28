@@ -4,6 +4,14 @@ require 'kamelopard'
 require "xml"
 # XXX test everything's to_kml(elem), instead of just to_kml(nil)
 
+# Function for printing debug information.
+def put_info(str)
+    puts
+    puts "="*60
+    puts str
+    puts "*"*60
+end
+
 def find_first_kml(doc, xpath)
   doc.find_first xpath, "kml:http://www.opengis.net/kml/2.2"
 end
