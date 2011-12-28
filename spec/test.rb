@@ -348,7 +348,7 @@ shared_examples_for 'Kamelopard::CoordinateList' do
         end
 
         it 'complains when trying to add something weird' do
-            a = REXML::Document.new('<a>b</a>')
+            a = 42
             lambda { @o << a }.should raise_error
         end
     end
@@ -1213,9 +1213,10 @@ end
 
 describe 'StyleMap' do
     def has_correct_stylemap_kml?(o)
-        d = REXML::Document.new o.to_kml.to_s
-        return d.elements['/StyleMap/Pair[key="normal"]/Style'] &&
-            d.elements['/StyleMap/Pair[key="highlight"]/styleUrl']
+        doc = build_doc_from_node o
+        f = find_first_kml doc, '//kml:StyleMap/kml:Pair[kml:key="normal"]/kml:Style'
+        s = find_first_kml doc, '//kml:StyleMap/kml:Pair[kml:key="highlight"]/kml:styleUrl'
+        return f && s
     end
 
     before(:each) do

@@ -7,8 +7,6 @@
 module Kamelopard
     require 'singleton'
     require 'kamelopard/pointlist'
-    require 'rexml/document'
-    require 'rexml/element'
     require 'xml'
     require 'yaml'
 
