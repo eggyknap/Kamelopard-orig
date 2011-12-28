@@ -462,8 +462,9 @@ shared_examples_for 'Kamelopard::Feature' do
     it 'correctly KML-ifies the atom:author field' do
         o = Kamelopard::Feature.new()
         marker = 'Look for this text'
+        o.atom_author = marker
         doc = build_doc_from_node o
-        doc.find('//atom:author/atom:name').content.should == marker
+        doc.find_first('//atom:author/atom:name').content.should == marker
     end
 
     it 'returns the right KML for boolean fields' do
