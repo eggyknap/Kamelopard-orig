@@ -4,35 +4,65 @@ require 'kamelopard'
 require "xml"
 # XXX test everything's to_kml(elem), instead of just to_kml(nil)
 
+# Printing debug information.
+def put_info(str)
+    puts
+    puts "="*60
+    puts str
+    puts "*"*60
+end
+
+#
+# Returns the first node found in given doc using given xpath.
+#
+#
 def find_first_kml(doc, xpath)
   doc.find_first xpath, "kml:http://www.opengis.net/kml/2.2"
 end
 
-def find_all_gx(doc, xpath)
-  doc.find xpath, "gx=http://www.google.com/kml/ext/2.2"
-end
 
-# method returns the first node found among children with given name
+#
+# Returns the first node found among children with given name.
+#
+#
 def get_child(node, name)
     node.children.detect{ |child| child.name == name}
 end
 
-# method returns the content of the first node found among children with given name
+#
+# Returns the content of the first node found among children with given name.
+#
+#
 def get_child_content(node, name)
     n = node.children.detect{ |child| child.name == name}
     n.content unless n.nil?
 end
 
+#
+# Returns the first child with given name.
+#
+# On the object param there used to_kml method for getting the kml.
+#
 def get_obj_child(object, name)
   k = object.to_kml
   get_child(k, name)
 end
 
+#
+# Returns the content of the first child with given name.
+#
+# On the object param there used to_kml method for getting the kml.
+#
 def get_obj_child_content(object, name)
   k = object.to_kml
   get_child_content(k, name)
 end
 
+#
+# Builds proper kml from given node. It surrounds kml from given node with kml tag.
+# This must be done for using xpath with libxml. If you want to use xpath, then the
+# node need to belong to a proper libxml document, so we need a proper xml.
+#
 def build_doc_from_node(node)
   kml =<<XXXX
   <kml xmlns="http://www.opengis.net/kml/2.2"
@@ -318,7 +348,7 @@ shared_examples_for 'Kamelopard::CoordinateList' do
         end
 
         it 'complains when trying to add something weird' do
-            a = REXML::Document.new('<a>b</a>')
+            a = 42
             lambda { @o << a }.should raise_error
         end
     end
@@ -454,8 +484,9 @@ shared_examples_for 'Kamelopard::Feature' do
     it 'correctly KML-ifies the atom:author field' do
         o = Kamelopard::Feature.new()
         marker = 'Look for this text'
+        o.atom_author = marker
         doc = build_doc_from_node o
-        doc.find('//atom:author/atom:name').content.should == marker
+        doc.find_first('//atom:author/atom:name').content.should == marker
     end
 
     it 'returns the right KML for boolean fields' do
@@ -1182,9 +1213,10 @@ end
 
 describe 'StyleMap' do
     def has_correct_stylemap_kml?(o)
-        d = REXML::Document.new o.to_kml.to_s
-        return d.elements['/StyleMap/Pair[key="normal"]/Style'] &&
-            d.elements['/StyleMap/Pair[key="highlight"]/styleUrl']
+        doc = build_doc_from_node o
+        f = find_first_kml doc, '//kml:StyleMap/kml:Pair[kml:key="normal"]/kml:Style'
+        s = find_first_kml doc, '//kml:StyleMap/kml:Pair[kml:key="highlight"]/kml:styleUrl'
+        return f && s
     end
 
     before(:each) do
