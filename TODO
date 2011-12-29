@@ -21,3 +21,5 @@ IDEAS FOR FUTURE DEVELOPMENT
 
 * Change methods and functions so options are accepted as a hash, rather than
   in some arbitrary order I have to keep looking up in the docs
+
+* Add a function to get the current camera position, where possible
