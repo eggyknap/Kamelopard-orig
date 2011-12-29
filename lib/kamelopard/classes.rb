@@ -1460,11 +1460,7 @@ module Kamelopard
             @overlayXY.to_kml('overlayXY', k)   unless @overlayXY.nil?
             @screenXY.to_kml('screenXY', k)     unless @screenXY.nil?
             @rotationXY.to_kml('rotationXY', k) unless @rotationXY.nil?
-            if ! @size.nil? then
-                s = XML::Node.new 'size'
-                s << XML::Node.new_text(@size.to_s)
-                k << s
-            end
+            @size.to_kml('size', k)             unless @size.nil?
             if ! @rotation.nil? then
                 d = XML::Node.new 'rotation'
                 d << @rotation.to_s
