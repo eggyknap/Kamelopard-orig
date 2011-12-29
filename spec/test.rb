@@ -425,6 +425,14 @@ shared_examples_for 'Kamelopard::Feature' do
         @o.should respond_to(:addressDetails)
     end
 
+    it 'handles show and hide methods correctly' do
+        @o.hide
+        STDERR.puts @o.to_kml.to_s
+        get_obj_child_content(@o, 'visibility').to_i.should == 0
+        @o.show
+        get_obj_child_content(@o, 'visibility').to_i.should == 1
+    end
+
     it 'handles extended address stuff correctly' do
         @o.addressDetails = 'These are some extended details'
         k = Kamelopard::Document.instance.get_kml_document

@@ -561,7 +561,7 @@ module Kamelopard
 
     # Abstract class corresponding to KML's Feature object.
     class Feature < Object
-        # Abatract class
+        # Abstract class
         attr_accessor :visibility, :open, :atom_author, :atom_link, :name,
             :phoneNumber, :description, :abstractView,
             :timeprimitive, :styleUrl, :styleSelector, :region, :metadata,
@@ -574,6 +574,18 @@ module Kamelopard
             @visibility = true
             @open = false
             @styles = []
+        end
+
+        # Hides the object. Note that this governs only whether the object is
+        # initially visible or invisible; to show or hide the feature
+        # dynamically during a tour, use an AnimatedUpdate object
+        def hide
+            @visibility = false
+        end
+
+        # Shows the object. See note for hide() method
+        def show
+            @visibility = true
         end
 
         def snippet=(a)
