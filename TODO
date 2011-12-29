@@ -1,0 +1,23 @@
+IDEAS FOR FUTURE DEVELOPMENT
+
+* Include functions for calculating appropriate heading, tilt, and roll given
+  points representing the position of an aircraft
+
+* Create function so objects can generate their own <Change>, etc. eleements
+  for an AnimatedUpdate
+
+* Improve helper functions, their tests, and their documentation
+
+* Add functions to generate various shapes in one and possibly two dimensions,
+  and other functions to accept those paths as arguments to create flythroughs.
+  These paths could include regular lines, lines where the points expand or
+  contract geometrically or exponentially, sine and cosine functions (for
+  making circles), etc., and other functions could take these paths as
+  arguments to describe latitude, longitude, altitude, duration, heading, tilt,
+  etc. For instance, a sine path passed to the tilt parameter would rock back
+  and forth. sine and cosine passed to lat and long respectivally would travel
+  in a circle. Adding an exponentially increasing range path would make it a
+  spiral.
+
+* Change methods and functions so options are accepted as a hash, rather than
+  in some arbitrary order I have to keep looking up in the docs
