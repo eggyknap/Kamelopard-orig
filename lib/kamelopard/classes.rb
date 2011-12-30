@@ -121,6 +121,19 @@ module Kamelopard
                 return c
             end
         end
+
+        # Generates a <Change> element suitable for changing the given field of
+        # an object to the given value
+        def change(field, value)
+            c = XML::Node.new 'Change'
+            o = XML::Node.new self.class.name.sub!(/Kamelopard::/, '')
+            o.attributes['targetId'] = self.obj_id
+            e = XML::Node.new field
+            e.content = value.to_s
+            o << e
+            c << o
+            c
+        end
     end
 
     # Abstract base class for Point and several other classes
@@ -1324,11 +1337,15 @@ module Kamelopard
             q << @target.to_s
             d << q
             @updates.each do |i|
-                parser = reader = XML::Parser.string(i)
-                doc = parser.parse
-                node = doc.child
-                n = node.copy true
-                d << n
+                if i.is_a? XML::Node then
+                    d << i
+                else
+                    parser = reader = XML::Parser.string(i)
+                    doc = parser.parse
+                    node = doc.child
+                    n = node.copy true
+                    d << n
+                end
             end
             k << d
             elem << k unless elem.nil?
