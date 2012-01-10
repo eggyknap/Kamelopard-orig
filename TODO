@@ -23,3 +23,8 @@ IDEAS FOR FUTURE DEVELOPMENT
   in some arbitrary order I have to keep looking up in the docs
 
 * Add a function to get the current camera position, where possible
+
+* Add tests which check if generated xml is valid due to the DTD
+
+* Enable running Kamelopard on Ruby 1.9. Currently it works only on 1.8 while
+  on 1.9 many test fail.
