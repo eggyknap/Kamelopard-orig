@@ -28,3 +28,6 @@ IDEAS FOR FUTURE DEVELOPMENT
 
 * Enable running Kamelopard on Ruby 1.9. Currently it works only on 1.8 while
   on 1.9 many test fail.
+
+* Create altitute modes class as enum - I don't want to write the modes names
+  by hand.
