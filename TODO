@@ -31,3 +31,5 @@ IDEAS FOR FUTURE DEVELOPMENT
 
 * Create altitute modes class as enum - I don't want to write the modes names
   by hand.
+
+* Merge functions.rb and functions2.rb into one file.
