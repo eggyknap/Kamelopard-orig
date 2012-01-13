@@ -105,16 +105,31 @@ module Kamelopard
     # Base class for all Kamelopard objects. Manages object ID and a single
     # comment string associated with the object
     class Object
-        attr_accessor :obj_id, :comment
+        attr_accessor :kml_id
+        attr_reader :comment
 
-        def initialize(comment = nil)
-            @obj_id = "#{self.class.name.gsub('Kamelopard::', '')}_#{ Kamelopard.get_next_id }"
-            @comment = comment.gsub(/</, '&lt;') unless comment.nil?
+        def initialize(options = {})
+            @kml_id = "#{self.class.name.gsub('Kamelopard::', '')}_#{ Kamelopard.get_next_id }"
+
+            options.each do |k, v|
+                method = "#{k}=".to_sym
+                if self.respond_to? method then
+                    self.method(method).call(v)
+                end
+            end
+        end
+
+        def comment=(a)
+            if a.respond_to? :gsub then
+                @comment = a.gsub(/</, '&lt;')
+            else
+                @comment = a
+            end
         end
 
         # Returns KML string for this object. Objects should override this method
         def to_kml(elem)
-            elem.attributes['id'] = @obj_id
+            elem.attributes['id'] = @kml_id.to_s
             if not @comment.nil? and @comment != '' then
                 c = XML::Node.new_comment " #{@comment} "
                 elem << c
@@ -127,7 +142,7 @@ module Kamelopard
         def change(field, value)
             c = XML::Node.new 'Change'
             o = XML::Node.new self.class.name.sub!(/Kamelopard::/, '')
-            o.attributes['targetId'] = self.obj_id
+            o.attributes['targetId'] = self.kml_id
             e = XML::Node.new field
             e.content = value.to_s
             o << e
@@ -142,14 +157,19 @@ module Kamelopard
 
     # Represents a Point in KML.
     class Point < Geometry
-        attr_accessor :longitude, :latitude, :altitude, :altitudeMode, :extrude
-        def initialize(long, lat, alt=0, altmode=:clampToGround, extrude=false)
-            super()
+        attr_reader :longitude, :latitude
+        attr_accessor :altitude, :altitudeMode, :extrude
+
+        def initialize(options = {})
+            super
+        end
+
+        def longitude=(long)
             @longitude = Kamelopard.convert_coord(long)
+        end
+
+        def latitude=(lat)
             @latitude = Kamelopard.convert_coord(lat)
-            @altitude = alt
-            @altitudeMode = altmode
-            @extrude = extrude
         end
 
         def to_s
@@ -159,7 +179,7 @@ module Kamelopard
         def to_kml(elem = nil, short = false)
             e = XML::Node.new 'Point'
             super(e)
-            e.attributes['id'] = @obj_id
+            e.attributes['id'] = @kml_id
             c = XML::Node.new 'coordinates'
             c << "#{ @longitude }, #{ @latitude }, #{ @altitude }"
             e << c
@@ -178,23 +198,18 @@ module Kamelopard
     end
 
     # Helper class for KML objects which need to know about several points at once
-    class CoordinateList
+    module CoordinateList
         attr_reader :coordinates
 
-        # Accepts an optional array of coordinates in any format add_element
-        # accepts
-        def initialize(coords = nil)
-            # Internally we store coordinates as an array of three-element
-            # arrays
-            @coordinates = []
-            if not coords.nil? then
-                add_element coords
+        def coordinates=(a)
+            if a.nil? then
+                coordinates = []
             else
-                @coordinates = []
+                add_element a
             end
         end
 
-        def to_kml(elem = nil)
+        def coordinates_to_kml(elem = nil)
             e = XML::Node.new 'coordinates'
             t = ''
             @coordinates.each do |a|
@@ -221,6 +236,9 @@ module Kamelopard
         # Note that this will not accept a one-dimensional array of numbers to add
         # a single point. Instead, create a Point with those numbers, and pass
         # it to add_element
+        #-
+        # XXX The above stipulation is a weakness that needs fixing
+        #+
         def add_element(a)
             if a.kind_of? Enumerable then
                 # We've got some sort of array or list. It could be a list of
@@ -269,27 +287,12 @@ module Kamelopard
 
     # Corresponds to the KML LineString object
     class LineString < Geometry
+        include CoordinateList
         attr_accessor :altitudeOffset, :extrude, :tessellate, :altitudeMode, :drawOrder, :longitude, :latitude, :altitude
-        attr_reader :coordinates
 
-        def initialize(coords, altMode = :clampToGround)
-            super()
-            @altitudeMode = altMode
-            set_coords coords
-        end
-
-        # Sets @coordinates element
-        def set_coords(a)
-            if a.kind_of? CoordinateList then
-                @coordinates = a
-            else
-                @coordinates = CoordinateList.new(a)
-            end
-        end
-
-        # Appends an element to this LineString's CoordinateList. See CoordinateList#add_element
-        def <<(a)
-            @coordinates << a
+        def initialize(options = {})
+            @coordinates = []
+            super
         end
 
         def to_kml(elem = nil)
@@ -301,7 +304,7 @@ module Kamelopard
                 [@tessellate, 'tessellate'],
                 [@drawOrder, 'gx:drawOrder']
             ])
-            @coordinates.to_kml(k) unless @coordinates.nil?
+            coordinates_to_kml(k) unless @coordinates.nil?
             Kamelopard.add_altitudeMode @altitudeMode, k
             elem << k unless elem.nil?
             k
@@ -310,35 +313,16 @@ module Kamelopard
 
     # Corresponds to KML's LinearRing object
     class LinearRing < Geometry
-        attr_accessor :altitudeOffset, :extrude, :tessellate, :altitudeMode, :coordinates
+        attr_accessor :altitudeOffset, :extrude, :tessellate, :altitudeMode
+        include CoordinateList
 
-        def initialize(coordinates = nil, tessellate = 0, extrude = 0, altitudeMode = :clampToGround, altitudeOffset = nil)
-            super()
-            if coordinates.nil? then
-                @coordinates = nil
-            elsif coordinates.kind_of? CoordinateList then
-                @coordinates = coordinates
-            else
-                @coordinates = CoordinateList.new(coordinates)
-            end
-            @tessellate = tessellate
-            @extrude = extrude
-            @altitudeMode = altitudeMode
-            @altitudeOffset = altitudeOffset
-        end
+        def initialize(options = {})
+            @tessellate = 0
+            @extrude = 0
+            @altitudeMode = :clampToGround
+            @coordinates = []
 
-        # Sets @coordinates element
-        def set_coords(a)
-            if a.kind_of? CoordinateList then
-                @coordinates = a
-            else
-                @coordinates = CoordinateList.new(a)
-            end
-        end
-
-        # Appends an element to this LinearRing's CoordinateList. See CoordinateList#add_element
-        def <<(a)
-            @coordinates << a
+            super
         end
 
         def to_kml(elem = nil)
@@ -350,7 +334,7 @@ module Kamelopard
                 [ @extrude, 'extrude' ]
             ])
             Kamelopard.add_altitudeMode(@altitudeMode, k)
-            @coordinates.to_kml(k)
+            coordinates_to_kml(k) unless @coordinates.nil?
             elem << k unless elem.nil?
             k
         end
@@ -358,31 +342,39 @@ module Kamelopard
 
     # Abstract class corresponding to KML's AbstractView object
     class AbstractView < Object
-        attr_accessor :timestamp, :timespan, :options, :point, :heading, :tilt, :roll, :range, :altitudeMode
-        def initialize(className, point = nil, heading = 0, tilt = 0, roll = 0, range = 0, altitudeMode = :clampToGround)
+        attr_accessor :timestamp, :timespan, :viewerOptions, :point, :heading, :tilt, :roll, :range, :altitudeMode
+        attr_reader :className
+
+        def initialize(className, options = {})
             raise "className argument must not be nil" if className.nil?
-            super()
-            @point = point
-            @options = {}
+
             @className = className
-            if point.nil? then
-                @point = nil
-            elsif point.kind_of? Placemark then
-                @point = point.point
-            else
-                @point = point
-            end
-            @heading = heading
-            @tilt = tilt
-            @roll = roll
-            @range = range
-            @altitudeMode = altitudeMode
+            @point = nil
+            @heading = 0
+            @tilt = 0
+            @roll = 0
+            @range = 0
+            @altitudeMode = :clampToGround
+            @viewerOptions = {}
+
+            super(options)
         end
 
         def point=(point)
-            @point.longitude = point.longitude
-            @point.latitude = point.latitude
-            @point.altitude = point.altitude
+            if point.nil? then
+                @point = nil
+            else
+                if point.kind_of? Placemark then
+                    a = point.point
+                else
+                    a = point
+                end
+                @point = Point.new({
+                    :longitude => a.longitude,
+                    :latitude => a.latitude,
+                    :altitude => a.altitude
+                })
+            end
         end
 
         def longitude
@@ -434,9 +426,9 @@ module Kamelopard
                 [ @roll, 'roll' ]
             ])
             Kamelopard.add_altitudeMode(@altitudeMode, t)
-            if @options.keys.length > 0 then
+            if @viewerOptions.keys.length > 0 then
                 vo = XML::Node.new 'gx:ViewerOptions'
-                @options.each do |k, v|
+                @viewerOptions.each do |k, v|
                     o = XML::Node.new 'gx:option'
                     o.attributes['name'] = k.to_s
                     o.attributes['enabled'] = v ? 'true' : 'false'
@@ -454,7 +446,7 @@ module Kamelopard
         end
 
         def [](a)
-            return @options[a]
+            return @viewerOptions[a]
         end
 
         def []=(a, b)
@@ -464,14 +456,14 @@ module Kamelopard
             if a != :streetview and a != :historicalimagery and a != :sunlight then
                 raise 'Option index must be :streetview, :historicalimagery, or :sunlight'
             end
-            @options[a] = b
+            @viewerOptions[a] = b
         end
     end
 
     # Corresponds to KML's Camera object
     class Camera < AbstractView
-        def initialize(point = nil, heading = 0, tilt = 0, roll = 0, altitudeMode = :clampToGround)
-            super('Camera', point, heading, tilt, roll, nil, altitudeMode)
+        def initialize(options = {})
+            super('Camera', options)
         end
 
         def range
@@ -485,8 +477,8 @@ module Kamelopard
 
     # Corresponds to KML's LookAt object
     class LookAt < AbstractView
-        def initialize(point = nil, heading = 0, tilt = 0, range = 0, altitudeMode = :clampToGround)
-            super('LookAt', point, heading, tilt, nil, range, altitudeMode)
+        def initialize(options = {})
+            super('LookAt', options)
         end
 
         def roll
@@ -635,12 +627,12 @@ module Kamelopard
         end
 
         # This function accepts either a StyleSelector object, or a string
-        # containing the desired StyleSelector's @obj_id
+        # containing the desired StyleSelector's @kml_id
         def styleUrl=(a)
             if a.is_a? String then
                 @styleUrl = a
             elsif a.respond_to? 'id' then
-                @styleUrl = "##{ a.obj_id }"
+                @styleUrl = "##{ a.kml_id }"
             else
                 @styleUrl = a.to_s
             end
@@ -932,16 +924,16 @@ module Kamelopard
 
     # Corresponds to the KML Icon object
     class Icon
-        attr_accessor :obj_id, :href, :x, :y, :w, :h, :refreshMode, :refreshInterval, :viewRefreshMode, :viewRefreshTime, :viewBoundScale, :viewFormat, :httpQuery
+        attr_accessor :kml_id, :href, :x, :y, :w, :h, :refreshMode, :refreshInterval, :viewRefreshMode, :viewRefreshTime, :viewBoundScale, :viewFormat, :httpQuery
 
         def initialize(href = nil)
             @href = href
-            @obj_id = "Icon_#{ Kamelopard.get_next_id }"
+            @kml_id = "Icon_#{ Kamelopard.get_next_id }"
         end
 
         def to_kml(elem = nil)
             k = XML::Node.new 'Icon'
-            k.attributes['id'] = @obj_id
+            k.attributes['id'] = @kml_id
             Kamelopard.kml_array(k, [
                 [@href, 'href'],
                 [@x, 'gx:x'],
@@ -1200,31 +1192,22 @@ module Kamelopard
     # descendant of Geometry
     class Placemark < Feature
         attr_accessor :name, :geometry
+
         def initialize(name = nil, geo = nil)
             super(name)
-            # XXX FAIL... Placemarks should have 0 or 1 geometry elements. Use MultiGeometry for more
-            @geometry = []
-            self.geometry=(geo)
+            @geometry = geo
         end
 
         def to_kml(elem = nil)
             k = XML::Node.new 'Placemark'
             super k
-            @geometry.each do |i| i.to_kml(k) unless i.nil? end
+            @geometry.to_kml(k) unless @geometry.nil?
             elem << k unless elem.nil?
             k
         end
 
-        def geometry=(geo)
-            if geo.kind_of? Array then
-                @geometry.concat geo
-            else
-                @geometry << geo
-            end
-        end
-
         def to_s
-            "Placemark id #{ @obj_id } named #{ @name }"
+            "Placemark id #{ @kml_id } named #{ @name }"
         end
 
         def longitude
@@ -1244,8 +1227,8 @@ module Kamelopard
         end
 
         def point
-            if @geometry[0].kind_of? Point then
-                @geometry[0]
+            if @geometry.kind_of? Point then
+                @geometry
             else
                 raise "This placemark uses a non-point geometry, but the operation you're trying requires a point object"
             end
@@ -1306,7 +1289,7 @@ module Kamelopard
             super()
             begin
                 raise "incorrect object type" unless @target.kind_of? Object
-                @target = target.obj_id
+                @target = target.kml_id
             rescue RuntimeError
                 @target = target
             end

@@ -64,16 +64,16 @@ end
 # node need to belong to a proper libxml document, so we need a proper xml.
 #
 def build_doc_from_node(node)
-  kml =<<XXXX
-  <kml xmlns="http://www.opengis.net/kml/2.2"
-  xmlns:gx="http://www.google.com/kml/ext/2.2"
-  xmlns:kml="http://www.opengis.net/kml/2.2"
-  xmlns:atom="http://www.w3.org/2005/Atom"
-  xmlns:xal="urn:oasis:names:tc:ciq:xsdschema:xAL:2.0">
-    #{node.to_kml.to_s}
-  </kml>
+    kml =<<XXXX
+    <kml xmlns="http://www.opengis.net/kml/2.2"
+    xmlns:gx="http://www.google.com/kml/ext/2.2"
+    xmlns:kml="http://www.opengis.net/kml/2.2"
+    xmlns:atom="http://www.w3.org/2005/Atom"
+    xmlns:xal="urn:oasis:names:tc:ciq:xsdschema:xAL:2.0">
+      #{node.to_kml.to_s}
+    </kml>
 XXXX
-  doc = XML::Document.string(kml)
+    doc = XML::Document.string(kml)
 end
 
 
@@ -162,9 +162,9 @@ def get_test_styles()
     sl = Kamelopard::Style.new i, la, lin, p, b, lis
     sm = Kamelopard::StyleMap.new( { :icon => si, :list => sl } )
 
-    si.obj_id = 'icon'
-    sl.obj_id = 'list'
-    sm.obj_id = 'map'
+    si.kml_id = 'icon'
+    sl.kml_id = 'list'
+    sm.kml_id = 'map'
 
     [ si, sl, sm ]
 end
@@ -210,7 +210,7 @@ shared_examples_for 'Kamelopard::Object' do
     end
 
     it 'has an id' do
-        @o.obj_id.should_not be_nil
+        @o.kml_id.should_not be_nil
     end
 
     it 'allows a comment' do
@@ -253,8 +253,8 @@ shared_examples_for 'KML_producer' do
         @o.should respond_to(:to_kml)
     end
 
-    it 'should create a REXML document when to_xml is called' do
-        @o.to_kml.class.should_not == String
+    it 'should create a XML document when to_xml is called' do
+        @o.to_kml.class.to_s.should == 'LibXML::XML::Node'
     end
 end
 
@@ -331,20 +331,28 @@ shared_examples_for 'Kamelopard::CoordinateList' do
         end
 
         it 'accepts Kamelopard::Points' do
-            @o << Kamelopard::Point.new(3,2,1)
+            @o << Kamelopard::Point.new({
+                :longitude => 3,
+                :latitude => 2,
+                :altitude => 1
+            })
         end
 
         it 'accepts arrays of points' do
             q = []
             [[1,2,3], [2,3,4], [3,4,5]].each do |a|
-                q << Kamelopard::Point.new(a[0], a[1], a[2])
+                q << Kamelopard::Point.new({
+                    :longitude => a[0],
+                    :latitude => a[1],
+                    :altitude => a[2]
+                })
             end
             @o << q
         end
 
         it 'accepts another Kamelopard::CoordinateList' do
-            p = Kamelopard::CoordinateList.new( [[1,2,3], [2,3,4], [3,4,5]] )
-            @o << p
+            p = Kamelopard::LinearRing.new({ :coordinates => [[1,2,3], [2,3,4], [3,4,5]] })
+            @o << p.coordinates
         end
 
         it 'complains when trying to add something weird' do
@@ -359,7 +367,7 @@ shared_examples_for 'Kamelopard::Camera-like' do
     it_should_behave_like 'Kamelopard::AbstractView'
 
     it 'has the right attributes' do
-        fields = %w[ timestamp timespan options longitude latitude altitude heading tilt roll altitudeMode ]
+        fields = %w[ timestamp timespan viewerOptions longitude latitude altitude heading tilt roll altitudeMode ]
         fields_exist @o, fields
     end
 
@@ -427,7 +435,6 @@ shared_examples_for 'Kamelopard::Feature' do
 
     it 'handles show and hide methods correctly' do
         @o.hide
-        STDERR.puts @o.to_kml.to_s
         get_obj_child_content(@o, 'visibility').to_i.should == 0
         @o.show
         get_obj_child_content(@o, 'visibility').to_i.should == 1
@@ -443,7 +450,7 @@ shared_examples_for 'Kamelopard::Feature' do
     it 'handles styles correctly' do
         get_test_styles().each do |s|
             @o.styleUrl = s
-            get_obj_child_content(@o, 'styleUrl').should == "##{s.obj_id}"
+            get_obj_child_content(@o, 'styleUrl').should == "##{s.kml_id}"
         end
         @o.styleUrl = '#random'
         get_obj_child_content(@o, 'styleUrl').should == "#random"
@@ -567,9 +574,23 @@ shared_examples_for 'Kamelopard::Feature' do
     it 'correctly KML\'s the Kamelopard::AbstractView' do
         long, lat, alt = 13, 12, 11
         heading, tilt, roll, range, mode = 1, 2, 3, 4, :clampToSeaFloor
-        p = Kamelopard::Point.new(long, lat, alt)
-        camera = Kamelopard::Camera.new p, heading, tilt, roll
-        lookat = Kamelopard::LookAt.new p, heading, tilt, range
+        p = Kamelopard::Point.new({
+            :longitude => long,
+            :latitude => lat,
+            :altitude => alt
+        })
+        camera = Kamelopard::Camera.new({
+            :point => p,
+            :heading => heading,
+            :tilt => tilt,
+            :roll => roll
+        })
+        lookat = Kamelopard::LookAt.new({
+            :point => p,
+            :heading => heading,
+            :tilt => tilt,
+            :range => range
+        })
         @o.abstractView = camera
         a = get_obj_child(@o, "Camera")
         a.should_not be_nil
@@ -640,7 +661,10 @@ shared_examples_for 'StyleSelector' do
 
     it 'should handle being attached to stuff' do
         @o.should respond_to(:attach)
-        p = Kamelopard::Placemark.new Kamelopard::Point.new(123, 23), 'test'
+        p = Kamelopard::Placemark.new Kamelopard::Point.new({
+            :longitude => 123,
+            :latitude => 23
+        }), 'test'
         @o.attach(p)
         @o.attached?.should be_true
     end
@@ -695,7 +719,11 @@ describe 'Kamelopard::Point' do
     before(:each) do
         @attrs = { :lat => 12.4, :long => 34.2, :alt => 500 }
         @fields = %w[ latitude longitude altitude altitudeMode extrude ]
-        @o = Kamelopard::Point.new @attrs[:long], @attrs[:lat], @attrs[:alt]
+        @o = Kamelopard::Point.new({
+            :longitude => @attrs[:long],
+            :latitude => @attrs[:lat],
+            :altitude => @attrs[:alt]
+        })
     end
 
     it_should_behave_like 'KML_includes_id'
@@ -707,14 +735,20 @@ describe 'Kamelopard::Point' do
                    [ '32d10\'23.10" N', -145.3487 ],
                    [ 123.5985745,      -45.32487 ] ]
         coords.each do |a|
-            lambda { Kamelopard::Point.new a[1], a[0] }.should_not raise_error
+            lambda { Kamelopard::Point.new({
+                :longitude => a[1],
+                :latitude => a[0]
+            })}.should_not raise_error
         end
     end
 
     it 'does not accept coordinates that are out of range' do
         q = ''
         begin
-            Kamelopard::Point.new 342.32487, 45908.123487
+            Kamelopard::Point.new({
+                :longitude => 342.32487,
+                :latitude => 45908.123487
+            })
         rescue RuntimeError => f
             q = f.to_s
         end
@@ -747,22 +781,6 @@ describe 'Kamelopard::Point' do
             get_child_content(k, 'altitudeMode').should be_nil
         end
     end
-end
-
-describe 'Kamelopard::CoordinateList' do
-    before(:each) do
-        @o = Kamelopard::CoordinateList.new
-    end
-
-    it_should_behave_like 'KML_producer'
-
-    it 'has the right attributes and methods' do
-        @o.should respond_to(:coordinates)
-        @o.should respond_to(:<<)
-        @o.should respond_to(:add_element)
-    end
-
-    it_should_behave_like 'Kamelopard::CoordinateList'
 end
 
 describe 'Kamelopard::LineString' do
@@ -832,7 +850,17 @@ end
 
 describe 'Kamelopard::Camera' do
     before(:each) do
-        @o = Kamelopard::Camera.new Kamelopard::Point.new(123, -123, 123), 10, 10, 10, :clampToGround
+        @o = Kamelopard::Camera.new({
+            :point => Kamelopard::Point.new({
+                :longitude => 123,
+                :latitude => -123,
+                :altitude => 123
+            }),
+            :heading => 10,
+            :tilt => 10,
+            :roll => 10,
+            :altitudeMode => :clampToGround
+        })
         @fields = [ 'roll' ]
     end
 
@@ -847,7 +875,17 @@ end
 
 describe 'Kamelopard::LookAt' do
     before(:each) do
-        @o = Kamelopard::LookAt.new Kamelopard::Point.new(123, -123, 123), 10, 10, 10, :clampToGround
+        @o = Kamelopard::LookAt.new({
+            :point =>  Kamelopard::Point.new({
+                :longitude => 123,
+                :latitude => -123,
+                :altitude => 123
+            }),
+            :heading => 10,
+            :tilt => 10,
+            :range => 10,
+            :altitudeMode => :clampToGround
+        })
         @fields = [ 'range' ]
     end
 
@@ -1248,7 +1286,7 @@ end
 
 describe 'Kamelopard::Placemark' do
     before(:each) do
-        @p = Kamelopard::Point.new(123, 123)
+        @p = Kamelopard::Point.new({ :longitude => 123, :latitude => 123 })
         @o = Kamelopard::Placemark.new 'placemark', @p
     end
 
@@ -1267,7 +1305,7 @@ describe 'Kamelopard::Placemark' do
 
     it 'handles returning point correctly' do
         o1 = Kamelopard::Placemark.new 'non-point', Kamelopard::Object.new
-        o2 = Kamelopard::Placemark.new 'non-point', Kamelopard::Point.new(123, 123)
+        o2 = Kamelopard::Placemark.new 'non-point', Kamelopard::Point.new({ :longitude => 123, :latitude => 123})
         lambda { o1.point }.should raise_exception
         lambda { o2.point }.should_not raise_exception
     end
@@ -1290,11 +1328,15 @@ describe 'Kamelopard::FlyTo' do
     end
 
     it 'handles Kamelopard::AbstractView correctly' do
-        o = Kamelopard::FlyTo.new Kamelopard::LookAt.new(Kamelopard::Point.new(100, 100))
+        o = Kamelopard::FlyTo.new Kamelopard::LookAt.new({
+            :point => Kamelopard::Point.new({:longitude => 100, :latitude => 100})
+        })
         o.view.class.should == Kamelopard::LookAt
-        o = Kamelopard::FlyTo.new Kamelopard::Point.new(90,90)
+        o = Kamelopard::FlyTo.new Kamelopard::Point.new({:longitude => 90, :latitude => 90})
         o.view.class.should == Kamelopard::LookAt
-        o = Kamelopard::FlyTo.new Kamelopard::Camera.new(Kamelopard::Point.new(90,90))
+        o = Kamelopard::FlyTo.new Kamelopard::Camera.new(({
+            :point => Kamelopard::Point.new({ :longitude => 90, :latitude => 90 })
+        }))
         o.view.class.should == Kamelopard::Camera
     end
 end
@@ -1469,7 +1511,7 @@ describe 'Kamelopard::PhotoOverlay' do
     before(:each) do
         @n = 34
         @rotation = 10
-        @point = Kamelopard::Point.new(@n, @n)
+        @point = Kamelopard::Point.new({ :longitude => @n, :latitude => @n })
         @icon = Kamelopard::Icon.new('test')
         @vv = Kamelopard::ViewVolume.new @n, -@n, @n, -@n, @n
         @ip = Kamelopard::ImagePyramid.new @n, @n, @n, @n
@@ -1521,7 +1563,7 @@ end
 describe 'Kamelopard::LatLonQuad' do
     before(:each) do
         @n = 123.2
-        @p = Kamelopard::Point.new @n, @n
+        @p = Kamelopard::Point.new({ :longitude => @n, :latitude => @n })
         @o = Kamelopard::LatLonQuad.new @p, @p, @p, @p
         @fields = %w[ lowerLeft lowerRight upperRight upperLeft ]
     end
@@ -1541,7 +1583,7 @@ describe 'Kamelopard::GroundOverlay' do
         @i = Kamelopard::Icon.new @icon_href
         @n = 123.2
         @lb = Kamelopard::LatLonBox.new @n, @n, @n, @n, @n, @n, @n, :relativeToGround
-        @p = Kamelopard::Point.new @n, @n
+        @p = Kamelopard::Point.new({ :longitude => @n, :latitude => @n })
         @lq = Kamelopard::LatLonQuad.new @p, @p, @p, @p
         @altmode = :relativeToSeaFloor
         @o = Kamelopard::GroundOverlay.new @i, @lb, @lq, @n, @altmode
@@ -1752,7 +1794,7 @@ describe 'Kamelopard::Model' do
         @refreshMode = :onInterval
         @viewRefreshMode = :onRegion
         @link = Kamelopard::Link.new @href, @refreshMode, @viewRefreshMode
-        @loc = Kamelopard::Point.new @n, @n, @n
+        @loc = Kamelopard::Point.new({ :longitude => @n, :latitude => @n, :altitude => @n })
         @orient = Kamelopard::Orientation.new @n, @n, @n
         @scale = Kamelopard::Scale.new @n, @n, @n
         targets = %w[ Neque porro quisquam est qui  dolorem     ipsum      quia dolor sit  amet consectetur adipisci velit ]
