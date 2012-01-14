@@ -160,8 +160,11 @@ module Kamelopard
         attr_reader :longitude, :latitude
         attr_accessor :altitude, :altitudeMode, :extrude
 
-        def initialize(options = {})
-            super
+        def initialize(longitude = nil, latitude = nil, altitude = nil, options = {})
+            super options
+            @longitude = longitude unless longitude.nil?
+            @latitude = latitude unless latitude.nil?
+            @altitude = altitude unless altitude.nil?
         end
 
         def longitude=(long)
@@ -345,11 +348,9 @@ module Kamelopard
         attr_accessor :timestamp, :timespan, :viewerOptions, :point, :heading, :tilt, :roll, :range, :altitudeMode
         attr_reader :className
 
-        def initialize(className, options = {})
+        def initialize(className, point, options = {})
             raise "className argument must not be nil" if className.nil?
 
-            @className = className
-            @point = nil
             @heading = 0
             @tilt = 0
             @roll = 0
@@ -358,6 +359,9 @@ module Kamelopard
             @viewerOptions = {}
 
             super(options)
+
+            @className = className
+            @point = point unless point.nil?
         end
 
         def point=(point)
@@ -462,8 +466,8 @@ module Kamelopard
 
     # Corresponds to KML's Camera object
     class Camera < AbstractView
-        def initialize(options = {})
-            super('Camera', options)
+        def initialize(point = nil, options = {})
+            super('Camera', point, options)
         end
 
         def range
@@ -477,8 +481,8 @@ module Kamelopard
 
     # Corresponds to KML's LookAt object
     class LookAt < AbstractView
-        def initialize(options = {})
-            super('LookAt', options)
+        def initialize(point = nil, options = {})
+            super('LookAt', point, options)
         end
 
         def roll
@@ -497,9 +501,9 @@ module Kamelopard
     # Corresponds to KML's TimeStamp object. The @when attribute must be in a format KML understands.
     class TimeStamp < TimePrimitive
         attr_accessor :when
-        def initialize(t_when)
-            super()
-            @when = t_when
+        def initialize(ts_when = nil, options = {})
+            super options
+            @when = ts_when unless ts_when.nil?
         end
 
         def to_kml(elem = nil, ns = nil)
@@ -520,10 +524,10 @@ module Kamelopard
     # understands.
     class TimeSpan < TimePrimitive
         attr_accessor :begin, :end
-        def initialize(t_begin, t_end)
-            super()
-            @begin = t_begin
-            @end = t_end
+        def initialize(ts_begin = nil, ts_end = nil, options = {})
+            super options
+            @begin = ts_begin unless ts_begin.nil?
+            @end = ts_end unless ts_end.nil?
         end
 
         def to_kml(elem = nil, ns = nil)
@@ -548,17 +552,13 @@ module Kamelopard
     end
 
     # Support class for Feature object
-    class Snippet
-        attr_accessor :text, :maxLines
-        def initialize(text = nil, maxLines = 2)
-            @text = text
-            @maxLines = maxLines
-        end
+    module Snippet
+        attr_accessor :snippet_text, :maxLines
 
-        def to_kml(elem = nil)
+        def snippet_to_kml(elem = nil)
             e = XML::Node.new 'Snippet'
             e.attributes['maxLines'] = @maxLines.to_s
-            e << @text
+            e << @snippet_text
             elem << e unless elem.nil?
             e
         end
@@ -573,12 +573,24 @@ module Kamelopard
             :extendedData, :styles
         attr_reader :addressDetails, :snippet
 
-        def initialize (name = nil)
-            super()
-            @name = name
+        include Snippet
+
+        def initialize (name = nil, options = {})
             @visibility = true
             @open = false
             @styles = []
+            super options
+            @name = name unless name.nil?
+        end
+
+        def styles=(a)
+            if a.is_a? Array then
+                @styles = a
+            elsif @styles.nil? then
+                @styles = []
+            else
+                @styles = [a]
+            end
         end
 
         # Hides the object. Note that this governs only whether the object is
@@ -591,14 +603,6 @@ module Kamelopard
         # Shows the object. See note for hide() method
         def show
             @visibility = true
-        end
-
-        def snippet=(a)
-            if a.is_a? String then
-                @snippet = Kamelopard::Snippet.new a
-            else
-                @snippet = a
-            end
         end
 
         def timestamp
@@ -665,7 +669,7 @@ module Kamelopard
                     [@extendedData, 'ExtendedData' ]
                 ])
             styles_to_kml(elem)
-            @snippet.to_kml(elem) unless @snippet.nil?
+            snippet_to_kml(elem) unless @snippet_text.nil?
             @abstractView.to_kml(elem) unless @abstractView.nil?
             @timeprimitive.to_kml(elem) unless @timeprimitive.nil?
             @region.to_kml(elem) unless @region.nil?
@@ -682,9 +686,17 @@ module Kamelopard
 
     # Abstract class corresponding to KML's Container object.
     class Container < Feature
-        def initialize
-            super
+        def initialize(name = nil, options = {})
             @features = []
+            super
+        end
+
+        def features=(a)
+            if a.respond_to? :[] then
+                @features = a
+            else
+                @features = [a]
+            end
         end
 
         # Adds a new object to this container.
@@ -697,12 +709,27 @@ module Kamelopard
     class Folder < Container
         attr_accessor :styles, :folders, :parent_folder
 
-        def initialize(name = nil)
-            super()
-            @name = name
+        def initialize(name = nil, options = {})
             @styles = []
             @folders = []
+            super
             Document.instance.folders << self
+        end
+
+        def styles=(a)
+            if a.respond_to? :[] then
+                @styles = a
+            else
+                @styles = [a]
+            end
+        end
+
+        def folders=(a)
+            if a.respond_to? :[] then
+                @folders = a
+            else
+                @folders = [a]
+            end
         end
 
         def to_kml(elem = nil)
@@ -742,11 +769,11 @@ module Kamelopard
         include Singleton
         attr_accessor :flyto_mode, :folders, :tours, :uses_xal
 
-        def initialize
-            super
+        def initialize(options = {})
             @tours = []
             @folders = []
             @styles = []
+            super
         end
 
         # Returns the current Tour object
@@ -810,12 +837,9 @@ module Kamelopard
         attr_accessor :color
         attr_reader :colorMode
 
-        def initialize(color, colorMode = :normal)
-            super()
-            # Note: color element order is aabbggrr
-            @color = color
-            validate_colorMode colorMode
-            @colorMode = colorMode # Can be :normal or :random
+        def initialize(color = nil, options = {})
+            super options
+            @color = color unless color.nil?
         end
 
         def validate_colorMode(a)
@@ -879,12 +903,13 @@ module Kamelopard
         attr_accessor :bgColor, :text, :textColor, :displayMode
 
         # Note: color element order is aabbggrr
-        def initialize(text = '', textColor = 'ff000000', bgColor = 'ffffffff', displayMode = :default)
-            super()
-            @bgColor = bgColor
-            @text = text
-            @textColor = textColor
-            @displayMode = displayMode
+        def initialize(text = nil, options = {})
+        #text = '', textColor = 'ff000000', bgColor = 'ffffffff', displayMode = :default)
+            @bgColor = 'ffffffff'
+            @textColor = 'ff000000'
+            @displayMode = :default
+            super options
+            @text = text unless text.nil?
         end
 
         def to_kml(elem = nil)
@@ -923,17 +948,18 @@ module Kamelopard
     end
 
     # Corresponds to the KML Icon object
-    class Icon
-        attr_accessor :kml_id, :href, :x, :y, :w, :h, :refreshMode, :refreshInterval, :viewRefreshMode, :viewRefreshTime, :viewBoundScale, :viewFormat, :httpQuery
+    module Icon
+        attr_accessor :href, :x, :y, :w, :h, :refreshMode, :refreshInterval, :viewRefreshMode, :viewRefreshTime, :viewBoundScale, :viewFormat, :httpQuery
 
-        def initialize(href = nil)
-            @href = href
-            @kml_id = "Icon_#{ Kamelopard.get_next_id }"
+        def href=(h)
+            @icon_id = "Icon_#{Kamelopard.get_next_id}" if @icon_id.nil?
+            @href = h
         end
 
-        def to_kml(elem = nil)
+        def icon_to_kml(elem = nil)
+            @icon_id = "Icon_#{Kamelopard.get_next_id}" if @icon_id.nil?
             k = XML::Node.new 'Icon'
-            k.attributes['id'] = @kml_id
+            k.attributes['id'] = @icon_id
             Kamelopard.kml_array(k, [
                 [@href, 'href'],
                 [@x, 'gx:x'],
@@ -955,14 +981,30 @@ module Kamelopard
 
     # Corresponds to KML's IconStyle object.
     class IconStyle < ColorStyle
-        attr_accessor :scale, :heading, :hotspot, :icon
+        attr_accessor :scale, :heading, :hotspot
 
-        def initialize(href, scale = 1, heading = 0, hs_x = 0.5, hs_y = 0.5, hs_xunits = :fraction, hs_yunits = :fraction, color = 'ffffffff', colormode = :normal)
-            super(color, colormode)
-            @scale = scale
-            @heading = heading
-            @icon = Icon.new(href) unless href.nil?
-            @hotspot = XY.new(hs_x, hs_y, hs_xunits, hs_yunits) unless (hs_x.nil? and hs_y.nil? and hs_xunits.nil? and hs_yunits.nil?)
+        include Icon
+
+        def initialize(href = nil, options = {})
+            @hotspot = XY.new(0.5, 0.5, :fraction, :fraction)
+            super
+            @href = href unless href.nil?
+        end
+
+        def hs_x=(a)
+            @hotspot.x = a
+        end
+
+        def hs_y=(a)
+            @hotspot.y = a
+        end
+
+        def hs_xunits=(a)
+            @hotspot.xunits = a
+        end
+
+        def hs_yunits=(a)
+            @hotspot.yunits = a
         end
 
         def to_kml(elem = nil)
@@ -980,7 +1022,7 @@ module Kamelopard
                 h.attributes['yunits'] = @hotspot.yunits.to_s
                 k << h
             end
-            @icon.to_kml(k) unless @icon.nil?
+            icon_to_kml(k)
             elem << k unless elem.nil?
             k
         end
@@ -990,9 +1032,9 @@ module Kamelopard
     class LabelStyle < ColorStyle
         attr_accessor :scale
 
-        def initialize(scale = 1, color = 'ffffffff', colormode = :normal)
-            super(color, colormode)
-            @scale = scale
+        def initialize(scale = 1, options = {})
+            @scale = scale 
+            super
         end
 
         def to_kml(elem = nil)
@@ -1010,14 +1052,16 @@ module Kamelopard
     # string, with two characters each of alpha, blue, green, and red values, in
     # that order, matching the ordering the KML spec demands.
     class LineStyle < ColorStyle
-        attr_accessor :outerColor, :outerWidth, :physicalWidth, :width
+        attr_accessor :outerColor, :outerWidth, :physicalWidth, :width, :labelVisibility
 
-        def initialize(width = 1, outercolor = 'ffffffff', outerwidth = 0, physicalwidth = 0, color = 'ffffffff', colormode = :normal)
-            super(color, colormode)
-            @width = width
-            @outerColor = outercolor
-            @outerWidth = outerwidth
-            @physicalWidth = physicalwidth
+        def initialize(options = {})
+            @outerColor = 'ffffffff'
+            @width = 1
+            @outerWidth = 0
+            @physicalWidth = 0
+            @labelVisibility = 0
+
+            super
         end
 
         def to_kml(elem = nil)
@@ -1045,12 +1089,11 @@ module Kamelopard
     class ListStyle < Object
         attr_accessor :listItemType, :bgColor, :state, :href
 
-        def initialize(bgcolor = nil, state = nil, href = nil, listitemtype = nil)
-            super()
-            @bgcolor = bgcolor
-            @state = state
-            @href = href
-            @listitemtype = listitemtype
+        def initialize(options = {})
+        #bgcolor = nil, state = nil, href = nil, listitemtype = nil)
+            @state = :open
+            @bgColor = 'ffffffff'
+            super
         end
 
         def to_kml(elem = nil)
@@ -1058,8 +1101,8 @@ module Kamelopard
 
             super k
             Kamelopard.kml_array(k, [
-                [@listitemtype, 'listItemType'],
-                [@bgcolor, 'bgColor']
+                [@listItemType, 'listItemType'],
+                [@bgColor, 'bgColor']
             ])
             if (! @state.nil? or ! @href.nil?) then
                 i = XML::Node.new 'ItemIcon'
@@ -1080,10 +1123,11 @@ module Kamelopard
     class PolyStyle < ColorStyle
         attr_accessor :fill, :outline
 
-        def initialize(fill = 1, outline = 1, color = 'ffffffff', colormode = :normal)
-            super(color, colormode)
-            @fill = fill
-            @outline = outline
+        def initialize(options = {})
+#fill = 1, outline = 1, color = 'ffffffff', colormode = :normal)
+            @fill = 1
+            @outline = 1
+            super
         end
 
         def to_kml(elem = nil)
@@ -1100,8 +1144,8 @@ module Kamelopard
 
     # Abstract class corresponding to KML's StyleSelector object.
     class StyleSelector < Object
-        attr_accessor :attached
-        def initialize
+
+        def initialize(options = {})
             super
             @attached = false
             Document.instance.styles << self
@@ -1127,14 +1171,9 @@ module Kamelopard
     # LabelStyle, LineStyle, PolyStyle, BalloonStyle, and ListStyle objects.
     class Style < StyleSelector
         attr_accessor :icon, :label, :line, :poly, :balloon, :list
-        def initialize(icon = nil, label = nil, line = nil, poly = nil, balloon = nil, list = nil)
-            super()
-            @icon = icon
-            @label = label
-            @line = line
-            @poly = poly
-            @balloon = balloon
-            @list = list
+        def initialize(options = ())
+         #icon = nil, label = nil, line = nil, poly = nil, balloon = nil, list = nil)
+            super
         end
 
         def to_kml(elem = nil)
@@ -1156,8 +1195,8 @@ module Kamelopard
         # StyleMap manages pairs. The first entry in each pair is a string key, the
         # second is either a Style or a styleUrl. It will be assumed to be the
         # latter if its kind_of? method doesn't claim it's a Style object
-        def initialize(pairs = {})
-            super()
+        def initialize(pairs = {}, options = {})
+            super options
             @pairs = pairs
         end
 
@@ -1193,9 +1232,9 @@ module Kamelopard
     class Placemark < Feature
         attr_accessor :name, :geometry
 
-        def initialize(name = nil, geo = nil)
-            super(name)
-            @geometry = geo
+        def initialize(name = nil, options = {})
+            super
+            @name = name unless name.nil?
         end
 
         def to_kml(elem = nil)
@@ -1238,7 +1277,7 @@ module Kamelopard
     # Abstract class corresponding to KML's gx:TourPrimitive object. Tours are made up
     # of descendants of these.
     class TourPrimitive < Object
-        def initialize
+        def initialize(options = {})
             Document.instance.tour << self
             super
         end
@@ -1249,18 +1288,25 @@ module Kamelopard
     class FlyTo < TourPrimitive
         attr_accessor :duration, :mode, :view
 
-        def initialize(view = nil, range = nil, duration = 0, mode = :bounce)
-            @duration = duration
-            @mode = mode
+        def initialize(view = nil, options = {})
+            @duration = 0
+            @mode = :bounce
+            super
+            @view = view unless view.nil?
+        end
+
+        def view=(view)
             if view.kind_of? AbstractView then
                 @view = view
             else
-                @view = LookAt.new(view)
+                @view = LookAt.new({ :point => view })
             end
+        end
+
+        def range=(range)
             if view.respond_to? 'range' and not range.nil? then
                 @view.range = range
             end
-            super()
         end
 
         def to_kml(elem = nil)
@@ -1282,21 +1328,23 @@ module Kamelopard
     class AnimatedUpdate < TourPrimitive
         # XXX For now, the user has to specify the change / create / delete elements in
         # the <Update> manually, rather than creating objects.
-        attr_accessor :target, :delayedStart, :updates, :duration
+        attr_accessor :target, :delayedStart, :duration
+        attr_reader :updates
 
         # The updates argument is an array of strings containing <Change> elements
-        def initialize(updates = [], duration = 0, target = '', delayedstart = nil)
-            super()
-            begin
-                raise "incorrect object type" unless @target.kind_of? Object
-                @target = target.kml_id
-            rescue RuntimeError
-                @target = target
-            end
+        def initialize(options = {})
+         #duration = 0, target = '', delayedstart = nil)
             @updates = []
+            super options
+        end
+
+        def target=(target)
+            raise "incorrect object type" unless target.kind_of? Object
+            @target = target.kml_id
+        end
+
+        def updates=(a)
             updates.each do |u| self.<<(u) end
-            @duration = duration
-            @delayedStart = delayedstart
         end
 
         # Adds another update string, presumably containing a <Change> element
@@ -1431,16 +1479,13 @@ module Kamelopard
 
     # Abstract class corresponding to the KML Overlay object
     class Overlay < Feature
-        attr_accessor :color, :drawOrder, :icon
+        attr_accessor :color, :drawOrder
 
-        def initialize(icon, name = nil)
-            super(name)
+        include Icon
+
+        def initialize(options = {})
+            super
             Document.instance.folder << self
-            if icon.respond_to?('to_kml') then
-                @icon = icon
-            elsif not icon.nil?
-                @icon = Icon.new(icon.to_s)
-            end
         end
 
         def to_kml(elem)
@@ -1449,7 +1494,7 @@ module Kamelopard
                 [ @color, 'color' ],
                 [ @drawOrder, 'drawOrder' ],
             ])
-            @icon.to_kml(elem) unless @icon.nil?
+            icon_to_kml(elem)
             elem
         end
     end
@@ -1457,13 +1502,8 @@ module Kamelopard
     # Corresponds to KML's ScreenOverlay object
     class ScreenOverlay < Overlay
         attr_accessor :overlayXY, :screenXY, :rotationXY, :size, :rotation
-        def initialize(icon, name  = nil, size = nil, rotation = nil, overlayXY = nil, screenXY = nil, rotationXY = nil)
-            super(icon, name)
-            @overlayXY = overlayXY
-            @screenXY = screenXY
-            @rotationXY = rotationXY
-            @size = size
-            @rotation = rotation
+        def initialize(options = {})
+            super
         end
 
         def to_kml(elem = nil)
@@ -1483,18 +1523,11 @@ module Kamelopard
         end
     end
 
-    # Supporting object for the PhotoOverlay class
-    class ViewVolume
+    # Supporting module for the PhotoOverlay class
+    module ViewVolume
         attr_accessor :leftFov, :rightFov, :bottomFov, :topFov, :near
-        def initialize(near, leftFov = -45, rightFov = 45, bottomFov = -45, topFov = 45)
-            @leftFov = leftFov
-            @rightFov = rightFov
-            @bottomFov = bottomFov
-            @topFov = topFov
-            @near = near
-        end
 
-        def to_kml(elem = nil)
+        def viewVolume_to_kml(elem = nil)
             p = XML::Node.new 'ViewVolume'
             {
                 :near => @near,
@@ -1504,6 +1537,7 @@ module Kamelopard
                 :bottomFov => @bottomFov
             }.each do |k, v|
                 d = XML::Node.new k.to_s
+                v = 0 if v.nil?
                 d << v.to_s
                 p << d
             end
@@ -1512,18 +1546,12 @@ module Kamelopard
         end
     end
 
-    # Supporting object for the PhotoOverlay class
-    class ImagePyramid
+    # Supporting module for the PhotoOverlay class
+    module ImagePyramid
         attr_accessor :tileSize, :maxWidth, :maxHeight, :gridOrigin
 
-        def initialize(maxWidth, maxHeight, gridOrigin, tileSize = 256)
-            @tileSize = tileSize
-            @maxWidth = maxWidth
-            @maxHeight = maxHeight
-            @gridOrigin = gridOrigin
-        end
-
-        def to_kml(elem = nil)
+        def imagePyramid_to_kml(elem = nil)
+            @tileSize = 256 if @tileSize.nil?
             p = XML::Node.new 'ImagePyramid'
             {
                 :tileSize => @tileSize,
@@ -1532,6 +1560,7 @@ module Kamelopard
                 :gridOrigin => @gridOrigin
             }.each do |k, v|
                 d = XML::Node.new k.to_s
+                v = 0 if v.nil?
                 d << v.to_s
                 p << d
             end
@@ -1542,26 +1571,28 @@ module Kamelopard
 
     # Corresponds to KML's PhotoOverlay class
     class PhotoOverlay < Overlay
-        attr_accessor :rotation, :viewvolume, :imagepyramid, :point, :shape
+        attr_accessor :rotation, :point, :shape
 
-        def initialize(icon, point, rotation = 0, viewvolume = nil, imagepyramid = nil, shape = :rectangle)
-            super(icon)
+        include ViewVolume
+        include ImagePyramid
+
+        def initialize(options = {})
+            super
+        end
+
+        def point=(point)
             if point.respond_to?('point')
                 @point = point.point
             else
                 @point = point
             end
-            @rotation = rotation
-            @viewVolume = viewvolume
-            @imagePyramid = imagepyramid
-            @shape = shape
         end
 
         def to_kml(elem = nil)
             p = XML::Node.new 'PhotoOverlay'
             super p
-            @viewVolume.to_kml p   unless @viewVolume.nil?
-            @imagePyramid.to_kml p unless @imagePyramid.nil?
+            viewVolume_to_kml p
+            imagePyramid_to_kml p
             p << @point.to_kml(nil, true)
             {
                 :rotation => @rotation,
@@ -1659,8 +1690,10 @@ module Kamelopard
     # Corresponds to KML's GroundOverlay object
     class GroundOverlay < Overlay
         attr_accessor :altitude, :altitudeMode, :latlonbox, :latlonquad
-        def initialize(icon, latlonbox = nil, latlonquad = nil, altitude = 0, altitudeMode = :clampToGround)
-            super(icon)
+        def initialize(icon, options = {})
+            @altitude = 0
+            @altitudeMode = :clampToGround
+            super options
             @latlonbox = latlonbox
             @latlonquad = latlonquad
             @altitude = altitude
@@ -1715,10 +1748,8 @@ module Kamelopard
     class Region < Object
         attr_accessor :latlonaltbox, :lod
 
-        def initialize(latlonaltbox, lod)
+        def initialize(options = {})
             super()
-            @latlonaltbox = latlonaltbox
-            @lod = lod
         end
 
         def to_kml(elem = nil)
@@ -1835,11 +1866,10 @@ module Kamelopard
     # Corresponds to KML's Link object
     class Link < Object
         attr_accessor :href, :refreshMode, :refreshInterval, :viewRefreshMode, :viewBoundScale, :viewFormat, :httpQuery
-        def initialize(href = '', refreshMode = :onChange, viewRefreshMode = :never)
-            super()
-            @href = href
-            @refreshMode = refreshMode
-            @viewRefreshMode = viewRefreshMode
+
+        def initialize(href = '', options = {})
+            super options
+            @href = href unless href == ''
         end
 
         def to_kml(elem = nil)
@@ -1872,13 +1902,9 @@ module Kamelopard
         # location should be a Point, or some object that can behave like one,
         # including a Placemark. Model will get its Location and altitudeMode data
         # from this attribute
-        def initialize(link, location, orientation, scale, resourceMap)
-            super()
-            @link = link
-            @location = location
-            @orientation = orientation
-            @scale = scale
-            @resourceMap = resourceMap
+        def initialize(options = {})
+         #link, location, orientation, scale, resourceMap)
+            super
         end
 
         def to_kml(elem = nil)
@@ -1910,12 +1936,12 @@ module Kamelopard
         # NB!  No support for tessellate, because Google Earth doesn't support it, it seems
         attr_accessor :outer, :inner, :altitudeMode, :extrude
 
-        def initialize(outer, extrude = 0, altitudeMode = :clampToGround)
-            super()
-            @outer = outer
-            @extrude = extrude
-            @altitudeMode = altitudeMode
+        def initialize(outer, options = {})
+          #extrude = 0, altitudeMode = :clampToGround)
+            @extrude = 0
+            @altitudeMode = :clampToGround
             @inner = []
+            super options
         end
 
         def inner=(a)
@@ -1953,9 +1979,10 @@ module Kamelopard
     class MultiGeometry < Geometry
         attr_accessor :geometries
 
-        def initialize(a = nil)
+        def initialize(a = nil, options = {})
             @geometries = []
             @geometries << a unless a.nil?
+            super options
         end
 
         def <<(a)
@@ -1975,8 +2002,10 @@ module Kamelopard
     class NetworkLink < Feature
         attr_accessor :refreshVisibility, :flyToView, :link
 
-        def initialize(href = '', refreshMode = :onChange, viewRefreshMode = :never)
-            super()
+        def initialize(href = '', options = {})
+            @refreshMode = :onChange
+            @viewRefreshMode = :never
+            super options
             @link = Link.new(href, refreshMode, viewRefreshMode)
             @refreshVisibility = 0
             @flyToView = 0
