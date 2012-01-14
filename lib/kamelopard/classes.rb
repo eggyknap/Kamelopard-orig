@@ -987,7 +987,7 @@ module Kamelopard
 
         def initialize(href = nil, options = {})
             @hotspot = XY.new(0.5, 0.5, :fraction, :fraction)
-            super
+            super nil, options
             @href = href unless href.nil?
         end
 
@@ -1034,7 +1034,7 @@ module Kamelopard
 
         def initialize(scale = 1, options = {})
             @scale = scale 
-            super
+            super nil, options
         end
 
         def to_kml(elem = nil)
@@ -1061,7 +1061,7 @@ module Kamelopard
             @physicalWidth = 0
             @labelVisibility = 0
 
-            super
+            super nil, options
         end
 
         def to_kml(elem = nil)
@@ -1127,7 +1127,7 @@ module Kamelopard
 #fill = 1, outline = 1, color = 'ffffffff', colormode = :normal)
             @fill = 1
             @outline = 1
-            super
+            super nil, options
         end
 
         def to_kml(elem = nil)
@@ -1749,12 +1749,12 @@ module Kamelopard
         attr_accessor :latlonaltbox, :lod
 
         def initialize(options = {})
-            super()
+            super
         end
 
         def to_kml(elem = nil)
             k = XML::Node.new 'Region'
-            super(k)
+            super k
             @latlonaltbox.to_kml(k, true) unless @latlonaltbox.nil?
             @lod.to_kml(k) unless @lod.nil?
             elem << k unless elem.nil?

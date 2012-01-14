@@ -180,11 +180,10 @@ def check_time_primitive(set_var_lambda, get_kml_lambda, xpath)
     b = '2011-01-01'
     e = '2011-02-01'
     w = '2011-01-01'
-    tn = Kamelopard::TimeSpan.new({ :begin => b, :end => e })
-    tm = Kamelopard::TimeStamp.new({ :when => w })
+    tn = Kamelopard::TimeSpan.new b, e
+    tm = Kamelopard::TimeStamp.new w
 
     set_var_lambda.call(tn)
-    STDERR.puts @o.to_kml
     d = get_kml_lambda.call
 
     t = get_child d, 'TimeSpan'
@@ -531,7 +530,7 @@ shared_examples_for 'Kamelopard::Feature' do
             @o = Kamelopard::Feature.new({ :name => 'my feature' })
             @latlon = Kamelopard::LatLonBox.new( 1, -1, 1, -1, 10 )
             @lod = Kamelopard::Lod.new(128, 1024, 128, 128)
-            @r = Kamelopard::Region.new(@latlon, @lod)
+            @r = Kamelopard::Region.new({ :latlonaltbox => @latlon, :lod => @lod })
             @o.region = @r
 
             @reg = get_obj_child(@o, 'Region')
@@ -972,7 +971,7 @@ end
 
 describe 'Kamelopard::ColorStyle' do
     before(:each) do
-        @o = Kamelopard::ColorStyle.new({ :color => 'ffffffff' })
+        @o = Kamelopard::ColorStyle.new 'ffffffff'
     end
 
     it_should_behave_like 'Kamelopard::ColorStyle'
@@ -988,7 +987,7 @@ end
 
 describe 'Kamelopard::BalloonStyle' do
     before(:each) do
-        @o = Kamelopard::BalloonStyle.new({ :text => 'balloon text' })
+        @o = Kamelopard::BalloonStyle.new 'balloon text'
         @o.textColor = 'deadbeef'
         @o.bgColor = 'deadbeef'
         @o.displayMode = :hide
@@ -1081,8 +1080,7 @@ describe 'Kamelopard::IconStyle' do
         @hs_yunits = :pixels
         @color = 'abcdefab'
         @colorMode = :random
-        @o = Kamelopard::IconStyle.new({
-            :href => @href,
+        @o = Kamelopard::IconStyle.new( @href, {
             :scale => @scale,
             :heading => @heading,
             :hs_x => @hs_x,
@@ -1125,8 +1123,7 @@ describe 'Kamelopard::LabelStyle' do
         @scale = 2
         @color = 'abcdefab'
         @colorMode = :random
-        @o = Kamelopard::LabelStyle.new({
-            :scale => @scale,
+        @o = Kamelopard::LabelStyle.new( @scale, {
             :color => @color,
             :colorMode => @colorMode
         })
