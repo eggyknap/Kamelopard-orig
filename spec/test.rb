@@ -350,7 +350,7 @@ shared_examples_for 'Kamelopard::CoordinateList' do
         end
 
         it 'accepts another Kamelopard::CoordinateList' do
-            p = Kamelopard::LinearRing.new({ :coordinates => [[1,2,3], [2,3,4], [3,4,5]] })
+            p = Kamelopard::LinearRing.new([[1,2,3], [2,3,4], [3,4,5]])
             @o << p.coordinates
         end
 
@@ -1329,12 +1329,10 @@ describe 'Kamelopard::Placemark' do
     end
 
     it 'handles returning point correctly' do
-        o1 = Kamelopard::Placemark.new({
-            :name => 'non-point',
+        o1 = Kamelopard::Placemark.new( 'non-point', {
             :geometry => Kamelopard::Object.new
         })
-        o2 = Kamelopard::Placemark.new({
-            :name => 'point',
+        o2 = Kamelopard::Placemark.new( 'point', {
             :geometry => Kamelopard::Point.new(123, 123)
         })
 
@@ -1360,21 +1358,11 @@ describe 'Kamelopard::FlyTo' do
     end
 
     it 'handles Kamelopard::AbstractView correctly' do
-        o = Kamelopard::FlyTo.new({
-            :view => Kamelopard::LookAt.new({
-                :point => Kamelopard::Point.new(100, 100)
-            })
-        })
+        o = Kamelopard::FlyTo.new Kamelopard::LookAt.new( Kamelopard::Point.new(100, 100) )
         o.view.class.should == Kamelopard::LookAt
-        o = Kamelopard::FlyTo.new({
-            :view => Kamelopard::Point.new(90, 90)
-        })
+        o = Kamelopard::FlyTo.new Kamelopard::Point.new(90, 90)
         o.view.class.should == Kamelopard::LookAt
-        o = Kamelopard::FlyTo.new({
-            :view => Kamelopard::Camera.new({
-                :point => Kamelopard::Point.new(90, 90)
-            })
-        })
+        o = Kamelopard::FlyTo.new Kamelopard::Camera.new(Kamelopard::Point.new(90, 90))
         o.view.class.should == Kamelopard::Camera
     end
 end
@@ -1384,7 +1372,9 @@ describe 'Kamelopard::AnimatedUpdate' do
         @duration = 10
         @target = 'abcd'
         @delayedstart = 10
-        @o = Kamelopard::AnimatedUpdate.new([], @duration, @target, @delayedstart)
+        @o = Kamelopard::AnimatedUpdate.new([], {
+            :duration => @duration, :target => @target, :delayedStart => @delayedstart
+        })
     end
 
     it_should_behave_like 'Kamelopard::TourPrimitive'
@@ -1653,7 +1643,7 @@ describe 'Kamelopard::GroundOverlay' do
         @p = Kamelopard::Point.new(@n, @n)
         @lq = Kamelopard::LatLonQuad.new @p, @p, @p, @p
         @altmode = :relativeToSeaFloor
-        @o = Kamelopard::GroundOverlay.new @icon_href, @lb, @lq, @n, @altmode
+        @o = Kamelopard::GroundOverlay.new @icon_href, { :latlonbox => @lb, :latlonquad => @lq, :altitude => @n, :altitudeMode => @altmode }
         @fields = %w[ altitude altitudeMode latlonbox latlonquad ]
     end
 
@@ -1663,7 +1653,7 @@ describe 'Kamelopard::GroundOverlay' do
     it_should_behave_like 'KML_root_name'
 
     it 'complains when latlonbox and latlonquad are nil' do
-        o = Kamelopard::GroundOverlay.new @icon_href, nil, nil, @n, @altmode
+        o = Kamelopard::GroundOverlay.new @icon_href, { :altitude => @n, :altitudeMode => @altmode }
         lambda { o.to_kml }.should raise_exception
         o.latlonquad = @lq
         lambda { o.to_kml }.should_not raise_exception
@@ -1703,7 +1693,7 @@ describe 'Kamelopard::Region' do
         @n = 12
         @lb = Kamelopard::LatLonBox.new @n, @n, @n, @n, @n, @n, @n, :relativeToGround
         @ld = Kamelopard::Lod.new @n, @n, @n, @n
-        @o = Kamelopard::Region.new @lb, @ld
+        @o = Kamelopard::Region.new({ :latlonaltbox => @lb, :lod => @ld })
         @fields = %w[ latlonaltbox lod ]
     end
 
@@ -1824,7 +1814,7 @@ describe 'Kamelopard::Link' do
         @href = 'some href'
         @refreshMode = :onInterval
         @viewRefreshMode = :onRegion
-        @o = Kamelopard::Link.new @href, @refreshMode, @viewRefreshMode
+        @o = Kamelopard::Link.new @href, { :refreshMode => @refreshMode, :viewRefreshMode => @viewRefreshMode }
         @fields = %w[ href refreshMode refreshInterval viewRefreshMode viewBoundScale viewFormat httpQuery ]
     end
 
@@ -1860,7 +1850,7 @@ describe 'Kamelopard::Model' do
         @href = 'some href'
         @refreshMode = :onInterval
         @viewRefreshMode = :onRegion
-        @link = Kamelopard::Link.new @href, @refreshMode, @viewRefreshMode
+        @link = Kamelopard::Link.new @href, { :refreshMode => @refreshMode, :viewRefreshMode => @viewRefreshMode }
         @loc = Kamelopard::Point.new(@n, @n, @n)
         @orient = Kamelopard::Orientation.new @n, @n, @n
         @scale = Kamelopard::Scale.new @n, @n, @n
@@ -1871,7 +1861,7 @@ describe 'Kamelopard::Model' do
             @aliases << Kamelopard::Alias.new(a[0], a[1])
         end
         @resmap = Kamelopard::ResourceMap.new @aliases
-        @o = Kamelopard::Model.new @link, @loc, @orient, @scale, @resmap
+        @o = Kamelopard::Model.new({ :link => @link, :location => @loc, :orientation => @orient, :scale => @scale, :resourceMap => @resmap })
         @fields = %w[ link location orientation scale resourceMap ]
     end
 
