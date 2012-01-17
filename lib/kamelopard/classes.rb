@@ -652,7 +652,7 @@ module Kamelopard
 
         def to_kml(elem = nil)
             elem = XML::Node.new 'Feature' if elem.nil?
-            super(elem)
+            super elem
             Kamelopard.kml_array(elem, [
                     [@name, 'name'],
                     [(@visibility.nil? || @visibility) ? 1 : 0, 'visibility'],
@@ -767,31 +767,28 @@ module Kamelopard
     # scripts can (for now) manage only one Document at a time.
     class Document < Container
         include Singleton
-        attr_accessor :flyto_mode, :folders, :tours, :uses_xal
+        attr_accessor :flyto_mode, :doc_folders, :doc_tours, :uses_xal, :doc_styles
 
         def initialize(options = {})
-            @tours = []
-            @folders = []
-            @styles = []
+            @doc_tours = []
+            @doc_folders = []
+            @doc_styles = []
             super
         end
 
         # Returns the current Tour object
         def tour
-            Tour.new if @tours.length == 0
-            @tours.last
+            Tour.new if @doc_tours.length == 0
+            @doc_tours.last
         end
 
         # Returns the current Folder object
         def folder
-            if @folders.size == 0 then
+            if @doc_folders.size == 0 then
                 Folder.new
             end
-            @folders.last
+            @doc_folders.last
         end
-
-    #    def styles_to_kml(elem = nil)
-    #    end
 
         def get_kml_document
             k = XML::Document.new
@@ -813,18 +810,18 @@ module Kamelopard
 
         def to_kml
             d = XML::Node.new 'Document'
-            super(d)
+            super d
 
             # Print styles first
-            @styles.map do |a| a.to_kml(d) unless a.attached? end
+            @doc_styles.map do |a| d << a.to_kml unless a.attached? end
 
             # then folders
-            @folders.map do |a|
+            @doc_folders.map do |a|
                 a.to_kml(d) unless a.has_parent?
             end
 
             # then tours
-            @tours.map do |a| a.to_kml(d) end
+            @doc_tours.map do |a| a.to_kml(d) end
 
             d
         end
@@ -1148,7 +1145,7 @@ module Kamelopard
         def initialize(options = {})
             super
             @attached = false
-            Document.instance.styles << self
+            Document.instance.doc_styles << self
         end
 
         def attached?
@@ -1174,7 +1171,7 @@ module Kamelopard
 
         def to_kml(elem = nil)
             k = XML::Node.new 'Style'
-            super(k)
+            super k
             @icon.to_kml(k) unless @icon.nil?
             @label.to_kml(k) unless @label.nil?
             @line.to_kml(k) unless @line.nil?
