@@ -679,7 +679,7 @@ module Kamelopard
 
         def styles_to_kml(elem)
             @styles.each do |a|
-                a.to_kml(elem)
+                a.to_kml(elem) unless a.attached? and self.class.name == 'Kamelopard::Document'
             end
         end
     end
@@ -767,27 +767,26 @@ module Kamelopard
     # scripts can (for now) manage only one Document at a time.
     class Document < Container
         include Singleton
-        attr_accessor :flyto_mode, :doc_folders, :doc_tours, :uses_xal, :doc_styles
+        attr_accessor :flyto_mode, :folders, :tours, :uses_xal
 
         def initialize(options = {})
-            @doc_tours = []
-            @doc_folders = []
-            @doc_styles = []
+            @tours = []
+            @folders = []
             super
         end
 
         # Returns the current Tour object
         def tour
-            Tour.new if @doc_tours.length == 0
-            @doc_tours.last
+            Tour.new if @tours.length == 0
+            @tours.last
         end
 
         # Returns the current Folder object
         def folder
-            if @doc_folders.size == 0 then
+            if @folders.size == 0 then
                 Folder.new
             end
-            @doc_folders.last
+            @folders.last
         end
 
         def get_kml_document
@@ -813,15 +812,15 @@ module Kamelopard
             super d
 
             # Print styles first
-            @doc_styles.map do |a| d << a.to_kml unless a.attached? end
+            @styles.map do |a| d << a.to_kml unless a.attached? end
 
             # then folders
-            @doc_folders.map do |a|
+            @folders.map do |a|
                 a.to_kml(d) unless a.has_parent?
             end
 
             # then tours
-            @doc_tours.map do |a| a.to_kml(d) end
+            @tours.map do |a| a.to_kml(d) end
 
             d
         end
@@ -1145,7 +1144,7 @@ module Kamelopard
         def initialize(options = {})
             super
             @attached = false
-            Document.instance.doc_styles << self
+            Document.instance.styles << self
         end
 
         def attached?
