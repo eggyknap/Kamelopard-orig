@@ -1,5 +1,6 @@
 = 0.0.5
 
+* Changed constructors to accept arguments as a hash, rather than some arbitrary and hard-to-remember order
 * Converted from REXML to libxml; speed improved dramatically
 * Added better CDATA support to Feature description attributes
 * Removed color elements from ListStyle
