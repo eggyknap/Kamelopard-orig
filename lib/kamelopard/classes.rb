@@ -1260,6 +1260,8 @@ module Kamelopard
         def point
             if @geometry.kind_of? Point then
                 @geometry
+            elsif @geometry.respond_to? :point then
+                @geometry.point
             else
                 raise "This placemark uses a non-point geometry, but the operation you're trying requires a point object"
             end
