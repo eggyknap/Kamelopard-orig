@@ -812,7 +812,8 @@ module Kamelopard
             super d
 
             # Print styles first
-            @styles.map do |a| d << a.to_kml unless a.attached? end
+            #! These get printed out in the call to super, in Feature.to_kml()
+            #@styles.map do |a| d << a.to_kml unless a.attached? end
 
             # then folders
             @folders.map do |a|
