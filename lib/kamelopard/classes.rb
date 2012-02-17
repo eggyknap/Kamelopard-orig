@@ -564,14 +564,61 @@ module Kamelopard
         end
     end
 
+    # Corresponds to Data elements within ExtendedData
+    class Data
+        attr_accessor :name, :displayName, :value
+        def initialize(name, value, displayName = nil)
+            @name = name
+            @displayName = displayName
+            @value = value
+        end
+
+        def to_kml(elem = nil)
+            v = XML::Node.new 'Data'
+            v.attributes['name'] = @name
+            Kamelopard.kml_array(v, [
+                    [@value, 'value'],
+                    [@displayName, 'displayName']
+                ])
+            elem << v unless elem.nil?
+            v
+        end
+    end
+
+    # ExtendedData SchemaData objects
+    class SchemaData
+        attr_accessor :schemaUrl, :simpleData
+        def initialize(schemaUrl, simpleData = {})
+            @schemaUrl = schemaUrl
+            raise "SchemaData's simpleData attribute should behave like a hash" unless simpleData.respond_to? :keys
+            @simpleData = simpleData
+        end
+
+        def <<(a)
+            @simpleData.merge a
+        end
+
+        def to_kml(elem = nil)
+            s = XML::Node.new 'SchemaData'
+            s.attributes['schemaUrl'] = @schemaUrl
+            @simpleData.each do |k, v|
+                sd = XML::Node.new 'SimpleData', v
+                sd.attributes['name'] = k
+                s << sd
+            end
+            elem << v unless elem.nil?
+            v
+        end
+    end
+
     # Abstract class corresponding to KML's Feature object.
+    # XXX Make this support alternate namespaces
     class Feature < Object
         # Abstract class
         attr_accessor :visibility, :open, :atom_author, :atom_link, :name,
-            :phoneNumber, :description, :abstractView,
-            :timeprimitive, :styleUrl, :styleSelector, :region, :metadata,
-            :extendedData, :styles
-        attr_reader :addressDetails, :snippet
+            :phoneNumber, :description, :abstractView, :styles,
+            :timeprimitive, :styleUrl, :styleSelector, :region, :metadata
+        attr_reader :addressDetails, :snippet, :extendedData
 
         include Snippet
 
@@ -581,6 +628,11 @@ module Kamelopard
             @styles = []
             super options
             @name = name unless name.nil?
+        end
+
+        def extendedData=(a)
+            raise "extendedData attribute must respond to the 'each' method" unless a.respond_to? :each
+            @extendedData = a
         end
 
         def styles=(a)
@@ -665,16 +717,25 @@ module Kamelopard
                     [@description, 'description'],
                     [@styleUrl, 'styleUrl'],
                     [@styleSelector, lambda { |o| @styleSelector.to_kml(o) }],
-                    [@metadata, 'Metadata' ],
-                    [@extendedData, 'ExtendedData' ]
+                    [@metadata, 'Metadata' ]
                 ])
             styles_to_kml(elem)
             snippet_to_kml(elem) unless @snippet_text.nil?
+            extended_data_to_kml(elem) unless @extendedData.nil?
             @abstractView.to_kml(elem) unless @abstractView.nil?
             @timeprimitive.to_kml(elem) unless @timeprimitive.nil?
             @region.to_kml(elem) unless @region.nil?
             yield(elem) if block_given?
             elem
+        end
+
+        def extended_data_to_kml(elem)
+            v = XML::Node.new 'ExtendedData'
+            @extendedData.each do |f|
+                v << f.to_kml
+            end
+            elem << v unless elem.nil?
+            v
         end
 
         def styles_to_kml(elem)
@@ -1223,17 +1284,28 @@ module Kamelopard
     # Corresponds to KML's Placemark objects. The geometry attribute requires a
     # descendant of Geometry
     class Placemark < Feature
-        attr_accessor :name, :geometry
+        attr_accessor :name
+        attr_reader :geometry
 
         def initialize(name = nil, options = {})
             super
             @name = name unless name.nil?
         end
 
+        def geometry=(a)
+            if a.is_a? Array then
+                @geometry = a
+            else
+                @geometry = [a]
+            end
+        end
+
         def to_kml(elem = nil)
             k = XML::Node.new 'Placemark'
             super k
-            @geometry.to_kml(k) unless @geometry.nil?
+            if ! @geometry.nil? then
+                @geometry.each do |g| g.to_kml(k) end
+            end
             elem << k unless elem.nil?
             k
         end
