@@ -357,8 +357,8 @@ module Kamelopard
 
             @heading = 0
             @tilt = 0
-            @roll = 0
-            @range = 0
+            @roll = nil
+            @range = nil
             @altitudeMode = :clampToGround
             @viewerOptions = {}
 
