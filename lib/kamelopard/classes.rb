@@ -11,6 +11,7 @@ module Kamelopard
     require 'yaml'
 
     @@sequence = 0
+    @@id_prefix = ''
 
     def Kamelopard.get_document
         Document.instance
@@ -19,6 +20,14 @@ module Kamelopard
     def Kamelopard.get_next_id   # :nodoc
         @@sequence += 1
         @@sequence
+    end
+
+    def Kamelopard.id_prefix=(a)
+        @@id_prefix = a
+    end
+
+    def Kamelopard.id_prefix
+        @@id_prefix
     end
 
     #--
@@ -103,13 +112,17 @@ module Kamelopard
     end
 
     # Base class for all Kamelopard objects. Manages object ID and a single
-    # comment string associated with the object
+    # comment string associated with the object. Object IDs are stored in the
+    # kml_id attribute, and are prefixed with the value last passed to
+    # Kamelopard.id_prefix=, if anything. Note that assigning this prefix will
+    # *not* change the IDs of Kamelopard objects that are already
+    # initialized... just ones initialized thereafter.
     class Object
         attr_accessor :kml_id
         attr_reader :comment
 
         def initialize(options = {})
-            @kml_id = "#{self.class.name.gsub('Kamelopard::', '')}_#{ Kamelopard.get_next_id }"
+            @kml_id = "#{Kamelopard.id_prefix}#{self.class.name.gsub('Kamelopard::', '')}_#{ Kamelopard.get_next_id }"
 
             options.each do |k, v|
                 method = "#{k}=".to_sym
@@ -740,7 +753,7 @@ module Kamelopard
 
         def styles_to_kml(elem)
             @styles.each do |a|
-                a.to_kml(elem) unless a.attached? and self.class.name == 'Kamelopard::Document'
+                a.to_kml(elem) unless a.attached?
             end
         end
     end
@@ -1010,12 +1023,12 @@ module Kamelopard
        attr_accessor :href, :x, :y, :w, :h, :refreshMode, :refreshInterval, :viewRefreshMode, :viewRefreshTime, :viewBoundScale, :viewFormat, :httpQuery
 
         def href=(h)
-            @icon_id = "Icon_#{Kamelopard.get_next_id}" if @icon_id.nil?
+            @icon_id = "#{Kamelopard.id_prefix}Icon_#{Kamelopard.get_next_id}" if @icon_id.nil?
             @href = h
         end
 
         def icon_to_kml(elem = nil)
-            @icon_id = "Icon_#{Kamelopard.get_next_id}" if @icon_id.nil?
+            @icon_id = "#{Kamelopard.id_prefix}Icon_#{Kamelopard.get_next_id}" if @icon_id.nil?
             k = XML::Node.new 'Icon'
             k.attributes['id'] = @icon_id
             Kamelopard.kml_array(k, [
@@ -1284,28 +1297,17 @@ module Kamelopard
     # Corresponds to KML's Placemark objects. The geometry attribute requires a
     # descendant of Geometry
     class Placemark < Feature
-        attr_accessor :name
-        attr_reader :geometry
+        attr_accessor :name, :geometry
 
         def initialize(name = nil, options = {})
             super
             @name = name unless name.nil?
         end
 
-        def geometry=(a)
-            if a.is_a? Array then
-                @geometry = a
-            else
-                @geometry = [a]
-            end
-        end
-
         def to_kml(elem = nil)
             k = XML::Node.new 'Placemark'
             super k
-            if ! @geometry.nil? then
-                @geometry.each do |g| g.to_kml(k) end
-            end
+            @geometry.to_kml(k) unless @geometry.nil?
             elem << k unless elem.nil?
             k
         end
@@ -1365,6 +1367,8 @@ module Kamelopard
         def view=(view)
             if view.kind_of? AbstractView then
                 @view = view
+            elsif view.respond_to? :abstractView then
+                @view = view.abstractView
             else
                 @view = LookAt.new view
             end
