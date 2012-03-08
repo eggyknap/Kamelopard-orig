@@ -127,3 +127,91 @@ end
 #         fly_to 
 #     end
 # end
+
+module TelemetryProcessor
+    Pi = 3.1415926535
+
+    def TelemetryProcessor.get_heading(p)
+        x1, y1, x2, y2 = [ p[1][0], p[1][1], p[2][0], p[2][1] ]
+
+        h = Math.atan((x2-x1) / (y2-y1)) * 180 / Pi
+        h = h + 180.0 if y2 < y1
+        h
+    end
+
+    def TelemetryProcessor.get_dist2(x1, y1, x2, y2)
+        Math.sqrt( (x2 - x1)**2 + (y2 - y1)**2).abs
+    end
+
+    def TelemetryProcessor.get_dist3(x1, y1, z1, x2, y2, z2)
+        Math.sqrt( (x2 - x1)**2 + (y2 - y1)**2 + (z2 - z1)**2 ).abs
+    end
+
+    def TelemetryProcessor.get_tilt(p)
+        x1, y1, z1, x2, y2, z2 = [ p[1][0], p[1][1], p[1][2], p[2][0], p[2][1], p[2][2] ]
+        smoothing_factor = 10.0
+        dist = get_dist3(x1, y1, z1, x2, y2, z2)
+        dist = dist + 1
+                # + 1 to avoid setting dist to 0, and having div-by-0 errors later
+        t = Math.atan((z2 - z1) / dist) * 180 / Pi / @@options[:exaggerate]
+                # the / 2.0 is just because it looked nicer that way
+        90.0 + t
+    end
+
+        # roll = get_roll(last_last_lon, last_last_lat, last_lon, last_lat, lon, lat)
+    def TelemetryProcessor.get_roll(p)
+        x1, y1, x2, y2, x3, y3 = [ p[0][0], p[0][1], p[1][0], p[1][1], p[2][0], p[2][1] ]
+        return 0 if x1.nil? or x2.nil?
+
+        # Measure roll based on angle between P1 -> P2 and P2 -> P3. To be really
+        # exact I ought to take into account altitude as well, but ... I don't want
+        # to
+
+        # Set x2, y2 as the origin
+        xn1 = x1 - x2
+        xn3 = x3 - x2
+        yn1 = y1 - y2
+        yn3 = y3 - y2
+        
+        # Use dot product to get the angle between the two segments
+        angle = Math.acos( ((xn1 * xn3) + (yn1 * yn3)) / (get_dist2(0, 0, xn1, yn1).abs * get_dist2(0, 0, xn3, yn3).abs) ) * 180 / Pi
+
+#    angle = angle > 90 ? 90 : angle
+        @@options[:exaggerate] * (angle - 180)
+    end
+
+    def TelemetryProcessor.fix_coord(a)
+        a = a - 360 if a > 180
+        a = a + 360 if a < -180
+        a
+    end
+
+    def TelemetryProcessor.add_flyto(p)
+        # p is an array of three points, where p[0] is the earliest. Each point is itself an array of [longitude, latitude, altitude].
+        heading = get_heading p
+        tilt = get_tilt p
+        # roll = get_roll(last_last_lon, last_last_lat, last_lon, last_lat, lon, lat)
+        roll = get_roll p
+        #p = Kamelopard::Point.new last_lon, last_lat, last_alt, { :altitudeMode => :absolute }
+        point = Kamelopard::Point.new p[1][0], p[1][1], p[1][2], { :altitudeMode => :absolute }
+        c = Kamelopard::Camera.new point, { :heading => heading, :tilt => tilt, :roll => roll, :altitudeMode => :absolute }
+        f = Kamelopard::FlyTo.new c, { :duration => @@options[:pause], :mode => :smooth }
+        f.comment = "#{p[1][0]} #{p[1][1]} #{p[1][2]} to #{p[2][0]} #{p[2][1]} #{p[2][2]}"
+    end
+
+    def TelemetryProcessor.options=(a)
+        @@options = a
+    end
+end
+
+def tour_from_points(points, options = {})
+    options.merge!({
+        :pause => 1,
+        :exaggerate => 1
+    }) { |key, old, new| old }
+    TelemetryProcessor.options = options
+    (0..(points.size-3)).each do |i|
+        TelemetryProcessor::add_flyto points[i, 3]
+    end
+end
+
