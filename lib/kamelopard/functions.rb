@@ -188,6 +188,8 @@ module TelemetryProcessor
 
     def TelemetryProcessor.add_flyto(p)
         # p is an array of three points, where p[0] is the earliest. Each point is itself an array of [longitude, latitude, altitude].
+        p2 = TelemetryProcessor::normalize_points p
+        p = p2
         heading = get_heading p
         tilt = get_tilt p
         # roll = get_roll(last_last_lon, last_last_lat, last_lon, last_lat, lon, lat)
@@ -202,6 +204,35 @@ module TelemetryProcessor
     def TelemetryProcessor.options=(a)
         @@options = a
     end
+
+    def TelemetryProcessor.normalize_points(p)
+        # The whole point here is to prevent problems when you cross the poles or the dateline
+        # This could have serious problems if points are really far apart, like
+        # hundreds of degrees. This seems unlikely.
+        lons = ((0..2).collect { |i| p[i][0] })
+        lats = ((0..2).collect { |i| p[i][1] })
+
+        lon_min, lon_max = lons.minmax
+        lat_min, lat_max = lats.minmax
+
+        if (lon_max - lon_min).abs > 200 then
+            (0..2).each do |i|
+                lons[i] += 360.0 if p[i][0] < 0
+            end
+        end
+
+        if (lat_max - lat_min).abs > 200 then
+            (0..2).each do |i|
+                lats[i] += 360.0 if p[i][1] < 0
+            end
+        end
+
+        return [
+            [ lons[0], lats[0], p[0][2] ],
+            [ lons[1], lats[1], p[1][2] ],
+            [ lons[2], lats[2], p[2][2] ],
+        ]
+    end
 end
 
 def tour_from_points(points, options = {})
@@ -211,7 +242,7 @@ def tour_from_points(points, options = {})
     }) { |key, old, new| old }
     TelemetryProcessor.options = options
     (0..(points.size-3)).each do |i|
-        TelemetryProcessor::add_flyto points[i, 3]
+        TelemetryProcessor::add_flyto points[i,3]
     end
 end
 
