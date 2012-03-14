@@ -2010,6 +2010,7 @@ module Kamelopard
             @extrude = 0
             @altitudeMode = :clampToGround
             @inner = []
+            @outer = outer
             super options
         end
 
