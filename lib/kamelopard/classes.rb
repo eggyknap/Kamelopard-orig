@@ -89,6 +89,10 @@ module Kamelopard
             # coord is in d'"
             p = a.split /[D"']/
             a = p[0].to_f + (p[2].to_f / 60.0 + p[1].to_f) / 60.0
+        elsif a =~ /^\d+°\d+'\d+(\.\d+)?"$/ then
+            # coord is in °'"
+            p = a.split /[°"']/
+            a = p[0].to_f + (p[2].to_f / 60.0 + p[1].to_f) / 60.0
         else
             raise "Couldn't determine coordinate format for #{a}"
         end
@@ -177,8 +181,8 @@ module Kamelopard
 
         def initialize(longitude = nil, latitude = nil, altitude = nil, options = {})
             super options
-            @longitude = longitude unless longitude.nil?
-            @latitude = latitude unless latitude.nil?
+            @longitude = Kamelopard.convert_coord(longitude) unless longitude.nil?
+            @latitude = Kamelopard.convert_coord(latitude) unless latitude.nil?
             @altitude = altitude unless altitude.nil?
         end
 
@@ -536,6 +540,7 @@ module Kamelopard
     # Corresponds to KML's TimeSpan object. @begin and @end must be in a format KML
     # understands.
     class TimeSpan < TimePrimitive
+    # XXX Evidence suggests this doesn't support unbounded intervals. Fix that, if it's true.
         attr_accessor :begin, :end
         def initialize(ts_begin = nil, ts_end = nil, options = {})
             super options
@@ -1762,11 +1767,8 @@ module Kamelopard
         def initialize(icon, options = {})
             @altitude = 0
             @altitudeMode = :clampToGround
+            @href = icon
             super options
-            @latlonbox = latlonbox
-            @latlonquad = latlonquad
-            @altitude = altitude
-            @altitudeMode = altitudeMode
         end
 
         def to_kml(elem = nil)
