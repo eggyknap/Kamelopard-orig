@@ -63,7 +63,7 @@ module Kamelopard
     # Accepts XdX'X.X", XDXmX.XXs, XdXmX.XXs, or X.XXXX with either +/- or N/E/S/W
     #++
     def Kamelopard.convert_coord(a)    # :nodoc
-        a = a.to_s.upcase.strip
+        a = a.to_s.upcase.strip.gsub(/\s+/, '')
 
         mult = 1
         if a =~ /^-/ then
@@ -89,10 +89,10 @@ module Kamelopard
             # coord is in d'"
             p = a.split /[D"']/
             a = p[0].to_f + (p[2].to_f / 60.0 + p[1].to_f) / 60.0
-        elsif a =~ /^\d+°\d+'\d+(\.\d+)?"$/ then
+        elsif m = (a =~ /^(\d+)°(\d+)'(\d+\.\d+)?"$/) then
             # coord is in °'"
-            p = a.split /[°"']/
-            a = p[0].to_f + (p[2].to_f / 60.0 + p[1].to_f) / 60.0
+            b = a
+            a = $1.to_f + ($3.to_f / 60.0 + $2.to_f) / 60.0
         else
             raise "Couldn't determine coordinate format for #{a}"
         end
