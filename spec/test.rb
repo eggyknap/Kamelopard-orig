@@ -432,6 +432,17 @@ shared_examples_for 'Kamelopard::Feature' do
         @o.should respond_to(:addressDetails)
     end
 
+    it 'handles extended data correctly' do
+        ed = []
+        {
+            'foo' => 'bar',
+            'baz' => 'qux'
+        }.each do |k, v|
+            ed << Kamelopard::Data.new(k, v)
+        end
+        @o.extendedData = ed
+    end
+
     it 'handles show and hide methods correctly' do
         @o.hide
         get_obj_child_content(@o, 'visibility').to_i.should == 0
@@ -483,7 +494,6 @@ shared_examples_for 'Kamelopard::Feature' do
         [
             [ :@addressDetails, 'xal:AddressDetails' ],
             [ :@metadata, 'Metadata' ],
-            [ :@extendedData, 'ExtendedData' ],
             [ :@atom_link, 'atom:link' ]
         ].each do |a|
             p = Kamelopard::Feature.new
