@@ -4,6 +4,8 @@
 # http://code.google.com/apis/kml/documentation/kmlreference.html for a
 # description of KML
 
+# XXX gx:balloonVisibility isn't represented here. Fix that.
+
 module Kamelopard
     require 'singleton'
     require 'kamelopard/pointlist'
@@ -2115,6 +2117,33 @@ module Kamelopard
                 [@flyToView, 'flyToView'],
                 [@refreshVisibility, 'refreshVisibility']
             ])
+            elem << e unless elem.nil?
+            e
+        end
+    end
+
+    class Track < Geometry
+        attr_accessor :altitudeMode, :when, :coord, :angles, :model
+        def initialize(options = {})
+            @when = []
+            @coord = []
+            @angles = []
+            super
+        end
+
+        def to_kml(elem = nil)
+            e = XML::Node.new 'gx:Track'
+            [
+                [ @coord, 'gx:coord' ],
+                [ @when, 'when' ],
+                [ @angles, 'gx:angles' ],
+            ].each do |a|
+                puts a[1]
+                a[0].each do |g|
+                    w = XML::Node.new a[1], g.to_s
+                    e << w
+                end
+            end
             elem << e unless elem.nil?
             e
         end
