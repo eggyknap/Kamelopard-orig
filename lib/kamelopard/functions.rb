@@ -1,7 +1,7 @@
 # vim:ts=4:sw=4:et:smartindent:nowrap
 def fly_to(p, d = 0, r = 100, m = nil)
     m = Kamelopard::Document.instance.flyto_mode if m.nil?
-    Kamelopard::FlyTo.new(p, r, d, m)
+    Kamelopard::FlyTo.new p, :range => r, :duration => d, :mode => m
 end
 
 def set_flyto_mode_to(a)
@@ -15,7 +15,7 @@ def mod_popup_for(p, v)
     end
     a = XML::Node.new 'Change'
     b = XML::Node.new 'Placemark'
-    b.attributes['targetId'] = p.obj_id
+    b.attributes['targetId'] = p.kml_id
     c = XML::Node.new 'visibility'
     c << XML::Node.new_text(v.to_s)
     b << c
@@ -32,7 +32,8 @@ def show_popup_for(p)
 end
 
 def point(lo, la, alt=0, mode=nil, extrude = false)
-    Kamelopard::Point.new(lo, la, alt, mode.nil? ? :clampToGround : mode, extrude)
+    m = ( mode.nil? ? :clampToGround : mode )
+    Kamelopard::Point.new(lo, la, alt, :altitudeMode => m, :extrude => extrude)
 end
 
 # Returns the KML that makes up the current Kamelopard::Document, as a string.
@@ -58,6 +59,7 @@ end
 
 def name_folder(a)
     Kamelopard::Document.instance.folder.name = a
+    return Kamelopard::Document.instance.folder
 end
 
 def zoom_out(dist = 1000, dur = 0, mode = nil)
@@ -127,6 +129,40 @@ end
 #         fly_to 
 #     end
 # end
+
+def set_prefix_to(a)
+    Kamelopard.id_prefix = a
+end
+
+def write_kml_to(file = 'doc.kml')
+    File.open(file, 'w') do |f| f.write get_kml.to_s.gsub(/balloonVis/, 'gx:balloonVis') end
+end
+
+def fade_overlay(ov, show, options = {})
+    color = '00ffffff'
+    color = 'ffffffff' if show
+    if ov.is_a? String then
+        id = ov  
+    else
+        id = ov.kml_id
+    end
+    k = Kamelopard::AnimatedUpdate.new "<Change><ScreenOverlay targetId=\"#{id}\"><color>#{color}</color></ScreenOverlay></Change>", options 
+    k
+end
+
+def mod_balloon_for(a, val)
+    c = a.change('gx:balloonVisibility', val).to_s
+    STDERR.puts c
+    Kamelopard::AnimatedUpdate.new c
+end
+
+def show_balloon_for(a)
+    Kamelopard::AnimatedUpdate.new %{<Change><Placemark targetId="#{a.kml_id}"><balloonVisibility>1</balloonVisibility></Placemark></Change>}
+end
+
+def hide_balloon_for(a)
+    Kamelopard::AnimatedUpdate.new %{<Change><Placemark targetId="#{a.kml_id}"><balloonVisibility>0</balloonVisibility></Placemark></Change>}
+end
 
 module TelemetryProcessor
     Pi = 3.1415926535
@@ -245,4 +281,3 @@ def tour_from_points(points, options = {})
         TelemetryProcessor::add_flyto points[i,3]
     end
 end
-
