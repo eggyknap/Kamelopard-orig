@@ -2138,7 +2138,6 @@ module Kamelopard
                 [ @when, 'when' ],
                 [ @angles, 'gx:angles' ],
             ].each do |a|
-                puts a[1]
                 a[0].each do |g|
                     w = XML::Node.new a[1], g.to_s
                     e << w
