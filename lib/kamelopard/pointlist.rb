@@ -59,14 +59,12 @@ class NDPointList
             raise "NDPointList of size #{@dim} has no Z element"
         end
     end
-
+    
     def each(&blk)
         @points.each(&blk)
     end
 
-    def interpolate(resolution = nil)
-        # XXX Figure out how to implement the "resolution" argument
-        STDERR.puts "resolution argument to NDPointList.interpolate is ignored" if resolution.nil?
+    def interpolate(resolution = [10])
         # Ruby implementation of Catmull-Rom splines (http://www.cubic.org/docs/hermite.htm)
         # Return NDPointList interpolating a path along all points in this list
 
@@ -78,6 +76,9 @@ class NDPointList
         ]
 
         result = NDPointList.new(@dim)
+
+        idx = 0
+        resolution = [resolution] if ! resolution.respond_to? []
 
         # Calculate spline between every two points
         (0..(self.size-2)).each do |i|
@@ -96,13 +97,16 @@ class NDPointList
             c = Matrix[p1, p2, t1.row(0), t2.row(0)]
 
             # Make a set of points
-            (0..10).each do |t|
+            point_count = (resolution[idx] * 1.0 / self.size).to_i
+            (0..point_count).each do |t|
                 r = t/10.0
                 s = Matrix[[r**3, r**2, r, 1]]
                 tmp = s * h
                 p = tmp * c
                 result << p.row(0).to_a
             end
+            idx += 1
+            idx = 0 if idx >= resolution.size
         end
         result
     end
