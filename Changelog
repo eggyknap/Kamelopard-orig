@@ -1,3 +1,13 @@
+= 0.0.6
+
+* Support resolution argument to interpolate()
+* Add several new helper functions
+* Add support for gx:Track objects
+* Handle coordinates with strange spaces in them, support real degrees symbol
+* fix bug with polygons
+* Add functions for processing telemetry data
+* Add decent ExtendedData support
+
 = 0.0.5
 
 * Changed constructors to accept arguments as a hash, rather than some arbitrary and hard-to-remember order
