@@ -8,27 +8,50 @@ def set_flyto_mode_to(a)
     Kamelopard::Document.instance.flyto_mode = a
 end
 
-def mod_popup_for(p, v)
-    au = Kamelopard::AnimatedUpdate.new
+def toggle_popup_for(p, v, options = {})
+    au = Kamelopard::AnimatedUpdate.new [], options
     if ! p.is_a? Kamelopard::Placemark then
         raise "Can't show popups for things that aren't placemarks"
     end
     a = XML::Node.new 'Change'
     b = XML::Node.new 'Placemark'
     b.attributes['targetId'] = p.kml_id
-    c = XML::Node.new 'visibility'
+    c = XML::Node.new 'balloonVisibility'
     c << XML::Node.new_text(v.to_s)
     b << c
     a << b
     au << a
 end
 
-def hide_popup_for(p)
-    mod_popup_for(p, 0)
+def hide_popup_for(p, options = {})
+    toggle_popup_for(p, 0, options)
 end
 
-def show_popup_for(p)
-    mod_popup_for(p, 1)
+def show_popup_for(p, options = {})
+    toggle_popup_for(p, 1, options)
+end
+
+def fade_popup_for(p, v, options = {})
+    au = Kamelopard::AnimatedUpdate.new [], options
+    if ! p.is_a? Kamelopard::Placemark then
+        raise "Can't show popups for things that aren't placemarks"
+    end
+    a = XML::Node.new 'Change'
+    b = XML::Node.new 'Placemark'
+    b.attributes['targetId'] = p.kml_id
+    c = XML::Node.new 'color'
+    c << XML::Node.new_text(v.to_s)
+    b << c
+    a << b
+    au << a
+end
+
+def fade_out_popup_for(p, options = {})
+    fade_popup_for(p, '00ffffff', options)
+end
+
+def fade_in_popup_for(p, options = {})
+    fade_popup_for(p, 'ffffffff', options)
 end
 
 def point(lo, la, alt=0, mode=nil, extrude = false)
@@ -280,4 +303,38 @@ def tour_from_points(points, options = {})
     (0..(points.size-3)).each do |i|
         TelemetryProcessor::add_flyto points[i,3]
     end
+end
+
+def make_view_from(options = {})
+    o = {}
+    o.merge! options
+    options.each do |k, v|
+        o[k.to_sym] = v unless k.kind_of? Symbol
+    end
+
+    # Set defaults
+    [
+        [ :altitude, 0 ],
+        [ :altitudeMode, :relativeToGround ],
+        [ :latitude, 0 ],
+        [ :longitude, 0 ],
+        [ :tilt, 0 ],
+        [ :heading, 0 ],
+    ].each do |a|
+        o[a[0]] = a[1] unless o.has_key? a[0]
+    end
+
+    p = point o[:longitude], o[:latitude], o[:altitude], o[:altitudeMode]
+
+    if o.has_key? :roll then
+        view = Kamelopard::Camera.new p
+    else
+        view = Kamelopard::LookAt.new p
+    end
+
+    [ :altitudeMode, :tilt, :heading, :timestamp, :timespan, :timestamp, :range, :roll, :viewerOptions ].each do |a|
+        view.method("#{a.to_s}=").call(o[a]) if o.has_key? a
+    end
+
+    view
 end
