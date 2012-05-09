@@ -396,7 +396,7 @@ module Kamelopard
                 else
                     a = point
                 end
-                @point = Point.new a.longitude, a.latitude, a.altitude
+                @point = Point.new a.longitude, a.latitude, a.altitude, :altitudeMode => a.altitudeMode
             end
         end
 
@@ -1995,10 +1995,10 @@ module Kamelopard
             end
             x << loc
             Kamelopard.add_altitudeMode(@location.altitudeMode, x)
-            @link.to_kml x
-            @orientation.to_kml x
-            @scale.to_kml x
-            @resourceMap.to_kml x
+            @link.to_kml x unless @link.nil?
+            @orientation.to_kml x unless @orientation.nil?
+            @scale.to_kml x unless @scale.nil?
+            @resourceMap.to_kml x unless @resourceMap.nil?
             elem << x unless elem.nil?
             x
         end
