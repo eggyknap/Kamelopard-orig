@@ -4,8 +4,6 @@
 # http://code.google.com/apis/kml/documentation/kmlreference.html for a
 # description of KML
 
-# XXX gx:balloonVisibility isn't represented here. Fix that.
-
 module Kamelopard
     require 'singleton'
     require 'kamelopard/pointlist'
@@ -1304,7 +1302,7 @@ module Kamelopard
     # Corresponds to KML's Placemark objects. The geometry attribute requires a
     # descendant of Geometry
     class Placemark < Feature
-        attr_accessor :name, :geometry
+        attr_accessor :name, :geometry, :balloonVisibility
 
         def initialize(name = nil, options = {})
             super
@@ -1315,6 +1313,11 @@ module Kamelopard
             k = XML::Node.new 'Placemark'
             super k
             @geometry.to_kml(k) unless @geometry.nil?
+            if ! @balloonVisibility.nil? then
+                 x = XML::Node.new 'gx:balloonVisibility'
+                 x << ( @balloonVisibility ? 1 : 0 )
+                 k << x
+            end
             elem << k unless elem.nil?
             k
         end
@@ -1526,18 +1529,19 @@ module Kamelopard
 
     # Corresponds to a KML gx:Tour object
     class Tour < Object
-        attr_accessor :name, :description, :last_abs_view
+        attr_accessor :name, :description, :last_abs_view, :playlist
+
         def initialize(name = nil, description = nil)
             super()
             @name = name
             @description = description
-            @items = []
+            @playlist = []
             Document.instance.tours << self
         end
 
         # Add another element to this Tour
         def <<(a)
-            @items << a
+            @playlist << a
             @last_abs_view = a.view if a.kind_of? FlyTo
         end
 
@@ -1549,7 +1553,7 @@ module Kamelopard
                 [ @description, 'description' ],
             ])
             p = XML::Node.new 'gx:Playlist'
-            @items.map do |a| a.to_kml p end
+            @playlist.map do |a| a.to_kml p end
             k << p
             elem << k unless elem.nil?
             k
@@ -1580,7 +1584,7 @@ module Kamelopard
 
     # Corresponds to KML's ScreenOverlay object
     class ScreenOverlay < Overlay
-        attr_accessor :overlayXY, :screenXY, :rotationXY, :size, :rotation
+        attr_accessor :overlayXY, :screenXY, :rotationXY, :size, :rotation, :balloonVisibility
 
         def to_kml(elem = nil)
             k = XML::Node.new 'ScreenOverlay'
@@ -1593,6 +1597,11 @@ module Kamelopard
                 d = XML::Node.new 'rotation'
                 d << @rotation.to_s
                 k << d
+            end
+            if ! @balloonVisibility.nil? then
+                 x = XML::Node.new 'gx:balloonVisibility'
+                 x << ( @balloonVisibility ? 1 : 0 )
+                 k << x
             end
             elem << k unless elem.nil?
             k

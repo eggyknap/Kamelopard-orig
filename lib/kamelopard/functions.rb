@@ -10,13 +10,18 @@ end
 
 def toggle_popup_for(p, v, options = {})
     au = Kamelopard::AnimatedUpdate.new [], options
-    if ! p.is_a? Kamelopard::Placemark then
-        raise "Can't show popups for things that aren't placemarks"
+    if ! p.kind_of? Kamelopard::Placemark and ! p.kind_of? Kamelopard::ScreenOverlay then
+        raise "Can't show popups for things that aren't Placemarks or ScreenOverlays"
     end
     a = XML::Node.new 'Change'
-    b = XML::Node.new 'Placemark'
+    # XXX This can probably be more robust, based on just the class's name
+    if p.kind_of? Kamelopard::Placemark then
+        b = XML::Node.new 'Placemark'
+    else
+        b = XML::Node.new 'ScreenOverlay'
+    end
     b.attributes['targetId'] = p.kml_id
-    c = XML::Node.new 'balloonVisibility'
+    c = XML::Node.new 'gx:balloonVisibility'
     c << XML::Node.new_text(v.to_s)
     b << c
     a << b
@@ -158,7 +163,8 @@ def set_prefix_to(a)
 end
 
 def write_kml_to(file = 'doc.kml')
-    File.open(file, 'w') do |f| f.write get_kml.to_s.gsub(/balloonVis/, 'gx:balloonVis') end
+    File.open(file, 'w') do |f| f.write get_kml.to_s end
+    #File.open(file, 'w') do |f| f.write get_kml.to_s.gsub(/balloonVis/, 'gx:balloonVis') end
 end
 
 def fade_overlay(ov, show, options = {})
@@ -180,11 +186,11 @@ def mod_balloon_for(a, val)
 end
 
 def show_balloon_for(a)
-    Kamelopard::AnimatedUpdate.new %{<Change><Placemark targetId="#{a.kml_id}"><balloonVisibility>1</balloonVisibility></Placemark></Change>}
+    Kamelopard::AnimatedUpdate.new %{<Change><Placemark targetId="#{a.kml_id}"><gx:balloonVisibility>1</gx:balloonVisibility></Placemark></Change>}
 end
 
 def hide_balloon_for(a)
-    Kamelopard::AnimatedUpdate.new %{<Change><Placemark targetId="#{a.kml_id}"><balloonVisibility>0</balloonVisibility></Placemark></Change>}
+    Kamelopard::AnimatedUpdate.new %{<Change><Placemark targetId="#{a.kml_id}"><gx:balloonVisibility>0</gx:balloonVisibility></Placemark></Change>}
 end
 
 module TelemetryProcessor
