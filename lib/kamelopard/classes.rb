@@ -9,6 +9,7 @@ module Kamelopard
     require 'kamelopard/pointlist'
     require 'xml'
     require 'yaml'
+    require 'erb'
 
     @@sequence = 0
     @@id_prefix = ''
@@ -868,6 +869,53 @@ module Kamelopard
             @folders.last
         end
 
+        # Makes a screenoverlay with a balloon containing links to the tours in this document
+        # The erb argument contains ERB to populate the description. It can be left nil 
+        # The options hash is passed to the ScreenOverlay constructor
+        def make_tour_index(erb = nil, options = {})
+            options[:name] ||= 'Tour index'
+
+            options[:screenXY] ||= Kamelopard::XY.new(0.0, 1.0, :fraction, :fraction)
+            options[:overlayXY] ||= Kamelopard::XY.new(0.0, 1.0, :fraction, :fraction)
+            s = Kamelopard::ScreenOverlay.new options
+            t = ERB.new( erb || %{
+                <html>
+                    <body>
+                        <ul><% @tours.each do |t| %>
+                            <li><a href="#<%= t.kml_id %>;flyto"><% if t.icon.nil? %><%= t.name %><% else %><img src="<%= t.icon %>" /><% end %></a></li>
+                        <% end %></ul>
+                    </body>
+                </html>
+            })
+
+            s.description = XML::Node.new_cdata t.result(binding)
+            s.balloonVisibility = 1
+
+            balloon_au = [0, 1].collect do |v|
+                au = Kamelopard::AnimatedUpdate.new [], :standalone => true
+                a = XML::Node.new 'Change'
+                b = XML::Node.new 'ScreenOverlay'
+                b.attributes['targetId'] = s.kml_id
+                c = XML::Node.new 'gx:balloonVisibility'
+                c << XML::Node.new_text(v.to_s)
+                b << c
+                a << b
+                au << a
+                au
+            end
+
+            # Handle hiding and displaying the index
+            @tours.each do |t|
+                q = Wait.new(0.1, :standalone => true)
+                t.playlist.unshift balloon_au[0]
+                t.playlist.unshift q
+                t.playlist << balloon_au[1]
+                t.playlist << q
+            end
+
+            s
+        end
+
         def get_kml_document
             k = XML::Document.new
             # XXX fix this
@@ -1355,9 +1403,14 @@ module Kamelopard
 
     # Abstract class corresponding to KML's gx:TourPrimitive object. Tours are made up
     # of descendants of these.
+    # The :standalone option affects only initialization; there's no point in
+    # doing anything with it after initialization. It determines whether the
+    # TourPrimitive object is added to the current tour or not
     class TourPrimitive < Object
+        attr_accessor :standalone
+
         def initialize(options = {})
-            Document.instance.tour << self
+            Document.instance.tour << self unless options[:standalone]
             super
         end
     end
@@ -1529,7 +1582,7 @@ module Kamelopard
 
     # Corresponds to a KML gx:Tour object
     class Tour < Object
-        attr_accessor :name, :description, :last_abs_view, :playlist
+        attr_accessor :name, :description, :last_abs_view, :playlist, :icon
 
         def initialize(name = nil, description = nil)
             super()
@@ -2156,6 +2209,5 @@ module Kamelopard
             e
         end
     end
-
 end
 # End of Kamelopard module

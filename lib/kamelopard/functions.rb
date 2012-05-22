@@ -4,14 +4,18 @@ def fly_to(p, d = 0, r = 100, m = nil)
     Kamelopard::FlyTo.new p, :range => r, :duration => d, :mode => m
 end
 
+def get_document()
+    Kamelopard::Document.instance
+end
+
 def set_flyto_mode_to(a)
     Kamelopard::Document.instance.flyto_mode = a
 end
 
-def toggle_popup_for(p, v, options = {})
+def toggle_balloon_for(p, v, options = {})
     au = Kamelopard::AnimatedUpdate.new [], options
     if ! p.kind_of? Kamelopard::Placemark and ! p.kind_of? Kamelopard::ScreenOverlay then
-        raise "Can't show popups for things that aren't Placemarks or ScreenOverlays"
+        raise "Can't show balloons for things that aren't Placemarks or ScreenOverlays"
     end
     a = XML::Node.new 'Change'
     # XXX This can probably be more robust, based on just the class's name
@@ -28,18 +32,18 @@ def toggle_popup_for(p, v, options = {})
     au << a
 end
 
-def hide_popup_for(p, options = {})
-    toggle_popup_for(p, 0, options)
+def hide_balloon_for(p, options = {})
+    toggle_balloon_for(p, 0, options)
 end
 
-def show_popup_for(p, options = {})
-    toggle_popup_for(p, 1, options)
+def show_balloon_for(p, options = {})
+    toggle_balloon_for(p, 1, options)
 end
 
-def fade_popup_for(p, v, options = {})
+def fade_balloon_for(p, v, options = {})
     au = Kamelopard::AnimatedUpdate.new [], options
     if ! p.is_a? Kamelopard::Placemark then
-        raise "Can't show popups for things that aren't placemarks"
+        raise "Can't show balloons for things that aren't placemarks"
     end
     a = XML::Node.new 'Change'
     b = XML::Node.new 'Placemark'
@@ -51,17 +55,21 @@ def fade_popup_for(p, v, options = {})
     au << a
 end
 
-def fade_out_popup_for(p, options = {})
-    fade_popup_for(p, '00ffffff', options)
+def fade_out_balloon_for(p, options = {})
+    fade_balloon_for(p, '00ffffff', options)
 end
 
-def fade_in_popup_for(p, options = {})
-    fade_popup_for(p, 'ffffffff', options)
+def fade_in_balloon_for(p, options = {})
+    fade_balloon_for(p, 'ffffffff', options)
 end
 
 def point(lo, la, alt=0, mode=nil, extrude = false)
     m = ( mode.nil? ? :clampToGround : mode )
     Kamelopard::Point.new(lo, la, alt, :altitudeMode => m, :extrude => extrude)
+end
+
+def placemark(name = nil, options = {})
+    Kamelopard::Placemark.new name, options
 end
 
 # Returns the KML that makes up the current Kamelopard::Document, as a string.
@@ -77,11 +85,15 @@ def pause(p)
     Kamelopard::Wait.new p
 end
 
+def get_tour()
+    Kamelopard::Document.instance.tour
+end
+
 def name_tour(a)
     Kamelopard::Document.instance.tour.name = a
 end
 
-def new_folder(name)
+def folder(name)
     Kamelopard::Folder.new(name)
 end
 
@@ -177,20 +189,6 @@ def fade_overlay(ov, show, options = {})
     end
     k = Kamelopard::AnimatedUpdate.new "<Change><ScreenOverlay targetId=\"#{id}\"><color>#{color}</color></ScreenOverlay></Change>", options 
     k
-end
-
-def mod_balloon_for(a, val)
-    c = a.change('gx:balloonVisibility', val).to_s
-    STDERR.puts c
-    Kamelopard::AnimatedUpdate.new c
-end
-
-def show_balloon_for(a)
-    Kamelopard::AnimatedUpdate.new %{<Change><Placemark targetId="#{a.kml_id}"><gx:balloonVisibility>1</gx:balloonVisibility></Placemark></Change>}
-end
-
-def hide_balloon_for(a)
-    Kamelopard::AnimatedUpdate.new %{<Change><Placemark targetId="#{a.kml_id}"><gx:balloonVisibility>0</gx:balloonVisibility></Placemark></Change>}
 end
 
 module TelemetryProcessor
@@ -343,4 +341,32 @@ def make_view_from(options = {})
     end
 
     view
+end
+
+def screenoverlay(options = {})
+    Kamelopard::ScreenOverlay.new options
+end
+
+def xy(x = 0.5, y = 0.5, xt = :fraction, yt = :fraction)
+    Kamelopard::XY.new x, y, xt, yt
+end
+
+def iconstyle(href = nil, options = {})
+    Kamelopard::IconStyle.new href, options
+end
+
+def labelstyle(scale = 1, options = {})
+    Kamelopard::LabelStyle.new scale, options
+end
+
+def style(options = {})
+    Kamelopard::Style.new options
+end
+
+def look_at(point = nil, options = {})
+    Kamelopard::LookAt.new point, options
+end
+
+def fly_to(view = nil, options = {})
+    Kamelopard::FlyTo.new view, options
 end
