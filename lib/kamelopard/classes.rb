@@ -2139,12 +2139,12 @@ module Kamelopard
         attr_accessor :refreshVisibility, :flyToView, :link
 
         def initialize(href = '', options = {})
-            @refreshMode = :onChange
-            @viewRefreshMode = :never
             super options
-            @link = Link.new(href, refreshMode, viewRefreshMode)
-            @refreshVisibility = 0
-            @flyToView = 0
+            @refreshMode ||= :onChange
+            @viewRefreshMode ||= :never
+            @link = Link.new(href, :refreshMode => @refreshMode, :viewRefreshMode => @viewRefreshMode)
+            @refreshVisibility ||= 0
+            @flyToView ||= 0
         end
 
         def refreshMode
