@@ -1,8 +1,5 @@
 IDEAS FOR FUTURE DEVELOPMENT
 
-* Include functions for calculating appropriate heading, tilt, and roll given
-  points representing the position of an aircraft
-
 * Create function so objects can generate their own <Change>, etc. eleements
   for an AnimatedUpdate
 
