@@ -1,7 +1,9 @@
 # vim:ts=4:sw=4:et:smartindent:nowrap
+
 $LOAD_PATH << './lib'
 require 'kamelopard'
 require "xml"
+
 # XXX test everything's to_kml(elem), instead of just to_kml(nil)
 
 # Printing debug information.
@@ -1898,4 +1900,82 @@ describe 'Kamelopard::Container' do
     end
 
     it_should_behave_like 'Kamelopard::Container'
+end
+
+describe 'placemark reading' do
+    before(:each) do
+        @s = %{<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+	<name>My Places.kml</name>
+	<Style id="some_style">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>something.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<Folder>
+		<name>My Places</name>
+		<open>1</open>
+		<Placemark>
+			<name>1</name>
+			<LookAt>
+				<longitude>-122.5701578349128</longitude>
+				<latitude>37.83004301072002</latitude>
+				<altitude>0</altitude>
+				<heading>51.16129662831626</heading>
+				<tilt>45.60413428326378</tilt>
+				<range>292356.4207362059</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#some_style</styleUrl>
+			<Point>
+				<coordinates>-122.5701578349128,37.83004301072002,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>2</name>
+			<LookAt>
+				<longitude>-122.4831599898557</longitude>
+				<latitude>37.81426712799578</latitude>
+				<altitude>0</altitude>
+				<heading>106.7198650112253</heading>
+				<tilt>53.06224485674277</tilt>
+				<range>11157.71457873637</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#some_style</styleUrl>
+			<Point>
+				<coordinates>-122.4831599898557,37.81426712799578,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>3</name>
+			<LookAt>
+				<longitude>-122.4791157460921</longitude>
+				<latitude>37.82200644299443</latitude>
+				<altitude>0</altitude>
+				<heading>171.349340928465</heading>
+				<tilt>52.66258054379743</tilt>
+				<range>3481.461153245</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#some_style</styleUrl>
+			<Point>
+				<coordinates>-122.4791157460921,37.82200644299443,0</coordinates>
+			</Point>
+		</Placemark>
+	</Folder>
+</Document>
+</kml>
+}
+    end
+
+    it 'gets the right number of placemarks' do
+        p = get_places_from XML::Parser.string(XML::Document.string(@s))
+        p.size.should == 3
+    end 
 end
