@@ -91,10 +91,10 @@ module Kamelopard
             # coord is in d'"
             p = a.split /[D"']/
             a = p[0].to_f + (p[2].to_f / 60.0 + p[1].to_f) / 60.0
-        elsif m = (a =~ /^(\d+)°(\d+)'(\d+\.\d+)?"$/) then
-            # coord is in °'"
-            b = a
-            a = $1.to_f + ($3.to_f / 60.0 + $2.to_f) / 60.0
+        #elsif m = (a =~ /^(\d+)°(\d+)'(\d+\.\d+)?"$/) then
+        #    # coord is in °'"
+        #    b = a
+        #    a = $1.to_f + ($3.to_f / 60.0 + $2.to_f) / 60.0
         else
             raise "Couldn't determine coordinate format for #{a}"
         end
