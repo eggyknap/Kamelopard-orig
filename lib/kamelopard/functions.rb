@@ -367,6 +367,10 @@ def look_at(point = nil, options = {})
     Kamelopard::LookAt.new point, options
 end
 
+def camera(point = nil, options = {})
+    Kamelopard::Camera.new point, options
+end
+
 def fly_to(view = nil, options = {})
     Kamelopard::FlyTo.new view, options
 end
