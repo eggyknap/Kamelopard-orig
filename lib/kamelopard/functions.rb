@@ -374,3 +374,25 @@ end
 def fly_to(view = nil, options = {})
     Kamelopard::FlyTo.new view, options
 end
+
+# k = an XML::Document containing KML
+# Pulls the Placemarks from the KML document and flys to each one in turn
+def each_placemark(d)
+    i = 0
+    d.find('//kml:Placemark').each do |p|
+        abs = {}
+        %w{ latitude longitude name heading range tilt roll altitude altitudeMode gx:altitudeMode }.each do |k|
+            if k == 'gx:altitudeMode' then
+                ix = k
+                next unless p.find_first('kml:altitudeMode').nil?
+            else
+                ix = "kml:#{k}"
+            end
+            r = k == "gx:altitudeMode" ? :altitudeMode : k.to_sym 
+            tmp = p.find_first("*/#{ix}")
+            next if tmp.nil?
+            abs[k == "gx:altitudeMode" ? :altitudeMode : k.to_sym ] = tmp.content
+        end
+        yield abs
+    end
+end
