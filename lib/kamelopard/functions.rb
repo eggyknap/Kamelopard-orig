@@ -102,6 +102,11 @@ def name_folder(a)
     return Kamelopard::Document.instance.folder
 end
 
+def name_document(a)
+    Kamelopard::Document.instance.name = a
+    return Kamelopard::Document.instance
+end
+
 def zoom_out(dist = 1000, dur = 0, mode = nil)
     l = Kamelopard::Document.instance.tour.last_abs_view
     raise "No current position to zoom out from\n" if l.nil?
@@ -336,7 +341,7 @@ def make_view_from(options = {})
         view = Kamelopard::LookAt.new p
     end
 
-    [ :altitudeMode, :tilt, :heading, :timestamp, :timespan, :timestamp, :range, :roll, :viewerOptions ].each do |a|
+    [ :name, :altitudeMode, :tilt, :heading, :timestamp, :timespan, :timestamp, :range, :roll, :viewerOptions ].each do |a|
         view.method("#{a.to_s}=").call(o[a]) if o.has_key? a
     end
 
@@ -393,6 +398,6 @@ def each_placemark(d)
             next if tmp.nil?
             abs[k == "gx:altitudeMode" ? :altitudeMode : k.to_sym ] = tmp.content
         end
-        yield abs
+        yield make_view_from(abs), abs
     end
 end

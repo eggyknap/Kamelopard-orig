@@ -1976,7 +1976,7 @@ describe 'placemark reading' do
 
     it 'gets the right number of placemarks' do
         i = 0
-        each_placemark(XML::Document.string(@s)) do |p|
+        each_placemark(XML::Document.string(@s)) do |v, p|
             i += 1
         end
         i.should == 3
