@@ -389,8 +389,15 @@ end
 def each_placemark(d)
     i = 0
     d.find('//kml:Placemark').each do |p|
-        abs = {}
-        %w{ latitude longitude name heading range tilt roll altitude altitudeMode gx:altitudeMode }.each do |k|
+        all_values = {}
+
+        # These fields are part of the abstractview
+        view_fields = %w{ latitude longitude heading range tilt roll altitude altitudeMode gx:altitudeMode }
+        # These are other field I'm interested in
+        other_fields = %w{ description name }
+        all_fields = view_fields.clone
+        all_fields.concat(other_fields.clone)
+        all_fields.each do |k|
             if k == 'gx:altitudeMode' then
                 ix = k
                 next unless p.find_first('kml:altitudeMode').nil?
@@ -398,10 +405,12 @@ def each_placemark(d)
                 ix = "kml:#{k}"
             end
             r = k == "gx:altitudeMode" ? :altitudeMode : k.to_sym 
-            tmp = p.find_first("*/#{ix}")
+            tmp = p.find_first("descendant::#{ix}")
             next if tmp.nil?
-            abs[k == "gx:altitudeMode" ? :altitudeMode : k.to_sym ] = tmp.content
+            all_values[k == "gx:altitudeMode" ? :altitudeMode : k.to_sym ] = tmp.content
         end
-        yield make_view_from(abs), abs
+        view_values = {}
+        view_fields.each do |v| view_values[v] = all_values[v].clone if all_values.has_key? v end
+        yield make_view_from(view_values), all_values
     end
 end
