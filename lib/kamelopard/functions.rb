@@ -345,7 +345,7 @@ def make_view_from(options = {})
         view = Kamelopard::LookAt.new p
     end
 
-    [ :name, :altitudeMode, :tilt, :heading, :timestamp, :timespan, :timestamp, :range, :roll, :viewerOptions ].each do |a|
+    [ :altitudeMode, :tilt, :heading, :timestamp, :timespan, :timestamp, :range, :roll, :viewerOptions ].each do |a|
         view.method("#{a.to_s}=").call(o[a]) if o.has_key? a
     end
 
