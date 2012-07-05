@@ -93,6 +93,10 @@ def name_tour(a)
     Kamelopard::Document.instance.tour.name = a
 end
 
+def get_folder()
+    Kamelopard::Document.instance.folders.last
+end
+
 def folder(name)
     Kamelopard::Folder.new(name)
 end
