@@ -414,3 +414,7 @@ def each_placemark(d)
         yield make_view_from(view_values), all_values
     end
 end
+
+def make_tour_index(erb = nil, options = {})
+    get_document.make_tour_index(erb, options)
+end
