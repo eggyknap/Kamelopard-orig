@@ -1,5 +1,11 @@
 IDEAS FOR FUTURE DEVELOPMENT
 
+* Collecting a set of tours into one document is difficult. Make it easy to do,
+  and to add an index to the whole thing
+
+* Creating master and slave versions of KMZ files for a galaxy is lots of
+  busywork. Kamelopard should do it automatically.
+
 * Create function so objects can generate their own <Change>, etc. eleements
   for an AnimatedUpdate
 
