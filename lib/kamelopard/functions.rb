@@ -196,8 +196,15 @@ def fade_overlay(ov, show, options = {})
     else
         id = ov.kml_id
     end
-    k = Kamelopard::AnimatedUpdate.new "<Change><ScreenOverlay targetId=\"#{id}\"><color>#{color}</color></ScreenOverlay></Change>", options 
-    k
+
+    a = XML::Node.new 'Change'
+    b = XML::Node.new 'ScreenOverlay'
+    b.attributes['targetId'] = id
+    c = XML::Node.new 'color'
+    c << XML::Node.new_text(color)
+    b << c
+    a << b
+    k = Kamelopard::AnimatedUpdate.new [a], options 
 end
 
 module TelemetryProcessor
