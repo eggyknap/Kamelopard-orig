@@ -93,6 +93,10 @@ def name_tour(a)
     Kamelopard::Document.instance.tour.name = a
 end
 
+def get_folder()
+    Kamelopard::Document.instance.folders.last
+end
+
 def folder(name)
     Kamelopard::Folder.new(name)
 end
@@ -100,6 +104,11 @@ end
 def name_folder(a)
     Kamelopard::Document.instance.folder.name = a
     return Kamelopard::Document.instance.folder
+end
+
+def name_document(a)
+    Kamelopard::Document.instance.name = a
+    return Kamelopard::Document.instance
 end
 
 def zoom_out(dist = 1000, dur = 0, mode = nil)
@@ -187,8 +196,15 @@ def fade_overlay(ov, show, options = {})
     else
         id = ov.kml_id
     end
-    k = Kamelopard::AnimatedUpdate.new "<Change><ScreenOverlay targetId=\"#{id}\"><color>#{color}</color></ScreenOverlay></Change>", options 
-    k
+
+    a = XML::Node.new 'Change'
+    b = XML::Node.new 'ScreenOverlay'
+    b.attributes['targetId'] = id
+    c = XML::Node.new 'color'
+    c << XML::Node.new_text(color)
+    b << c
+    a << b
+    k = Kamelopard::AnimatedUpdate.new [a], options 
 end
 
 module TelemetryProcessor
@@ -380,8 +396,15 @@ end
 def each_placemark(d)
     i = 0
     d.find('//kml:Placemark').each do |p|
-        abs = {}
-        %w{ latitude longitude name heading range tilt roll altitude altitudeMode gx:altitudeMode }.each do |k|
+        all_values = {}
+
+        # These fields are part of the abstractview
+        view_fields = %w{ latitude longitude heading range tilt roll altitude altitudeMode gx:altitudeMode }
+        # These are other field I'm interested in
+        other_fields = %w{ description name }
+        all_fields = view_fields.clone
+        all_fields.concat(other_fields.clone)
+        all_fields.each do |k|
             if k == 'gx:altitudeMode' then
                 ix = k
                 next unless p.find_first('kml:altitudeMode').nil?
@@ -389,10 +412,16 @@ def each_placemark(d)
                 ix = "kml:#{k}"
             end
             r = k == "gx:altitudeMode" ? :altitudeMode : k.to_sym 
-            tmp = p.find_first("*/#{ix}")
+            tmp = p.find_first("descendant::#{ix}")
             next if tmp.nil?
-            abs[k == "gx:altitudeMode" ? :altitudeMode : k.to_sym ] = tmp.content
+            all_values[k == "gx:altitudeMode" ? :altitudeMode : k.to_sym ] = tmp.content
         end
-        yield abs
+        view_values = {}
+        view_fields.each do |v| view_values[v] = all_values[v].clone if all_values.has_key? v end
+        yield make_view_from(view_values), all_values
     end
+end
+
+def make_tour_index(erb = nil, options = {})
+    get_document.make_tour_index(erb, options)
 end
