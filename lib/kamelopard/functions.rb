@@ -392,7 +392,7 @@ def fly_to(view = nil, options = {})
 end
 
 # k = an XML::Document containing KML
-# Pulls the Placemarks from the KML document and flys to each one in turn
+# Pulls the Placemarks from the KML document d and yields each in turn to the caller
 def each_placemark(d)
     i = 0
     d.find('//kml:Placemark').each do |p|
