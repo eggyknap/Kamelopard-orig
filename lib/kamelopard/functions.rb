@@ -328,8 +328,7 @@ end
 def make_view_from(options = {})
     o = {}
     o.merge! options
-    options.each do |k, v|
-        o[k.to_sym] = v unless k.kind_of? Symbol
+    options.each do |k, v| o[k.to_sym] = v unless k.kind_of? Symbol
     end
 
     # Set defaults
@@ -417,7 +416,7 @@ def each_placemark(d)
             all_values[k == "gx:altitudeMode" ? :altitudeMode : k.to_sym ] = tmp.content
         end
         view_values = {}
-        view_fields.each do |v| view_values[v] = all_values[v].clone if all_values.has_key? v end
+        view_fields.each do |v| view_values[v.to_sym] = all_values[v.to_sym].clone if all_values.has_key? v.to_sym end
         yield make_view_from(view_values), all_values
     end
 end
