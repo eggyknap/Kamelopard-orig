@@ -1585,12 +1585,13 @@ module Kamelopard
     class Tour < Object
         attr_accessor :name, :description, :last_abs_view, :playlist, :icon
 
-        def initialize(name = nil, description = nil)
+        def initialize(name = nil, description = nil, no_wait = false)
             super()
             @name = name
             @description = description
             @playlist = []
             Document.instance.tours << self
+            Wait.new(0.1, :comment => "This wait is automatic, and helps prevent animation glitches") unless no_wait
         end
 
         # Add another element to this Tour
