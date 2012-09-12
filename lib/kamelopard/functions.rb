@@ -374,6 +374,10 @@ def labelstyle(scale = 1, options = {})
     Kamelopard::LabelStyle.new scale, options
 end
 
+def balloonstyle(text, options = {})
+    Kamelopard::BalloonStyle.new text, options
+end
+
 def style(options = {})
     Kamelopard::Style.new options
 end
