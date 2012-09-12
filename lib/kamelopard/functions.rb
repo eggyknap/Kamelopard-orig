@@ -434,3 +434,7 @@ def show_hide_balloon(p, wait, options = {})
     pause wait
     hide_balloon_for p, options
 end
+
+def cdata(text)
+    XML::Node.new_cdata text.to_s
+end
