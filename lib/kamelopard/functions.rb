@@ -428,3 +428,9 @@ end
 def make_tour_index(erb = nil, options = {})
     get_document.make_tour_index(erb, options)
 end
+
+def show_hide_balloon(p, wait, options = {})
+    show_balloon_for p, options
+    pause wait
+    hide_balloon_for p, options
+end
