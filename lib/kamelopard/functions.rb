@@ -374,6 +374,10 @@ def labelstyle(scale = 1, options = {})
     Kamelopard::LabelStyle.new scale, options
 end
 
+def balloonstyle(text, options = {})
+    Kamelopard::BalloonStyle.new text, options
+end
+
 def style(options = {})
     Kamelopard::Style.new options
 end
@@ -423,4 +427,14 @@ end
 
 def make_tour_index(erb = nil, options = {})
     get_document.make_tour_index(erb, options)
+end
+
+def show_hide_balloon(p, wait, options = {})
+    show_balloon_for p, options
+    pause wait
+    hide_balloon_for p, options
+end
+
+def cdata(text)
+    XML::Node.new_cdata text.to_s
 end
