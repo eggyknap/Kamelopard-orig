@@ -1800,7 +1800,7 @@ module Kamelopard
                 Kamelopard.add_altitudeMode(@altitudeMode, k)
             end
             m = XML::Node.new 'rotation'
-            m = @rotation.to_s
+            m << @rotation.to_s
             k << m
             elem << k unless elem.nil?
             k
