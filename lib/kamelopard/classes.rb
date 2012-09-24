@@ -11,6 +11,7 @@ module Kamelopard
     require 'xml'
     require 'yaml'
     require 'erb'
+    require 'cgi'
 
     @@sequence = 0
     @@id_prefix = ''
@@ -636,9 +637,9 @@ module Kamelopard
     class Feature < Object
         # Abstract class
         attr_accessor :visibility, :open, :atom_author, :atom_link, :name,
-            :phoneNumber, :description, :abstractView, :styles,
-            :timeprimitive, :styleUrl, :styleSelector, :region, :metadata
-        attr_reader :addressDetails, :snippet, :extendedData
+            :phoneNumber, :abstractView, :styles, :timeprimitive, :styleUrl,
+            :styleSelector, :region, :metadata
+        attr_reader :addressDetails, :snippet, :extendedData, :description
 
         include Snippet
 
@@ -648,6 +649,15 @@ module Kamelopard
             @styles = []
             super options
             @name = name unless name.nil?
+        end
+
+        def description=(a)
+            b = CGI.escapeHTML(a)
+            if b != a then
+                @description = XML::Node.new_cdata a
+            else
+                @description = a
+            end
         end
 
         def extendedData=(a)
