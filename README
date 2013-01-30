@@ -1,5 +1,10 @@
 = kamelopard: Ruby gem to simplify production of KML
 
+= NOTE:
+
+This repository has been deprecated; Kamelopard is now hosted on Google Code as
+part of the Liquid Galaxy project. http://code.google.com/p/liquid-galaxy/
+
 This gem simplifies generating KML files, especially those used by Google
 Earth. See http://code.google.com/apis/kml/documentation/kmlreference.html for
 information on KML. The KML reference will provide information on undocumented
